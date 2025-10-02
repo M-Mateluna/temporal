@@ -8,7 +8,7 @@
   const selCandidato = $('#idcandidato');
   const wrapFuentes = $('#fuentesWrap');
 
-  // Helpers
+  // ---------- Helpers ----------
   function alertMsg(m) { alert(m); }
   function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
   function hasLettersAndNumbers(v) {
@@ -26,7 +26,7 @@
     const parts = rut.split('-');
     if (parts.length !== 2) return false;
     const num = parts[0].replace(/\D/g,'');
-    const dv = parts[1];
+    const dv  = parts[1];
     if (!num || !dv) return false;
 
     let suma = 0, factor = 2;
@@ -35,25 +35,38 @@
       factor = (factor === 7) ? 2 : factor + 1;
     }
     const resto = suma % 11;
-    const calc = 11 - resto;
+    const calc  = 11 - resto;
     const calcDV = (calc === 11) ? '0' : (calc === 10 ? 'K' : String(calc));
     return calcDV === dv.toUpperCase();
   }
 
-  // AJAX
+  // ---------- AJAX ----------
   function getJSON(url) {
     return fetch(url, { credentials: 'same-origin' }).then(r => r.json());
   }
+
+  // Construye application/x-www-form-urlencoded,
+  // soporta correctamente campos múltiples con [].
   function postForm(url, data) {
+    const body = new URLSearchParams();
+    Object.keys(data).forEach(k => {
+      const v = data[k];
+      if (Array.isArray(v)) {
+        // Para arreglos, enviar como idfuentes[] (clave con corchetes)
+        v.forEach(item => body.append(k + '[]', item));
+      } else {
+        body.append(k, v);
+      }
+    });
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
       credentials: 'same-origin',
-      body: new URLSearchParams(data).toString()
+      body
     }).then(r => r.json());
   }
 
-  // Cargas iniciales
+  // ---------- Cargas iniciales (usa tus funciones vía command) ----------
   function cargarRegiones() {
     getJSON('./command?accion=listar_regiones').then(res => {
       if (!res.ok) return alertMsg(res.msg || 'Error cargando regiones');
@@ -61,6 +74,7 @@
         res.data.map(r => `<option value="${r.id}">${r.nombre}</option>`).join('');
     });
   }
+
   function cargarComunas(idregion) {
     selComuna.disabled = true;
     selComuna.innerHTML = '<option value="">Seleccione...</option>';
@@ -73,6 +87,7 @@
         selComuna.disabled = false;
       });
   }
+
   function cargarCandidatos() {
     getJSON('./command?accion=listar_candidatos').then(res => {
       if (!res.ok) return alertMsg(res.msg || 'Error cargando candidatos');
@@ -80,35 +95,37 @@
         res.data.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
     });
   }
+
   function cargarFuentes() {
     getJSON('./command?accion=listar_fuentes').then(res => {
       if (!res.ok) return alertMsg(res.msg || 'Error cargando fuentes');
       wrapFuentes.innerHTML = res.data.map(f => `
-        <label><input type="checkbox" name="idfuentes" value="${f.id}"> ${f.nombre}</label>
+        <label><input type="checkbox" name="idfuentes[]" value="${f.id}"> ${f.nombre}</label>
       `).join('');
     });
   }
 
-  selRegion.addEventListener('change', function () {
+  selRegion.addEventListener('change', function() {
     cargarComunas(this.value);
   });
 
-  // Envío
-  form.addEventListener('submit', function (e) {
+  // ---------- Envío del formulario ----------
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
-    const nombreapellido = $('#nombreapellido').value.trim();
-    const alias = $('#alias').value.trim();
-    const rut = normalizeRut($('#rut').value.trim());
-    const email = $('#email').value.trim();
-    const idregion = selRegion.value;
-    const idcomuna = selComuna.value;
-    const idcandidato = selCandidato.value;
-    const fuentes = $$('#fuentesWrap input[type="checkbox"]:checked').map(ch => ch.value);
 
-    // Validaciones mínimas
+    const nombreapellido = $('#nombreapellido').value.trim();
+    const alias          = $('#alias').value.trim();
+    const rut            = normalizeRut($('#rut').value.trim());
+    const email          = $('#email').value.trim();
+    const idregion       = selRegion.value;
+    const idcomuna       = selComuna.value;
+    const idcandidato    = selCandidato.value;
+    const fuentes        = $$('#fuentesWrap input[type="checkbox"]:checked').map(ch => ch.value);
+
+    // Validaciones (coherentes con lo que valida la función SQL)
     if (!nombreapellido) return alertMsg('El campo "Nombre y Apellido" es obligatorio');
     if (!(alias && alias.length > 5 && hasLettersAndNumbers(alias)))
-      return alertMsg('Alias inválido: mínimo 6 caracteres, con letras y números (solo A-Z, 0-9)');
+      return alertMsg('Alias inválido: mínimo 6 caracteres, alfanumérico con letras y números');
     if (!rut) return alertMsg('El campo RUT es obligatorio');
     if (!validarRut(rut)) return alertMsg('RUT inválido');
     if (!email) return alertMsg('El campo Email es obligatorio');
@@ -118,21 +135,29 @@
     if (!idcandidato) return alertMsg('Debe seleccionar un Candidato');
     if (fuentes.length < 2) return alertMsg('Debe elegir al menos dos opciones en "¿Cómo se enteró de nosotros?"');
 
-    // Post
     const payload = {
-      nombreapellido, alias, rut, email, idregion, idcomuna, idcandidato,
-      'idfuentes[]': fuentes
+      nombreapellido,
+      alias,
+      rut,
+      email,
+      idregion,
+      idcomuna,
+      idcandidato,
+      // clave con [] para que PHP la reciba como $_POST['idfuentes'] (array)
+      'idfuentes': fuentes
     };
 
-    postForm('./command?accion=registrar_voto', payload).then(res => {
-      if (!res.ok) return alertMsg(res.msg || 'No fue posible registrar el voto');
-      alertMsg('¡Voto registrado correctamente!');
-      form.reset();
-      selComuna.disabled = true;
-    }).catch(() => alertMsg('Error de red'));
+    postForm('./command?accion=registrar_voto', payload)
+      .then(res => {
+        if (!res.ok) return alertMsg(res.msg || 'No fue posible registrar el voto');
+        alertMsg('¡Voto registrado correctamente! ID: ' + (res.data && res.data.idvoto ? res.data.idvoto : ''));
+        form.reset();
+        selComuna.disabled = true;
+      })
+      .catch(() => alertMsg('Error de red'));
   });
 
-  // init
+  // ---------- init ----------
   cargarRegiones();
   cargarCandidatos();
   cargarFuentes();
