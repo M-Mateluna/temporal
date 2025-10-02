@@ -1,27 +1,16 @@
 <?php
-/* command  —  PHP 5.4.45
- * Backend JSON para "Sistema Votacion"
- * Usa funciones PostgreSQL en el schema votaciones:
+/* command — Backend JSON para "Sistema Votacion" (PHP 5.4.45)
+ * Conecta a PostgreSQL y llama a funciones en schema votaciones:
  *   fn_listarregiones(), fn_listarcomunas(_idregion),
- *   fn_listarcandidatos(), fn_listarfuentes(),
- *   fn_registrarvoto(_nombreapellido,_alias,_rut,_email,_idregion,_idcomuna,_idcandidato,_idfuentes INT[])
+ *   fn_listarcandidatos(), fn_listarfuentes(), fn_registrarvoto(...)
  */
 
-/* ====== CONFIG BD (ajusta estos valores) ====== */
-$DB_HOST = '127.0.0.1';
-$DB_NAME = 'sistema_votacion';
-$DB_USER = 'postgres';
-$DB_PASS = 'postgres';
-
-/* ====== CONEXION ====== */
 header('Content-Type: application/json; charset=utf-8');
 
-$connStr = "host={$DB_HOST} dbname={$DB_NAME} user={$DB_USER} password={$DB_PASS}";
-$db = @pg_connect($connStr);
-if (!$db) {
-  echo json_encode(array('ok'=>false, 'msg'=>'Error de conexión a la base de datos'));
-  exit;
-}
+/* ====== CONEXION (usa tu formato) ====== */
+/* OJO: en pg_connect la sintaxis correcta es password=... (con =) */
+$conn = @pg_connect("host=192.168.1.11 dbname=mmateluna user=USUARIO password=CLAVE");
+if (!$conn) { echo json_encode(array('ok'=>false,'msg'=>'error en la conexion.')); exit; }
 
 /* ====== HELPERS ====== */
 function json_response($ok, $msg, $data = null) {
@@ -30,24 +19,20 @@ function json_response($ok, $msg, $data = null) {
   echo json_encode($res);
   exit;
 }
-
 function param($name, $method = null) {
-  if ($method === 'GET')    return isset($_GET[$name])    ? $_GET[$name]    : null;
-  if ($method === 'POST')   return isset($_POST[$name])   ? $_POST[$name]   : null;
-  /* mixto */
+  if ($method === 'GET')  return isset($_GET[$name])  ? $_GET[$name]  : null;
+  if ($method === 'POST') return isset($_POST[$name]) ? $_POST[$name] : null;
   return isset($_REQUEST[$name]) ? $_REQUEST[$name] : null;
 }
-
-/* Convierte arreglo PHP de ints a texto PostgreSQL de array: "{1,2,3}" */
+/* Convierte arreglo PHP de ints a arreglo PG: "{1,2,3}" */
 function to_pg_int_array($arr) {
   if (!is_array($arr)) return '{}';
-  $clean = array();
+  $out = array();
   foreach ($arr as $v) {
     $n = intval($v);
-    if ($n > 0) $clean[] = $n;
+    if ($n > 0) $out[] = $n;
   }
-  if (empty($clean)) return '{}';
-  return '{' . implode(',', $clean) . '}';
+  return empty($out) ? '{}' : '{'.implode(',', $out).'}';
 }
 
 /* ====== RUTEO ====== */
@@ -56,11 +41,9 @@ $accion = param('accion');
 /* ---------- LISTAR REGIONES ---------- */
 if ($accion === 'listar_regiones') {
   $sql = "SELECT * FROM votaciones.fn_listarregiones()";
-  $rs  = @pg_query($db, $sql);
-  if (!$rs) json_response(false, 'Error al listar regiones: '.pg_last_error($db));
-
-  $rows = array();
-  while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
+  $rs  = @pg_query($conn, $sql);
+  if (!$rs) json_response(false, 'Error al listar regiones: '.pg_last_error($conn));
+  $rows = array(); while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
   json_response(true, 'ok', $rows);
 }
 
@@ -68,41 +51,33 @@ if ($accion === 'listar_regiones') {
 if ($accion === 'listar_comunas') {
   $idregion = intval(param('idregion', 'GET'));
   if ($idregion <= 0) json_response(false, 'Parámetro idregion inválido');
-
   $sql = "SELECT * FROM votaciones.fn_listarcomunas($1)";
-  $rs  = @pg_query_params($db, $sql, array($idregion));
-  if (!$rs) json_response(false, 'Error al listar comunas: '.pg_last_error($db));
-
-  $rows = array();
-  while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
+  $rs  = @pg_query_params($conn, $sql, array($idregion));
+  if (!$rs) json_response(false, 'Error al listar comunas: '.pg_last_error($conn));
+  $rows = array(); while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
   json_response(true, 'ok', $rows);
 }
 
 /* ---------- LISTAR CANDIDATOS ---------- */
 if ($accion === 'listar_candidatos') {
   $sql = "SELECT * FROM votaciones.fn_listarcandidatos()";
-  $rs  = @pg_query($db, $sql);
-  if (!$rs) json_response(false, 'Error al listar candidatos: '.pg_last_error($db));
-
-  $rows = array();
-  while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
+  $rs  = @pg_query($conn, $sql);
+  if (!$rs) json_response(false, 'Error al listar candidatos: '.pg_last_error($conn));
+  $rows = array(); while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
   json_response(true, 'ok', $rows);
 }
 
 /* ---------- LISTAR FUENTES ---------- */
 if ($accion === 'listar_fuentes') {
   $sql = "SELECT * FROM votaciones.fn_listarfuentes()";
-  $rs  = @pg_query($db, $sql);
-  if (!$rs) json_response(false, 'Error al listar fuentes: '.pg_last_error($db));
-
-  $rows = array();
-  while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
+  $rs  = @pg_query($conn, $sql);
+  if (!$rs) json_response(false, 'Error al listar fuentes: '.pg_last_error($conn));
+  $rows = array(); while ($r = pg_fetch_assoc($rs)) $rows[] = $r;
   json_response(true, 'ok', $rows);
 }
 
 /* ---------- REGISTRAR VOTO ---------- */
 if ($accion === 'registrar_voto') {
-  /* Recolección (POST) */
   $nombreapellido = trim(strval(param('nombreapellido', 'POST')));
   $alias          = trim(strval(param('alias', 'POST')));
   $rut            = trim(strval(param('rut', 'POST')));
@@ -110,8 +85,8 @@ if ($accion === 'registrar_voto') {
   $idregion       = intval(param('idregion', 'POST'));
   $idcomuna       = intval(param('idcomuna', 'POST'));
   $idcandidato    = intval(param('idcandidato', 'POST'));
+  $idfuentes_arr  = param('idfuentes', 'POST');  /* name="idfuentes[]" */
 
-  /* Chequeos básicos (el detalle lo valida la función SQL) */
   if ($nombreapellido === '') json_response(false, 'El campo "Nombre y Apellido" es obligatorio');
   if ($alias === '')          json_response(false, 'El campo "Alias" es obligatorio');
   if ($rut === '')            json_response(false, 'El campo "RUT" es obligatorio');
@@ -120,21 +95,13 @@ if ($accion === 'registrar_voto') {
   if ($idcomuna <= 0)         json_response(false, 'Debe seleccionar una Comuna');
   if ($idcandidato <= 0)      json_response(false, 'Debe seleccionar un Candidato');
 
-  /* Fuentes múltiples: name="idfuentes[]" llega como $_POST['idfuentes'] */
-  $idfuentes_arr = param('idfuentes', 'POST');
-  $pg_array = to_pg_int_array($idfuentes_arr);   /* "{1,2,3}" */
+  $pg_array = to_pg_int_array($idfuentes_arr); /* "{1,2,3}" */
 
-  /* Llamado a función (el $8 se castea a INT[]) */
   $sql = "SELECT * FROM votaciones.fn_registrarvoto($1,$2,$3,$4,$5,$6,$7,$8::INT[])";
-  $params = array(
-    $nombreapellido, $alias, $rut, $email,
-    $idregion, $idcomuna, $idcandidato, $pg_array
-  );
-
-  $rs = @pg_query_params($db, $sql, $params);
+  $params = array($nombreapellido,$alias,$rut,$email,$idregion,$idcomuna,$idcandidato,$pg_array);
+  $rs = @pg_query_params($conn, $sql, $params);
   if (!$rs) {
-    $err = pg_last_error($db);
-    /* Mensajes más amigables según texto de excepción de la función */
+    $err = pg_last_error($conn);
     if (stripos($err, 'ALIAS INVALIDO') !== false) {
       json_response(false, 'Alias inválido: mínimo 6, alfanumérico y con letras+números');
     } elseif (stripos($err, 'EMAIL INVALIDO') !== false) {
@@ -152,10 +119,10 @@ if ($accion === 'registrar_voto') {
     }
   }
 
-  $row = pg_fetch_assoc($rs);  /* retorna columna idvoto */
+  $row = pg_fetch_assoc($rs); /* retorna columna idvoto */
   $idvoto = isset($row['idvoto']) ? intval($row['idvoto']) : null;
   json_response(true, 'Voto registrado correctamente', array('idvoto'=>$idvoto));
 }
 
-/* ---------- Si no coincide ninguna acción ---------- */
+/* ---------- DEFAULT ---------- */
 json_response(false, 'Acción no reconocida');
