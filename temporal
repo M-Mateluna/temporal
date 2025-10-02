@@ -1,0 +1,154 @@
+SET SEARCH_PATH TO votaciones, public;
+
+-- =========================================
+-- LISTADOS PARA COMBOS
+-- =========================================
+
+CREATE OR REPLACE FUNCTION fn_listar_regiones()
+RETURNS TABLE(id INT, nombre TEXT) AS
+$$
+BEGIN
+  RETURN QUERY
+  SELECT r.idregion, r.nombre
+  FROM votaciones.region r
+  ORDER BY r.nombre ASC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+CREATE OR REPLACE FUNCTION fn_listar_comunas(_idregion INT)
+RETURNS TABLE(id INT, nombre TEXT) AS
+$$
+BEGIN
+  RETURN QUERY
+  SELECT c.idcomuna, c.nombre
+  FROM votaciones.comuna c
+  WHERE c.idregion = _idregion
+  ORDER BY c.nombre ASC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+CREATE OR REPLACE FUNCTION fn_listar_candidatos()
+RETURNS TABLE(id INT, nombre TEXT) AS
+$$
+BEGIN
+  RETURN QUERY
+  SELECT ca.idcandidato, ca.nombre
+  FROM votaciones.candidato ca
+  ORDER BY ca.nombre ASC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+CREATE OR REPLACE FUNCTION fn_listar_fuentes()
+RETURNS TABLE(id INT, nombre TEXT) AS
+$$
+BEGIN
+  RETURN QUERY
+  SELECT f.idfuente, f.nombre
+  FROM votaciones.fuente f
+  ORDER BY f.nombre ASC;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- =========================================
+-- REGISTRAR VOTO
+-- - Valida RUT único
+-- - Alias >5 y alfanumérico con letras y números
+-- - Email con patrón simple
+-- - Comuna pertenece a Región
+-- - Al menos 2 fuentes
+-- Retorna: idvoto
+-- =========================================
+
+CREATE OR REPLACE FUNCTION fn_registrar_voto(
+  _nombreapellido VARCHAR,
+  _alias          VARCHAR,
+  _rut            VARCHAR,
+  _email          VARCHAR,
+  _idregion       INT,
+  _idcomuna       INT,
+  _idcandidato    INT,
+  _idfuentes      INT[]          -- Debe contener al menos 2 IDs
+)
+RETURNS TABLE(idvoto INT) AS
+$$
+DECLARE
+  __idvoto   INT;
+  __count    INT;
+  __okcomuna INT;
+  __fuentes_validas INT;
+BEGIN
+  -- VALIDAR ALIAS: mínimo 6, solo alfanumérico, debe tener letras y números
+  IF _alias IS NULL OR LENGTH(_alias) <= 5 THEN
+    RAISE EXCEPTION 'ALIAS INVALIDO: DEBE SER MAYOR A 5 CARACTERES';
+  END IF;
+  IF _alias !~ '^[A-Za-z0-9]+$' OR _alias !~ '[A-Za-z]' OR _alias !~ '[0-9]' THEN
+    RAISE EXCEPTION 'ALIAS INVALIDO: DEBE SER ALFANUMERICO Y CONTENER LETRAS Y NUMEROS';
+  END IF;
+
+  -- VALIDAR EMAIL SIMPLE
+  IF _email IS NULL OR _email !~ '^[^@]+@[^@]+\.[^@]+$' THEN
+    RAISE EXCEPTION 'EMAIL INVALIDO';
+  END IF;
+
+  -- VALIDAR QUE LA COMUNA PERTENECE A LA REGION
+  SELECT COUNT(*) INTO __okcomuna
+  FROM votaciones.comuna c
+  WHERE c.idcomuna = _idcomuna AND c.idregion = _idregion;
+  IF __okcomuna = 0 THEN
+    RAISE EXCEPTION 'LA COMUNA NO PERTENECE A LA REGION';
+  END IF;
+
+  -- RUT UNICO
+  SELECT COUNT(*) INTO __count
+  FROM votaciones.voto v
+  WHERE v.rut = _rut;
+  IF __count > 0 THEN
+    RAISE EXCEPTION 'EL RUT % YA REGISTRO UN VOTO', _rut
+      USING ERRCODE = 'unique_violation';
+  END IF;
+
+  -- VALIDAR FUENTES (AL MENOS 2 Y EXISTENTES)
+  IF _idfuentes IS NULL OR ARRAY_LENGTH(_idfuentes, 1) < 2 THEN
+    RAISE EXCEPTION 'DEBE SELECCIONAR AL MENOS DOS FUENTES';
+  END IF;
+
+  SELECT COUNT(*) INTO __fuentes_validas
+  FROM votaciones.fuente f
+  WHERE f.idfuente = ANY (_idfuentes);
+
+  IF __fuentes_validas <> ARRAY_LENGTH(_idfuentes, 1) THEN
+    RAISE EXCEPTION 'EXISTEN FUENTES INVALIDAS';
+  END IF;
+
+  -- INSERTAR VOTO (fecha es DATE con DEFAULT CURRENT_DATE)
+  INSERT INTO votaciones.voto(
+    nombreapellido, alias, rut, email, idregion, idcomuna, idcandidato
+  ) VALUES (
+    _nombreapellido, _alias, _rut, _email, _idregion, _idcomuna, _idcandidato
+  )
+  RETURNING votaciones.voto.idvoto INTO __idvoto;
+
+  -- INSERTAR FUENTES ASOCIADAS
+  INSERT INTO votaciones.votofuente(idvoto, idfuente)
+  SELECT __idvoto, UNNEST(_idfuentes);
+
+  RETURN QUERY SELECT __idvoto;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+-- =========================================
+-- RESUMEN (OPCIONAL)
+-- =========================================
+CREATE OR REPLACE FUNCTION fn_resumen_votos()
+RETURNS TABLE(candidato TEXT, total BIGINT) AS
+$$
+BEGIN
+  RETURN QUERY
+  SELECT ca.nombre, COUNT(*)::BIGINT
+  FROM votaciones.voto v
+  INNER JOIN votaciones.candidato ca
+    ON v.idcandidato = ca.idcandidato
+  GROUP BY ca.nombre
+  ORDER BY COUNT(*) DESC, ca.nombre;
+END;
+$$ LANGUAGE plpgsql STABLE;
