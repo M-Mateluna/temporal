@@ -1,7 +1,3 @@
-SET SEARCH_PATH TO votaciones, public;
-
-BEGIN;
-
 -- REGIONES
 INSERT INTO votaciones.region (nombre)
 SELECT 'Region Metropolitana'
@@ -90,4 +86,55 @@ INSERT INTO votaciones.fuente (nombre)
 SELECT 'Radio'
 WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'Radio');
 
-COMMIT;
+--------------------------------------------------------------------------
+WITH
+  reg AS (
+    SELECT idregion FROM votaciones.region
+    WHERE nombre = 'Region Metropolitana'
+  ),
+  com AS (
+    SELECT c.idcomuna
+    FROM votaciones.comuna c
+    INNER JOIN reg r ON c.idregion = r.idregion
+    WHERE c.nombre = 'Santiago'
+  ),
+  cand AS (
+    SELECT idcandidato FROM votaciones.candidato
+    WHERE nombre = 'Candidato A'
+  ),
+  fuentes AS (
+    SELECT ARRAY(
+      SELECT idfuente
+      FROM votaciones.fuente
+      WHERE nombre IN ('Web','TV')
+    ) AS arr
+  )
+SELECT *
+FROM votaciones.fn_registrarvoto(
+  'Joel Rodas',          -- _nombreapellido
+  'Programador23',       -- _alias (>=6, alfanumérico con letras y números)
+  '15984112-K',          -- _rut
+  'programador@gmail.com', -- _email
+  (SELECT idregion FROM reg),
+  (SELECT idcomuna FROM com),
+  (SELECT idcandidato FROM cand),
+  (SELECT arr FROM fuentes)
+);
+
+------------------------------------------------------------------------
+
+SELECT * FROM votaciones.fn_listarregiones();
+SELECT * FROM votaciones.fn_listarcandidatos();
+SELECT * FROM votaciones.fn_listarfuentes();
+-- Cambia 1 por el id de tu región real si quieres probar comunas directo:
+-- SELECT * FROM votaciones.fn_listarcomunas(1);
+
+
+-- Resultado por candidato (tu función de resumen)
+SELECT * FROM votaciones.fn_resumenvotos();
+
+-- Ver la fecha formateada DD-MM-YYYY
+SELECT TO_CHAR(fecha, 'DD-MM-YYYY') AS fecha, nombreapellido, rut
+FROM votaciones.voto
+ORDER BY idvoto DESC;
+
