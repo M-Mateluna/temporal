@@ -1,0 +1,93 @@
+SET SEARCH_PATH TO votaciones, public;
+
+BEGIN;
+
+-- REGIONES
+INSERT INTO votaciones.region (nombre)
+SELECT 'Region Metropolitana'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.region WHERE nombre = 'Region Metropolitana');
+
+INSERT INTO votaciones.region (nombre)
+SELECT 'Valparaiso'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.region WHERE nombre = 'Valparaiso');
+
+-- COMUNAS (AMARRADAS A SU REGION)
+INSERT INTO votaciones.comuna (idregion, nombre)
+SELECT r.idregion, 'Santiago'
+FROM votaciones.region r
+WHERE r.nombre = 'Region Metropolitana'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM votaciones.comuna c
+    WHERE c.nombre = 'Santiago' AND c.idregion = r.idregion
+  );
+
+INSERT INTO votaciones.comuna (idregion, nombre)
+SELECT r.idregion, 'Providencia'
+FROM votaciones.region r
+WHERE r.nombre = 'Region Metropolitana'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM votaciones.comuna c
+    WHERE c.nombre = 'Providencia' AND c.idregion = r.idregion
+  );
+
+INSERT INTO votaciones.comuna (idregion, nombre)
+SELECT r.idregion, 'Valparaiso'
+FROM votaciones.region r
+WHERE r.nombre = 'Valparaiso'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM votaciones.comuna c
+    WHERE c.nombre = 'Valparaiso' AND c.idregion = r.idregion
+  );
+
+INSERT INTO votaciones.comuna (idregion, nombre)
+SELECT r.idregion, 'Vina del Mar'
+FROM votaciones.region r
+WHERE r.nombre = 'Valparaiso'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM votaciones.comuna c
+    WHERE c.nombre = 'Vina del Mar' AND c.idregion = r.idregion
+  );
+
+-- CANDIDATOS
+INSERT INTO votaciones.candidato (nombre)
+SELECT 'Candidato A'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.candidato WHERE nombre = 'Candidato A');
+
+INSERT INTO votaciones.candidato (nombre)
+SELECT 'Candidato B'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.candidato WHERE nombre = 'Candidato B');
+
+INSERT INTO votaciones.candidato (nombre)
+SELECT 'Candidato C'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.candidato WHERE nombre = 'Candidato C');
+
+-- FUENTES
+INSERT INTO votaciones.fuente (nombre)
+SELECT 'Web'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'Web');
+
+INSERT INTO votaciones.fuente (nombre)
+SELECT 'TV'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'TV');
+
+INSERT INTO votaciones.fuente (nombre)
+SELECT 'Redes Sociales'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'Redes Sociales');
+
+INSERT INTO votaciones.fuente (nombre)
+SELECT 'Amigo'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'Amigo');
+
+INSERT INTO votaciones.fuente (nombre)
+SELECT 'Periodico'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'Periodico');
+
+INSERT INTO votaciones.fuente (nombre)
+SELECT 'Radio'
+WHERE NOT EXISTS (SELECT 1 FROM votaciones.fuente WHERE nombre = 'Radio');
+
+COMMIT;
