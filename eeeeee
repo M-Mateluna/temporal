@@ -1,88 +1,32 @@
-CREATE OR REPLACE FUNCTION ejerfuncion.fn_gestionar_persona(
-  INTEGER,   -- $1 = idpersona
-  TEXT,      -- $2 = nombre
-  TEXT,      -- $3 = apellidos
-  INTEGER    -- $4 = idprofesion
-)
-RETURNS TEXT AS
-$$
-DECLARE
-  -- alias de parámetros
-  _idpersona    ALIAS FOR $1;
-  _nombre       ALIAS FOR $2;
-  _apellidos    ALIAS FOR $3;
-  _idprofesion  ALIAS FOR $4;
+-- CLIENTES
+INSERT INTO ejerciciosdia2.clientes (nombre, apellido, direccion, activo) VALUES
+('Juan',  'Pérez',     'Av. Siempre Viva 123', TRUE),
+('María', 'González',  'Calle Norte 45',       TRUE),
+('Pedro', 'Soto',      'Pasaje Las Rosas 789', FALSE),
+('Ana',   'Rojas',     'Camino Real 456',      TRUE),
+('Luis',  'Martínez',  'Los Alerces 321',      TRUE);
 
-  -- internas
-  __id       INT;
-  __existe   INT;
-  __dup      INT;
-  __touched  INT;
-BEGIN
-  -- validaciones básicas
-  IF _nombre IS NULL OR LENGTH(TRIM(_nombre)) = 0 THEN
-    RAISE EXCEPTION 'NOMBRE OBLIGATORIO';
-  END IF;
-  IF _apellidos IS NULL OR LENGTH(TRIM(_apellidos)) = 0 THEN
-    RAISE EXCEPTION 'APELLIDOS OBLIGATORIOS';
-  END IF;
+-- PRODUCTOS
+INSERT INTO ejerciciosdia2.productos (nombre, precio) VALUES
+('Teclado',           14990),
+('Mouse',              9990),
+('Monitor 24"',      129990),
+('Notebook 14"',     459990),
+('Silla ergonómica',  89990);
 
-  -- profesion existente
-  SELECT COUNT(*) INTO __existe
-  FROM ejerfuncion.profesion
-  WHERE idprofesion = _idprofesion;
-  IF __existe = 0 THEN
-    RAISE EXCEPTION 'IDPROFESION % NO EXISTE', _idprofesion;
-  END IF;
+-- PEDIDOS (referenciando por nombre y apellido / nombre de producto)
+INSERT INTO ejerciciosdia2.pedidos (idclientes, idproductos, cantidad, fechapedido) VALUES
+((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Juan'  AND apellido='Pérez'     LIMIT 1),
+ (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Teclado'                        LIMIT 1), 2, DATE '2025-10-01'),
 
-  -- inserción
-  IF _idpersona = 0 THEN
-    SELECT COUNT(*) INTO __dup
-    FROM ejerfuncion.persona
-    WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
-      AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos));
-    IF __dup > 0 THEN
-      RAISE EXCEPTION 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
-        USING ERRCODE = 'unique_violation';
-    END IF;
+((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='María' AND apellido='González'  LIMIT 1),
+ (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Mouse'                          LIMIT 1), 1, DATE '2025-10-02'),
 
-    INSERT INTO ejerfuncion.persona (nombre, apellidos, idprofesion, fechahora)
-    VALUES (TRIM(_nombre), TRIM(_apellidos), _idprofesion, NOW())
-    RETURNING idpersona INTO __id;
+((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Pedro' AND apellido='Soto'      LIMIT 1),
+ (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Monitor 24"'                    LIMIT 1), 1, DATE '2025-10-03'),
 
-    RETURN 'INSERTADO: idpersona=' || __id::TEXT;
-  END IF;
+((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Ana'   AND apellido='Rojas'     LIMIT 1),
+ (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Notebook 14"'                   LIMIT 1), 1, DATE '2025-10-03'),
 
-  -- actualización
-  SELECT COUNT(*) INTO __existe
-  FROM ejerfuncion.persona
-  WHERE idpersona = _idpersona;
-  IF __existe = 0 THEN
-    RAISE EXCEPTION 'IDPERSONA % NO EXISTE', _idpersona;
-  END IF;
-
-  SELECT COUNT(*) INTO __dup
-  FROM ejerfuncion.persona
-  WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
-    AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos))
-    AND idpersona <> _idpersona;
-  IF __dup > 0 THEN
-    RAISE EXCEPTION 'YA EXISTE OTRA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
-      USING ERRCODE = 'unique_violation';
-  END IF;
-
-  UPDATE ejerfuncion.persona
-     SET nombre      = TRIM(_nombre),
-         apellidos   = TRIM(_apellidos),
-         idprofesion = _idprofesion,
-         fechahora   = NOW()
-   WHERE idpersona   = _idpersona;
-
-  GET DIAGNOSTICS __touched = ROW_COUNT;
-  IF __touched = 0 THEN
-    RAISE EXCEPTION 'NO SE ACTUALIZO NINGUN REGISTRO (IDPERSONA %)', _idpersona;
-  END IF;
-
-  RETURN 'ACTUALIZADO: idpersona=' || _idpersona::TEXT;
-END;
-$$ LANGUAGE plpgsql VOLATILE;
+((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Luis'  AND apellido='Martínez'  LIMIT 1),
+ (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Silla ergonómica'               LIMIT 1), 3, DATE '2025-10-04');
