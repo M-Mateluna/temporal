@@ -1,117 +1,88 @@
-if (!/^\d+$/.test(v) || parseInt(v, 10) < 0 || parseInt(v, 10) > 100) {
-      alert('Edad inválida: solo números entre 0 y 100.');
-    }
-  });
+CREATE OR REPLACE FUNCTION ejerfuncion.fn_gestionar_persona(
+  INTEGER,   -- $1 = idpersona
+  TEXT,      -- $2 = nombre
+  TEXT,      -- $3 = apellidos
+  INTEGER    -- $4 = idprofesion
+)
+RETURNS TEXT AS
+$$
+DECLARE
+  -- alias de parámetros
+  _idpersona    ALIAS FOR $1;
+  _nombre       ALIAS FOR $2;
+  _apellidos    ALIAS FOR $3;
+  _idprofesion  ALIAS FOR $4;
 
-  // Envío del formulario
-  form.addEventListener('submit', function (e) {
-    e.preventDefault(); // evita recarga mientras validamos
+  -- internas
+  __id       INT;
+  __existe   INT;
+  __dup      INT;
+  __touched  INT;
+BEGIN
+  -- validaciones básicas
+  IF _nombre IS NULL OR LENGTH(TRIM(_nombre)) = 0 THEN
+    RAISE EXCEPTION 'NOMBRE OBLIGATORIO';
+  END IF;
+  IF _apellidos IS NULL OR LENGTH(TRIM(_apellidos)) = 0 THEN
+    RAISE EXCEPTION 'APELLIDOS OBLIGATORIOS';
+  END IF;
 
-    // Nombre: obligatorio y longitud >= 3
-    if (!nombre.value.trim()) {
-      alert('El campo "Nombre" es obligatorio.');
-      nombre.focus(); return;
-    }
-    if (nombre.value.trim().length < 3) {
-      alert('El campo "Nombre" debe tener al menos 3 caracteres.');
-      nombre.focus(); return;
-    }
+  -- profesion existente
+  SELECT COUNT(*) INTO __existe
+  FROM ejerfuncion.profesion
+  WHERE idprofesion = _idprofesion;
+  IF __existe = 0 THEN
+    RAISE EXCEPTION 'IDPROFESION % NO EXISTE', _idprofesion;
+  END IF;
 
-    // Región / Comuna
-    if (!region.value) {
-      alert('Debe seleccionar una Región (opción distinta de "--Seleccione--").');
-      region.focus(); return;
-    }
-    if (comuna.disabled || !comuna.value) {
-      alert('Debe seleccionar una Comuna.');
-      comuna.focus(); return;
-    }
+  -- inserción
+  IF _idpersona = 0 THEN
+    SELECT COUNT(*) INTO __dup
+    FROM ejerfuncion.persona
+    WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
+      AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos));
+    IF __dup > 0 THEN
+      RAISE EXCEPTION 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
+        USING ERRCODE = 'unique_violation';
+    END IF;
 
-    // Apellidos
-    if (!apellidos.value.trim()) {
-      alert('El campo "Apellidos" es obligatorio.');
-      apellidos.focus(); return;
-    }
+    INSERT INTO ejerfuncion.persona (nombre, apellidos, idprofesion, fechahora)
+    VALUES (TRIM(_nombre), TRIM(_apellidos), _idprofesion, NOW())
+    RETURNING idpersona INTO __id;
 
-    // Profesión
-    if (!profesion.value.trim()) {
-      alert('El campo "Profesión" es obligatorio.');
-      profesion.focus(); return;
-    }
+    RETURN 'INSERTADO: idpersona=' || __id::TEXT;
+  END IF;
 
-    // Correo
-    if (!correo.value.trim()) {
-      alert('El campo "Correo" es obligatorio.');
-      correo.focus(); return;
-    }
-    if (!validarEmail(correo.value.trim())) {
-      alert('Correo inválido. Ingrese un email con formato válido.');
-      correo.focus(); return;
-    }
+  -- actualización
+  SELECT COUNT(*) INTO __existe
+  FROM ejerfuncion.persona
+  WHERE idpersona = _idpersona;
+  IF __existe = 0 THEN
+    RAISE EXCEPTION 'IDPERSONA % NO EXISTE', _idpersona;
+  END IF;
 
-    // RUT
-    if (!rut.value.trim()) {
-      alert('El campo "RUT" es obligatorio.');
-      rut.focus(); return;
-    }
-    if (!validarRut(rut.value.trim())) {
-      alert('RUT inválido.');
-      rut.focus(); return;
-    }
+  SELECT COUNT(*) INTO __dup
+  FROM ejerfuncion.persona
+  WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
+    AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos))
+    AND idpersona <> _idpersona;
+  IF __dup > 0 THEN
+    RAISE EXCEPTION 'YA EXISTE OTRA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
+      USING ERRCODE = 'unique_violation';
+  END IF;
 
-    // Edad
-    var vEdad = edad.value.trim();
-    if (!vEdad) {
-      alert('El campo "Edad" es obligatorio.');
-      edad.focus(); return;
-    }
-    if (!/^\d+$/.test(vEdad) || parseInt(vEdad, 10) < 0 || parseInt(vEdad, 10) > 100) {
-      alert('Edad inválida: debe ser un número entre 0 y 100.');
-      edad.focus(); return;
-    }
+  UPDATE ejerfuncion.persona
+     SET nombre      = TRIM(_nombre),
+         apellidos   = TRIM(_apellidos),
+         idprofesion = _idprofesion,
+         fechahora   = NOW()
+   WHERE idpersona   = _idpersona;
 
-    // Si todas las validaciones pasan
-    alert('Validación correcta. Formulario listo para enviar.');
-    // Aquí podrías hacer form.submit() si quisieras enviar realmente.
-  });
-});
+  GET DIAGNOSTICS __touched = ROW_COUNT;
+  IF __touched = 0 THEN
+    RAISE EXCEPTION 'NO SE ACTUALIZO NINGUN REGISTRO (IDPERSONA %)', _idpersona;
+  END IF;
 
-
-
-
-
-
-
-
-// Normaliza y valida RUT chileno (módulo 11)
-function normalizarRut(rut) {
-  rut = (rut || '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
-  if (rut.indexOf('-') === -1 && rut.length > 1) {
-    rut = rut.slice(0, -1) + '-' + rut.slice(-1);
-  }
-  return rut;
-}
-
-function validarRut(rut) {
-  rut = normalizarRut(rut);
-  var parts = rut.split('-');
-  if (parts.length !== 2) return false;
-
-  var num = parts[0].replace(/\D/g, '');
-  var dv  = parts[1];
-  if (!num || !dv) return false;
-
-  var suma = 0, factor = 2;
-  for (var i = num.length - 1; i >= 0; i--) {
-    suma += parseInt(num.charAt(i), 10) * factor;
-    factor = (factor === 7) ? 2 : factor + 1;
-  }
-  var calc = 11 - (suma % 11);
-  var dvCalc = (calc === 11) ? '0' : (calc === 10 ? 'K' : String(calc));
-  return dvCalc === dv.toUpperCase();
-}
-
-// Email simple
-function validarEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+  RETURN 'ACTUALIZADO: idpersona=' || _idpersona::TEXT;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
