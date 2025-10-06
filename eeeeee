@@ -1,0 +1,117 @@
+if (!/^\d+$/.test(v) || parseInt(v, 10) < 0 || parseInt(v, 10) > 100) {
+      alert('Edad inválida: solo números entre 0 y 100.');
+    }
+  });
+
+  // Envío del formulario
+  form.addEventListener('submit', function (e) {
+    e.preventDefault(); // evita recarga mientras validamos
+
+    // Nombre: obligatorio y longitud >= 3
+    if (!nombre.value.trim()) {
+      alert('El campo "Nombre" es obligatorio.');
+      nombre.focus(); return;
+    }
+    if (nombre.value.trim().length < 3) {
+      alert('El campo "Nombre" debe tener al menos 3 caracteres.');
+      nombre.focus(); return;
+    }
+
+    // Región / Comuna
+    if (!region.value) {
+      alert('Debe seleccionar una Región (opción distinta de "--Seleccione--").');
+      region.focus(); return;
+    }
+    if (comuna.disabled || !comuna.value) {
+      alert('Debe seleccionar una Comuna.');
+      comuna.focus(); return;
+    }
+
+    // Apellidos
+    if (!apellidos.value.trim()) {
+      alert('El campo "Apellidos" es obligatorio.');
+      apellidos.focus(); return;
+    }
+
+    // Profesión
+    if (!profesion.value.trim()) {
+      alert('El campo "Profesión" es obligatorio.');
+      profesion.focus(); return;
+    }
+
+    // Correo
+    if (!correo.value.trim()) {
+      alert('El campo "Correo" es obligatorio.');
+      correo.focus(); return;
+    }
+    if (!validarEmail(correo.value.trim())) {
+      alert('Correo inválido. Ingrese un email con formato válido.');
+      correo.focus(); return;
+    }
+
+    // RUT
+    if (!rut.value.trim()) {
+      alert('El campo "RUT" es obligatorio.');
+      rut.focus(); return;
+    }
+    if (!validarRut(rut.value.trim())) {
+      alert('RUT inválido.');
+      rut.focus(); return;
+    }
+
+    // Edad
+    var vEdad = edad.value.trim();
+    if (!vEdad) {
+      alert('El campo "Edad" es obligatorio.');
+      edad.focus(); return;
+    }
+    if (!/^\d+$/.test(vEdad) || parseInt(vEdad, 10) < 0 || parseInt(vEdad, 10) > 100) {
+      alert('Edad inválida: debe ser un número entre 0 y 100.');
+      edad.focus(); return;
+    }
+
+    // Si todas las validaciones pasan
+    alert('Validación correcta. Formulario listo para enviar.');
+    // Aquí podrías hacer form.submit() si quisieras enviar realmente.
+  });
+});
+
+
+
+
+
+
+
+
+// Normaliza y valida RUT chileno (módulo 11)
+function normalizarRut(rut) {
+  rut = (rut || '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+  if (rut.indexOf('-') === -1 && rut.length > 1) {
+    rut = rut.slice(0, -1) + '-' + rut.slice(-1);
+  }
+  return rut;
+}
+
+function validarRut(rut) {
+  rut = normalizarRut(rut);
+  var parts = rut.split('-');
+  if (parts.length !== 2) return false;
+
+  var num = parts[0].replace(/\D/g, '');
+  var dv  = parts[1];
+  if (!num || !dv) return false;
+
+  var suma = 0, factor = 2;
+  for (var i = num.length - 1; i >= 0; i--) {
+    suma += parseInt(num.charAt(i), 10) * factor;
+    factor = (factor === 7) ? 2 : factor + 1;
+  }
+  var calc = 11 - (suma % 11);
+  var dvCalc = (calc === 11) ? '0' : (calc === 10 ? 'K' : String(calc));
+  return dvCalc === dv.toUpperCase();
+}
+
+// Email simple
+function validarEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
