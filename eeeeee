@@ -1,32 +1,85 @@
--- CLIENTES
-INSERT INTO ejerciciosdia2.clientes (nombre, apellido, direccion, activo) VALUES
-('Juan',  'Pérez',     'Av. Siempre Viva 123', TRUE),
-('María', 'González',  'Calle Norte 45',       TRUE),
-('Pedro', 'Soto',      'Pasaje Las Rosas 789', FALSE),
-('Ana',   'Rojas',     'Camino Real 456',      TRUE),
-('Luis',  'Martínez',  'Los Alerces 321',      TRUE);
+CREATE OR REPLACE FUNCTION ejerciciosdia2.fn_gestionar_persona(
+  INTEGER,  -- _idpersona (0 = insertar)
+  TEXT,     -- _nombre
+  TEXT,     -- _apellidos
+  INTEGER   -- _idprofesion
+)
+RETURNS TEXT AS
+$$
+DECLARE
+  _idpersona    ALIAS FOR $1;
+  _nombre       ALIAS FOR $2;
+  _apellidos    ALIAS FOR $3;
+  _idprofesion  ALIAS FOR $4;
+BEGIN
+  -- Validaciones básicas
+  IF _nombre IS NULL OR LENGTH(TRIM(_nombre)) = 0 THEN
+    RAISE EXCEPTION 'NOMBRE OBLIGATORIO';
+  END IF;
 
--- PRODUCTOS
-INSERT INTO ejerciciosdia2.productos (nombre, precio) VALUES
-('Teclado',           14990),
-('Mouse',              9990),
-('Monitor 24"',      129990),
-('Notebook 14"',     459990),
-('Silla ergonómica',  89990);
+  IF _apellidos IS NULL OR LENGTH(TRIM(_apellidos)) = 0 THEN
+    RAISE EXCEPTION 'APELLIDOS OBLIGATORIOS';
+  END IF;
 
--- PEDIDOS (referenciando por nombre y apellido / nombre de producto)
-INSERT INTO ejerciciosdia2.pedidos (idclientes, idproductos, cantidad, fechapedido) VALUES
-((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Juan'  AND apellido='Pérez'     LIMIT 1),
- (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Teclado'                        LIMIT 1), 2, DATE '2025-10-01'),
+  -- Profesión existente
+  IF NOT EXISTS (
+      SELECT 1 FROM ejerciciosdia2.profesion WHERE idprofesion = _idprofesion
+  ) THEN
+    RAISE EXCEPTION 'IDPROFESION % NO EXISTE', _idprofesion;
+  END IF;
 
-((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='María' AND apellido='González'  LIMIT 1),
- (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Mouse'                          LIMIT 1), 1, DATE '2025-10-02'),
+  -- Flujo principal: insertar si _idpersona = 0, en caso contrario actualizar
+  IF _idpersona = 0 THEN
+    -- Duplicado por nombre+apellidos
+    IF EXISTS (
+      SELECT 1
+      FROM ejerciciosdia2.persona
+      WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
+        AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos))
+    ) THEN
+      RAISE EXCEPTION 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
+        USING ERRCODE = 'unique_violation';
+    END IF;
 
-((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Pedro' AND apellido='Soto'      LIMIT 1),
- (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Monitor 24"'                    LIMIT 1), 1, DATE '2025-10-03'),
+    -- Insertar y reutilizar el mismo parámetro para capturar el id (sin __id)
+    INSERT INTO ejerciciosdia2.persona (nombre, apellidos, idprofesion, fechahora)
+    VALUES (TRIM(_nombre), TRIM(_apellidos), _idprofesion, NOW())
+    RETURNING idpersona INTO _idpersona;
 
-((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Ana'   AND apellido='Rojas'     LIMIT 1),
- (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Notebook 14"'                   LIMIT 1), 1, DATE '2025-10-03'),
+    RETURN 'INSERTADO: idpersona=' || _idpersona::TEXT;
 
-((SELECT idclientes FROM ejerciciosdia2.clientes  WHERE nombre='Luis'  AND apellido='Martínez'  LIMIT 1),
- (SELECT idproductos FROM ejerciciosdia2.productos WHERE nombre='Silla ergonómica'               LIMIT 1), 3, DATE '2025-10-04');
+  ELSE
+    -- Existe la persona a actualizar
+    IF NOT EXISTS (
+        SELECT 1 FROM ejerciciosdia2.persona WHERE idpersona = _idpersona
+    ) THEN
+      RAISE EXCEPTION 'IDPERSONA % NO EXISTE', _idpersona;
+    END IF;
+
+    -- Duplicado contra otros registros
+    IF EXISTS (
+      SELECT 1
+      FROM ejerciciosdia2.persona
+      WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
+        AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos))
+        AND idpersona <> _idpersona
+    ) THEN
+      RAISE EXCEPTION 'YA EXISTE OTRA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
+        USING ERRCODE = 'unique_violation';
+    END IF;
+
+    UPDATE ejerciciosdia2.persona
+       SET nombre      = TRIM(_nombre),
+           apellidos   = TRIM(_apellidos),
+           idprofesion = _idprofesion,
+           fechahora   = NOW()
+     WHERE idpersona   = _idpersona;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'NO SE ACTUALIZO NINGUN REGISTRO (IDPERSONA %)', _idpersona;
+    END IF;
+
+    RETURN 'ACTUALIZADO: idpersona=' || _idpersona::TEXT;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
