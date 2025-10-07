@@ -1,85 +1,173 @@
-CREATE OR REPLACE FUNCTION ejerciciosdia2.fn_gestionar_persona(
-  INTEGER,  -- _idpersona (0 = insertar)
-  TEXT,     -- _nombre
-  TEXT,     -- _apellidos
-  INTEGER   -- _idprofesion
-)
-RETURNS TEXT AS
-$$
-DECLARE
-  _idpersona    ALIAS FOR $1;
-  _nombre       ALIAS FOR $2;
-  _apellidos    ALIAS FOR $3;
-  _idprofesion  ALIAS FOR $4;
-BEGIN
-  -- Validaciones básicas
-  IF _nombre IS NULL OR LENGTH(TRIM(_nombre)) = 0 THEN
-    RAISE EXCEPTION 'NOMBRE OBLIGATORIO';
-  END IF;
+case 'listarRegiones':
+    $sql = "SELECT idregion, nombre FROM region ORDER BY nombre ASC";
+    $result    = pg_query_params($conn, $sql, array());
+    $lastError = pg_last_error($conn);
 
-  IF _apellidos IS NULL OR LENGTH(TRIM(_apellidos)) = 0 THEN
-    RAISE EXCEPTION 'APELLIDOS OBLIGATORIOS';
-  END IF;
+    $obj = array();
+    if ($lastError) {
+        $obj[] = array("error" => $lastError);
+    } else {
+        while ($row = pg_fetch_object($result)) {
+            $obj[] = array(
+                "idregion" => (int)$row->idregion,
+                "nombre"   => $row->nombre
+            );
+        }
+    }
+    echo json_encode($obj);
+    break;
 
-  -- Profesión existente
-  IF NOT EXISTS (
-      SELECT 1 FROM ejerciciosdia2.profesion WHERE idprofesion = _idprofesion
-  ) THEN
-    RAISE EXCEPTION 'IDPROFESION % NO EXISTE', _idprofesion;
-  END IF;
+case 'listarComunas':
+    $idregion = isset($_GET['idregion']) ? (int)$_GET['idregion'] : 0;
+    $sql = "SELECT idcomuna, nombre FROM comuna WHERE idregion = $1 ORDER BY nombre ASC";
+    $result    = pg_query_params($conn, $sql, array($idregion));
+    $lastError = pg_last_error($conn);
 
-  -- Flujo principal: insertar si _idpersona = 0, en caso contrario actualizar
-  IF _idpersona = 0 THEN
-    -- Duplicado por nombre+apellidos
-    IF EXISTS (
-      SELECT 1
-      FROM ejerciciosdia2.persona
-      WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
-        AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos))
-    ) THEN
-      RAISE EXCEPTION 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
-        USING ERRCODE = 'unique_violation';
-    END IF;
+    $obj = array();
+    if ($lastError) {
+        $obj[] = array("error" => $lastError);
+    } else {
+        while ($row = pg_fetch_object($result)) {
+            $obj[] = array(
+                "idcomuna" => (int)$row->idcomuna,
+                "nombre"   => $row->nombre
+            );
+        }
+    }
+    echo json_encode($obj);
+    break;
 
-    -- Insertar y reutilizar el mismo parámetro para capturar el id (sin __id)
-    INSERT INTO ejerciciosdia2.persona (nombre, apellidos, idprofesion, fechahora)
-    VALUES (TRIM(_nombre), TRIM(_apellidos), _idprofesion, NOW())
-    RETURNING idpersona INTO _idpersona;
+case 'listarProfesiones':
+    $sql = "SELECT idprofesion, nombre FROM profesion ORDER BY nombre ASC";
+    $result    = pg_query_params($conn, $sql, array());
+    $lastError = pg_last_error($conn);
 
-    RETURN 'INSERTADO: idpersona=' || _idpersona::TEXT;
+    $obj = array();
+    if ($lastError) {
+        $obj[] = array("error" => $lastError);
+    } else {
+        while ($row = pg_fetch_object($result)) {
+            $obj[] = array(
+                "idprofesion" => (int)$row->idprofesion,
+                "nombre"      => $row->nombre
+            );
+        }
+    }
+    echo json_encode($obj);
+    break;
 
-  ELSE
-    -- Existe la persona a actualizar
-    IF NOT EXISTS (
-        SELECT 1 FROM ejerciciosdia2.persona WHERE idpersona = _idpersona
-    ) THEN
-      RAISE EXCEPTION 'IDPERSONA % NO EXISTE', _idpersona;
-    END IF;
+case 'listarPersonas':
+    $sql = "
+      SELECT p.idpersona, p.nombre, p.apellidos,
+             p.idregion, r.nombre AS region,
+             p.idcomuna, c.nombre AS comuna,
+             p.idprofesion, pr.nombre AS profesion
+        FROM persona p
+        INNER JOIN region    r  ON r.idregion     = p.idregion
+        INNER JOIN comuna    c  ON c.idcomuna     = p.idcomuna
+        INNER JOIN profesion pr ON pr.idprofesion = p.idprofesion
+       ORDER BY p.idpersona DESC";
+    $result    = pg_query_params($conn, $sql, array());
+    $lastError = pg_last_error($conn);
 
-    -- Duplicado contra otros registros
-    IF EXISTS (
-      SELECT 1
-      FROM ejerciciosdia2.persona
-      WHERE LOWER(TRIM(nombre))    = LOWER(TRIM(_nombre))
-        AND LOWER(TRIM(apellidos)) = LOWER(TRIM(_apellidos))
-        AND idpersona <> _idpersona
-    ) THEN
-      RAISE EXCEPTION 'YA EXISTE OTRA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'
-        USING ERRCODE = 'unique_violation';
-    END IF;
+    $obj = array();
+    if ($lastError) {
+        $obj[] = array("error" => $lastError);
+    } else {
+        while ($row = pg_fetch_object($result)) {
+            $obj[] = array(
+                "idpersona"   => (int)$row->idpersona,
+                "nombre"      => $row->nombre,
+                "apellidos"   => $row->apellidos,
+                "idregion"    => (int)$row->idregion,
+                "region"      => $row->region,
+                "idcomuna"    => (int)$row->idcomuna,
+                "comuna"      => $row->comuna,
+                "idprofesion" => (int)$row->idprofesion,
+                "profesion"   => $row->profesion
+            );
+        }
+    }
+    echo json_encode($obj);
+    break;
 
-    UPDATE ejerciciosdia2.persona
-       SET nombre      = TRIM(_nombre),
-           apellidos   = TRIM(_apellidos),
-           idprofesion = _idprofesion,
-           fechahora   = NOW()
-     WHERE idpersona   = _idpersona;
+case 'buscarPersona':
+    $id = isset($_GET['idpersona']) ? (int)$_GET['idpersona'] : 0;
+    $sql = "SELECT idpersona, nombre, apellidos, idregion, idcomuna, idprofesion
+              FROM persona WHERE idpersona = $1";
+    $result    = pg_query_params($conn, $sql, array($id));
+    $lastError = pg_last_error($conn);
 
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'NO SE ACTUALIZO NINGUN REGISTRO (IDPERSONA %)', _idpersona;
-    END IF;
+    $obj = array();
+    if ($lastError) {
+        $obj[] = array("error" => $lastError);
+    } else {
+        $row = pg_fetch_object($result);
+        if ($row) {
+            $obj[] = array(
+                "idpersona"   => (int)$row->idpersona,
+                "nombre"      => $row->nombre,
+                "apellidos"   => $row->apellidos,
+                "idregion"    => (int)$row->idregion,
+                "idcomuna"    => (int)$row->idcomuna,
+                "idprofesion" => (int)$row->idprofesion
+            );
+        } else {
+            $obj[] = array("error" => "Persona no encontrada");
+        }
+    }
+    echo json_encode($obj);
+    break;
 
-    RETURN 'ACTUALIZADO: idpersona=' || _idpersona::TEXT;
-  END IF;
-END;
-$$ LANGUAGE plpgsql;
+case 'guardarPersona':
+    $idpersona   = isset($_POST['idpersona']) ? (int)$_POST['idpersona'] : 0;
+    $nombre      = trim($_POST['nombre']);
+    $apellidos   = trim($_POST['apellidos']);
+    $idregion    = (int)$_POST['idregion'];
+    $idcomuna    = (int)$_POST['idcomuna'];
+    $idprofesion = (int)$_POST['idprofesion'];
+
+    // Unicidad nombre+apellidos
+    $sqlDup = "SELECT COUNT(*)::INT AS n
+                 FROM persona
+                WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+                  AND LOWER(TRIM(apellidos)) = LOWER(TRIM($2))
+                  AND ($3 = 0 OR idpersona <> $3)";
+    $resultDup = pg_query_params($conn, $sqlDup, array($nombre, $apellidos, $idpersona));
+    $rowDup    = pg_fetch_object($resultDup);
+    $dup       = (int)$rowDup->n;
+
+    if ($dup > 0) {
+        echo json_encode(array("success"=>false, "error"=>"Ya existe una persona con el mismo nombre y apellidos"));
+        break;
+    }
+
+    if ($idpersona === 0) {
+        // INSERT
+        $sql = "INSERT INTO persona (nombre, apellidos, idregion, idcomuna, idprofesion, fechahora)
+                VALUES ($1,$2,$3,$4,$5, NOW()) RETURNING idpersona";
+        $params = array($nombre,$apellidos,$idregion,$idcomuna,$idprofesion);
+    } else {
+        // UPDATE
+        $sql = "UPDATE persona
+                   SET nombre=$2, apellidos=$3, idregion=$4, idcomuna=$5, idprofesion=$6, fechahora=NOW()
+                 WHERE idpersona=$1
+             RETURNING idpersona";
+        $params = array($idpersona,$nombre,$apellidos,$idregion,$idcomuna,$idprofesion);
+    }
+
+    $result    = pg_query_params($conn, $sql, $params);
+    $lastError = pg_last_error($conn);
+
+    if ($lastError) {
+        echo json_encode(array("success"=>false, "error"=>$lastError));
+    } else {
+        $row   = pg_fetch_object($result);
+        $idRes = (int)$row->idpersona;
+        echo json_encode(array(
+            "success"   => true,
+            "message"   => ($idpersona===0 ? "Insertado" : "Actualizado"),
+            "idpersona" => $idRes
+        ));
+    }
+    break;
