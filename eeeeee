@@ -6,34 +6,39 @@ CREATE OR REPLACE FUNCTION public.fn_persona_iu(
   _idcomuna    INT,
   _idprofesion INT
 )
-RETURNS TABLE(success BOOLEAN, message TEXT, idpersona INT)
+RETURNS TABLE(success BOOLEAN, message TEXT)
 LANGUAGE plpgsql
 AS $$
 BEGIN
   -- VALIDACIONES BÁSICAS
   IF _nombre IS NULL OR BTRIM(_nombre) = '' THEN
-    RETURN QUERY SELECT FALSE, 'EL NOMBRE ES OBLIGATORIO', 0;
+    RETURN QUERY SELECT TRUE = FALSE, 'EL NOMBRE ES OBLIGATORIO';
     RETURN;
   END IF;
 
   IF _apellidos IS NULL OR BTRIM(_apellidos) = '' THEN
-    RETURN QUERY SELECT FALSE, 'LOS APELLIDOS SON OBLIGATORIOS', 0;
+    RETURN QUERY SELECT TRUE = FALSE, 'LOS APELLIDOS SON OBLIGATORIOS';
     RETURN;
   END IF;
 
-  -- EXISTENCIA PROFESIÓN
+  -- EXISTE PROFESIÓN
   IF NOT EXISTS (SELECT 1 FROM public.profesion WHERE idprofesion = _idprofesion) THEN
-    RETURN QUERY SELECT FALSE, 'IDPROFESION INEXISTENTE', 0;
+    RETURN QUERY SELECT TRUE = FALSE, 'IDPROFESION INEXISTENTE';
     RETURN;
   END IF;
 
-  -- COMUNA PERTENECE A REGIÓN
-  IF NOT EXISTS (SELECT 1 FROM public.comuna WHERE idcomuna = _idcomuna AND idregion = _idregion) THEN
-    RETURN QUERY SELECT FALSE, 'LA COMUNA NO PERTENECE A LA REGION', 0;
+  -- COMUNA PERTENECE A LA REGIÓN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM public.comuna
+     WHERE idcomuna = _idcomuna
+       AND idregion = _idregion
+  ) THEN
+    RETURN QUERY SELECT TRUE = FALSE, 'LA COMUNA NO PERTENECE A LA REGION';
     RETURN;
   END IF;
 
-  -- UNICIDAD NOMBRE+APELLIDOS (excluye al propio si es UPDATE)
+  -- UNICIDAD NOMBRE + APELLIDOS (excluye el mismo id en UPDATE)
   IF EXISTS (
     SELECT 1
       FROM public.persona
@@ -41,39 +46,32 @@ BEGIN
        AND LOWER(BTRIM(apellidos)) = LOWER(BTRIM(_apellidos))
        AND (_idpersona = 0 OR idpersona <> _idpersona)
   ) THEN
-    RETURN QUERY SELECT FALSE, 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS', 0;
+    RETURN QUERY SELECT TRUE = FALSE, 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS';
     RETURN;
   END IF;
 
   -- INSERT / UPDATE
   IF _idpersona = 0 THEN
-    RETURN QUERY
-    WITH ins AS (
-      INSERT INTO public.persona (nombre, apellidos, idregion, idcomuna, idprofesion, fechahora)
-      VALUES (BTRIM(_nombre), BTRIM(_apellidos), _idregion, _idcomuna, _idprofesion, NOW())
-      RETURNING idpersona
-    )
-    SELECT TRUE, 'INSERTADO', idpersona FROM ins;
+    INSERT INTO public.persona (nombre, apellidos, idregion, idcomuna, idprofesion)
+    VALUES (BTRIM(_nombre), BTRIM(_apellidos), _idregion, _idcomuna, _idprofesion);
+
+    RETURN QUERY SELECT TRUE, 'INSERTADO';
   ELSE
-    -- Verifica existencia antes del UPDATE (sin variables)
+    -- Verifica existencia antes de actualizar
     IF NOT EXISTS (SELECT 1 FROM public.persona WHERE idpersona = _idpersona) THEN
-      RETURN QUERY SELECT FALSE, 'IDPERSONA NO ENCONTRADO', 0;
+      RETURN QUERY SELECT TRUE = FALSE, 'IDPERSONA NO ENCONTRADO';
       RETURN;
     END IF;
 
-    RETURN QUERY
-    WITH upd AS (
-      UPDATE public.persona
-         SET nombre      = BTRIM(_nombre),
-             apellidos   = BTRIM(_apellidos),
-             idregion    = _idregion,
-             idcomuna    = _idcomuna,
-             idprofesion = _idprofesion,
-             fechahora   = NOW()
-       WHERE idpersona   = _idpersona
-       RETURNING idpersona
-    )
-    SELECT TRUE, 'ACTUALIZADO', idpersona FROM upd;
+    UPDATE public.persona
+       SET nombre      = BTRIM(_nombre),
+           apellidos   = BTRIM(_apellidos),
+           idregion    = _idregion,
+           idcomuna    = _idcomuna,
+           idprofesion = _idprofesion
+     WHERE idpersona   = _idpersona;
+
+    RETURN QUERY SELECT TRUE, 'ACTUALIZADO';
   END IF;
 END;
 $$;
