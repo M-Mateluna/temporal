@@ -1,203 +1,68 @@
-document.addEventListener('DOMContentLoaded', function() {
-    var form = document.querySelector('form');
-    var nombre = document.getElementById('nombre');
-    var apellidos = document.getElementById('apellidos');
-    var region = document.getElementById('region');
-    var comuna = document.getElementById('comuna');
-    var profesion = document.getElementById('profesion');
-    var idpersona = document.getElementById('idpersona');
-    var btn = document.getElementById('btn');
-    // FIX: esta variable debe llamarse tbody (se usa más abajo)
-    var tbody = document.getElementById('grilla-body');
+CREATE OR REPLACE FUNCTION ejercicioajax.fn_persona_iu(
+  _idpersona   INT,
+  _nombre      TEXT,
+  _apellidos   TEXT,
+  _idregion    INT,
+  _idcomuna    INT,
+  _idprofesion INT
+)
+RETURNS TABLE(success BOOLEAN, message VARCHAR)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- VALIDACIONES BÁSICAS
+  IF _nombre IS NULL OR BTRIM(_nombre) = '' THEN
+    RETURN QUERY SELECT FALSE::BOOLEAN, 'EL NOMBRE ES OBLIGATORIO'::VARCHAR; RETURN;
+  END IF;
 
-    function xhr(method, url, data, cb) {
-        var req = new XMLHttpRequest();
-        req.open(method, url, true);
-        if (method === 'POST') req.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');
-        req.onreadystatechange = function () {
-          if (req.readyState === 4) {
-            if (req.status >= 200 && req.status < 300) {
-              try { cb(null, JSON.parse(req.responseText)); }
-              catch (e) { cb(new Error('JSON inválido')); }
-            } else cb(new Error('HTTP ' + req.status));
-          }
-        };
-        req.send(data || null);
-      }
-    function enc(o){ var a=[],k; for(k in o) if(o.hasOwnProperty(k)) a.push(encodeURIComponent(k)+'='+encodeURIComponent(o[k])); return a.join('&'); }
-    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  IF _apellidos IS NULL OR BTRIM(_apellidos) = '' THEN
+    RETURN QUERY SELECT FALSE::BOOLEAN, 'LOS APELLIDOS SON OBLIGATORIOS'::VARCHAR; RETURN;
+  END IF;
 
-    function fillSelect(sel, data, map){
-      sel.innerHTML = '';
-      if (map.placeholder !== null && map.placeholder !== undefined) {
-          sel.add(new Option(map.placeholder, ''));
-      }
-      for (var i=0; i<data.length; i++){
-          var it = data[i];
-          if (it && !it.error) sel.add(new Option(it[map.text], it[map.value]));
-      }
-    }
-    
-    cargarProfesiones();
-    cargarRegiones();
+  -- EXISTE PROFESIÓN (mismo esquema)
+  IF NOT EXISTS (SELECT 1 FROM ejercicioajax.profesion WHERE idprofesion = _idprofesion) THEN
+    RETURN QUERY SELECT FALSE::BOOLEAN, 'IDPROFESION INEXISTENTE'::VARCHAR; RETURN;
+  END IF;
 
-    // Region valor base y comuna bloqueada
-    if (region && region.options.length) {
-        region.options[0].text = '--Seleccione--';
-        region.options[0].value = '';
-    }
-    if (comuna) {
-        comuna.disabled = true;
-    }
+  -- COMUNA PERTENECE A LA REGIÓN
+  IF NOT EXISTS (
+    SELECT 1 FROM ejercicioajax.comuna
+     WHERE idcomuna = _idcomuna AND idregion = _idregion
+  ) THEN
+    RETURN QUERY SELECT FALSE::BOOLEAN, 'LA COMUNA NO PERTENECE A LA REGION'::VARCHAR; RETURN;
+  END IF;
 
-    // Desbloquear comuna
-    region.addEventListener('change', function () {
-        if (!region.value) {
-            comuna.innerHTML = '<option value=""></option>';
-            comuna.disabled = true;
-        } else {
-            cargarComunas(region.value);
-        }
-    });      
-    
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
-    
-        // Nombre
-        if (!nombre.value.trim()) {
-            alert('El campo "Nombre" es obligatorio.');
-            nombre.focus(); return;
-        }
-        if (nombre.value.trim().length < 3) {
-            alert('El campo "Nombre" debe tener al menos 3 caracteres.');
-            nombre.focus(); return;
-        }
+  -- UNICIDAD NOMBRE+APELLIDOS (excluye al propio en UPDATE)
+  IF EXISTS (
+    SELECT 1
+      FROM ejercicioajax.persona
+     WHERE LOWER(BTRIM(nombre))    = LOWER(BTRIM(_nombre))
+       AND LOWER(BTRIM(apellidos)) = LOWER(BTRIM(_apellidos))
+       AND (_idpersona = 0 OR idpersona <> _idpersona)
+  ) THEN
+    RETURN QUERY SELECT FALSE::BOOLEAN, 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'::VARCHAR; RETURN;
+  END IF;
 
-        // Apellidos
-        if (!apellidos.value.trim()) {
-            alert('El campo "Apellidos" es obligatorio.');
-            apellidos.focus(); return;
-        }
+  -- INSERT / UPDATE
+  IF _idpersona = 0 THEN
+    INSERT INTO ejercicioajax.persona (nombre, apellidos, idregion, idcomuna, idprofesion)
+    VALUES (BTRIM(_nombre), BTRIM(_apellidos), _idregion, _idcomuna, _idprofesion);
 
-        // Región / Comuna
-        if (!region.value) {
-            alert('Debe seleccionar una Región (opción distinta de "--Seleccione--").');
-            region.focus(); return;
-        }
-        if (comuna.disabled || !comuna.value) {
-            alert('Debe seleccionar una Comuna.');
-            comuna.focus(); return;
-        }  
-    
-        // Profesión
-        if (!profesion.value.trim()) {
-            alert('El campo "Profesión" es obligatorio.');
-            profesion.focus(); return;
-        }
+    RETURN QUERY SELECT TRUE::BOOLEAN, 'INSERTADO'::VARCHAR;
+  ELSE
+    IF NOT EXISTS (SELECT 1 FROM ejercicioajax.persona WHERE idpersona = _idpersona) THEN
+      RETURN QUERY SELECT FALSE::BOOLEAN, 'IDPERSONA NO ENCONTRADO'::VARCHAR; RETURN;
+    END IF;
 
-        guardarPersona();        
-    });
+    UPDATE ejercicioajax.persona
+       SET nombre      = BTRIM(_nombre),
+           apellidos   = BTRIM(_apellidos),
+           idregion    = _idregion,
+           idcomuna    = _idcomuna,
+           idprofesion = _idprofesion
+     WHERE idpersona   = _idpersona;
 
-    function cargarProfesiones(){
-        xhr('GET','command.php?cmd=listarProfesiones',null,function(err,data){
-          if (err) return console.error(err);
-          fillSelect(profesion, data, { value:'idprofesion', text:'nombre', placeholder:'--Seleccione--' });
-        });
-    }
-    
-    function cargarRegiones(){
-        xhr('GET','command.php?cmd=listarRegiones',null,function(err,data){
-            if (err) return console.error(err);
-            fillSelect(region, data, { value:'idregion', text:'nombre', placeholder:'--Seleccione--' });
-            cargarGrilla();
-        });
-    }
-
-    function cargarComunas(idreg, cb){
-        xhr('GET','command.php?cmd=listarComunas&idregion='+encodeURIComponent(idreg),null,function(err,data){
-            if (err) return console.error(err);
-            comuna.disabled = false;
-            fillSelect(comuna, data, { value:'idcomuna', text:'nombre', placeholder:'' });
-            if (typeof cb === 'function') cb();
-        });
-    }
-
-    function cargarGrilla(){
-        xhr('GET','command.php?cmd=listarPersonas',null,function(err,data){
-            if (err) { console.error(err); return; }
-            if (!tbody) return;
-
-            var rows = '';
-            for (var i=0; i<data.length; i++){
-              var it = data[i]; 
-              if (it && !it.error){
-                  rows += '<tr>'
-                      +   '<td>'+esc(it.nombre)   +'</td>'
-                      +   '<td>'+esc(it.apellidos)+'</td>'
-                      +   '<td>'+esc(it.region)   +'</td>'
-                      +   '<td>'+esc(it.comuna)   +'</td>'
-                      +   '<td>'+esc(it.profesion)+'</td>'
-                      +   '<td><button type="button" class="btn-small btn-modificar" data-id="'+it.idpersona+'">Modificar</button></td>'
-                      + '</tr>';
-              }
-            }
-            tbody.innerHTML = rows;
-
-            var botones = tbody.querySelectorAll('.btn-modificar');
-            for (var j=0; j<botones.length; j++){
-              botones[j].addEventListener('click', onModificar);
-            }
-        });
-    }
-
-    function onModificar(e){
-        var id = this.getAttribute('data-id');
-        xhr('GET','command.php?cmd=buscarPersona&idpersona='+encodeURIComponent(id),null,function(err,arr){
-          if (err) { console.error(err); return; }
-          var res = arr && arr[0];
-          if (res && !res.error){
-            idpersona.value   = res.idpersona;
-            nombre.value      = res.nombre;
-            apellidos.value   = res.apellidos;
-            region.value      = res.idregion || '';
-            if (region.value){
-              cargarComunas(region.value, function(){ comuna.value = res.idcomuna || ''; });
-            } else {
-              comuna.value = ''; comuna.disabled = true;
-            }
-            profesion.value   = res.idprofesion || '';
-            btn.textContent   = 'Actualizar';
-            nombre.focus();
-          } else {
-            alert(res && res.error ? res.error : 'No encontrado');
-          }
-        });
-    }
-
-    function guardarPersona(){
-        var payload = enc({
-          cmd:'guardarPersona',
-          idpersona:  idpersona.value || '0',
-          nombre:     nombre.value.trim(),
-          apellidos:  apellidos.value.trim(),
-          idregion:   region.value,
-          idcomuna:   comuna.value,
-          idprofesion:profesion.value
-        });
-    
-        xhr('POST','command.php',payload,function(err,obj){
-          if (err){ console.error(err); return alert('Error de red/servidor'); }
-          if (obj && obj.success){
-            alert(obj.message || 'Operación exitosa.');
-            // Reset UI
-            idpersona.value = '0';
-            form.reset();
-            comuna.disabled = true;
-            btn.textContent = 'Enviar';
-            cargarGrilla();
-          } else {
-            alert((obj && obj.error) || 'Error en la operación.');
-          }
-        });
-    }
-});
+    RETURN QUERY SELECT TRUE::BOOLEAN, 'ACTUALIZADO'::VARCHAR;
+  END IF;
+END;
+$$;
