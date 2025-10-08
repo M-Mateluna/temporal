@@ -1,16 +1,12 @@
-/* ============ utils.js (compat ES5) ============ */
+/* ============ utils.js (compat ES5, sin navegación) ============ */
 
 /* ---- RUT ---- */
 function validaRUT(rut) {
   if (!rut) return false;
-
   var limpio = (rut + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
   var partes = limpio.split('-');
   if (partes.length !== 2) return false;
-
-  var cuerpo = partes[0];
-  var dv = partes[1];
-
+  var cuerpo = partes[0], dv = partes[1];
   if (!/^\d+$/.test(cuerpo)) return false;
   if (!/^[0-9K]$/.test(dv)) return false;
 
@@ -19,7 +15,6 @@ function validaRUT(rut) {
     suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
     multiplo = (multiplo === 7) ? 2 : multiplo + 1;
   }
-
   var resto = suma % 11;
   var dvCalcNum = 11 - resto;
   var dvCalc = (dvCalcNum === 11) ? '0' : (dvCalcNum === 10 ? 'K' : String(dvCalcNum));
@@ -34,7 +29,7 @@ function validaEmail(email) {
   return re.test(e);
 }
 
-/* Helpers seguros para leer valores y checks */
+/* Helpers */
 function getVal(id) {
   var el = document.getElementById(id);
   return el ? (('value' in el) ? ('' + el.value).replace(/^\s+|\s+$/g, '') : '') : '';
@@ -45,7 +40,9 @@ function isChecked(id) {
 }
 
 /* ---- Validación general ---- */
-function validarFormulario() {
+function validarFormulario(evt) {
+  if (evt && evt.preventDefault) evt.preventDefault(); // clave: NO navegar
+
   var nombre        = getVal('nombre');
   var apellidos     = getVal('apellidos');
   var rut           = getVal('rut');
@@ -79,21 +76,25 @@ function validarFormulario() {
     return false;
   }
 
-  reservar();
-  return false; // por ahora prevenimos el submit real
+  // Si todo OK:
+  alert('Validación exitosa. (Aquí se llamará a reservar())');
+  reservar(); // aún vacía
+  return false; // mantiene la página sin navegar
 }
 
-/* Se implementará en la siguiente actividad */
+/* Stub de inserción */
 function reservar() {
-  // TODO: enviar/insertar datos
+  // TODO: implementar en la siguiente actividad
 }
 
-/* Hook de envío del form */
-(function () {
+/* ---- Hook tras cargar el DOM ---- */
+document.addEventListener('DOMContentLoaded', function () {
   var form = document.getElementById('form-reserva');
   if (form) {
-    form.addEventListener('submit', function (e) {
-      if (validarFormulario() === false) e.preventDefault();
-    });
+    // Previene navegación tanto por Enter como por click
+    form.addEventListener('submit', validarFormulario);
+    // Por si el botón es type="submit"
+    var btn = form.querySelector('.btn-reservar');
+    if (btn) btn.addEventListener('click', validarFormulario);
   }
-})();
+});
