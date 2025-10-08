@@ -1,108 +1,128 @@
-/* Base */
-body {
-  font-family: Verdana, sans-serif;
-  font-size: 16px;
-  background: #fff;
-  color: #222;
-}
-h1 { text-align: center; margin: 10px 0 16px; }
+/* =======================
+   utils.js  (validaciones)
+   ======================= */
 
-/* Layout principal (tabla externa) */
-.layout { border-collapse: collapse; margin: 0 auto 16px; }
+/** Limpia y valida RUT chileno (con dígito verificador). 
+ *  Retorna true si es válido, false si no. */
+function validaRUT(rut) {
+  if (!rut) return false;
 
-/* --------- FORMULARIO --------- */
-.tabla-form {
-  width: 900px;
-  margin: 0 auto 16px;
-  border-collapse: collapse;
-  table-layout: fixed;         /* columnas rígidas */
-  border: 1px solid #cfcfcf;   /* borde suave de contorno */
-}
-.tabla-form col.col12 { width: calc(100% / 12); }
+  // Normaliza: quita puntos y espacios, deja mayúsculas
+  const limpio = String(rut).replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
 
-.tabla-form th {
-  background: #f3f3f3;
-  padding: 8px;
-  text-align: center;
-  border-bottom: 1px solid #cfcfcf;
-  font-weight: 700;
-}
-.tabla-form td {
-  text-align: center;
-  padding: 10px 8px;
-  border-bottom: 1px solid #e9e9e9;
-  border-right: 1px solid #efefef;
-}
-.tabla-form tr td:last-child { border-right: none; }
+  // Debe venir con dígito verificador separado por guion
+  const partes = limpio.split('-');
+  if (partes.length !== 2) return false;
 
-/* Labels arriba del control */
-.tabla-form label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 700;
+  const cuerpo = partes[0];
+  const dv = partes[1];
+
+  if (!/^\d+$/.test(cuerpo)) return false;               // solo números en el cuerpo
+  if (!/^[0-9K]$/.test(dv)) return false;                // DV numérico o K
+
+  // Cálculo del DV (método módulo 11)
+  let suma = 0;
+  let multiplo = 2;
+
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo[i], 10) * multiplo;
+    multiplo = multiplo === 7 ? 2 : multiplo + 1;
+  }
+
+  const resto = suma % 11;
+  const dvCalcNum = 11 - resto;
+  const dvCalc =
+    dvCalcNum === 11 ? '0' :
+    dvCalcNum === 10 ? 'K' :
+    String(dvCalcNum);
+
+  return dv === dvCalc;
 }
 
-/* Controles (tamaños exigidos) */
-.tabla-form input[type="text"],
-.tabla-form input[type="email"],
-.tabla-form input[type="date"],
-.tabla-form select {
-  display: block;
-  margin: 0 auto;
-  height: 30px;
-  width: 180px;
-  border-radius: 10px;
-  border: 1px solid #000;
-  font: 16px Verdana, sans-serif;
-  padding: 2px 6px;
-  box-sizing: border-box;
+/** Valida email con una expresión regular sencilla y robusta.
+ *  Retorna true si es válido, false si no. */
+function validaEmail(email) {
+  if (!email) return false;
+  const e = String(email).trim();
+  // No buscamos RFC completo; suficiente para formularios comunes
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  return re.test(e);
 }
 
-/* Grupo checks */
-.checks { text-align: center; }
-.lbl-inline { display: block; margin-bottom: 6px; font-weight: 700; }
-.checks-row label { margin: 0 10px; }
+/** Valida todos los campos del formulario y, si todo OK, llama a reservar(). 
+ *  Retorna false para prevenir submit (hasta implementar reservar()). */
+function validarFormulario() {
+  // Obtención de valores
+  const nombre         = document.getElementById('nombre')?.value.trim() || '';
+  const apellidos      = document.getElementById('apellidos')?.value.trim() || '';
+  const rut            = document.getElementById('rut')?.value.trim() || '';
+  const email          = document.getElementById('email')?.value.trim() || '';
+  const fecha          = document.getElementById('fecha')?.value.trim() || '';
+  const horario        = document.getElementById('horario')?.value || '';
+  const region         = document.getElementById('region')?.value || '';
+  const comuna         = document.getElementById('comuna')?.value || '';
+  const nombremascota  = document.getElementById('nombremascota')?.value.trim() || '';
 
-/* Recordatorio */
-.fila-recordatorio { text-align: center; }
-.lbl-recordatorio { font-weight: 700; }
+  // Helper para obligatorio
+  const obligatorio = (val, nombreCampo) => {
+    if (!val) {
+      alert(`El campo ${nombreCampo} es obligatorio`);
+      return false;
+    }
+    return true;
+  };
 
-/* Botones */
-button { font: 16px Verdana, sans-serif; cursor: pointer; }
+  // Validaciones de requerido (en el orden del formulario)
+  if (!obligatorio(nombre, 'Nombre')) return false;
+  if (!obligatorio(apellidos, 'Apellidos')) return false;
+  if (!obligatorio(rut, 'RUT')) return false;
+  if (!validaRUT(rut)) {
+    alert('El campo RUT no tiene un formato correcto');
+    return false;
+  }
+  if (!obligatorio(email, 'Email')) return false;
+  if (!validaEmail(email)) {
+    alert('El campo Email no tiene un formato correcto');
+    return false;
+  }
+  if (!obligatorio(fecha, 'Fecha de Consulta')) return false;
+  if (!obligatorio(horario, 'Horario')) return false;
+  if (!obligatorio(region, 'Region')) return false;
+  if (!obligatorio(comuna, 'Comuna')) return false;
+  if (!obligatorio(nombremascota, 'Nombre Mascota')) return false;
 
-.btn-reservar {
-  background: #58B957;
-  color: #fff;
-  border: none;
-  border-radius: 15px;
-  height: 40px;
-  width: 230px;
+  // Al menos 2 checkboxes de cómo se enteró
+  const checks = ['web', 'tv', 'amigos'];
+  const seleccionados = checks.reduce((acc, id) => {
+    const el = document.getElementById(id);
+    return acc + (el && el.checked ? 1 : 0);
+  }, 0);
+
+  if (seleccionados < 2) {
+    alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros');
+    return false;
+  }
+
+  // Si todas las validaciones pasan:
+  reservar();
+  // Por ahora evitamos que el form se envíe (hasta implementar reservar())
+  return false;
 }
 
-/* --------- TABLA DEMANDA --------- */
-.tabla-demanda {
-  border-collapse: collapse;
-  margin: 0 auto;
+/** Se implementará en la siguiente actividad */
+function reservar() {
+  // TODO: Implementar inserción/envío de datos
+  // Por ahora solo es un “stub”.
 }
-.tabla-demanda th, .tabla-demanda td { text-align: center; }
-.tabla-demanda th { background: #f3f3f3; }
 
-/* --------- LISTADO --------- */
-.tabla-listado {
-  border-collapse: collapse;
-  margin-bottom: 24px;
-}
-.tabla-listado th { background: #f3f3f3; }
-.tabla-listado th, .tabla-listado td { text-align: center; }
-
-/* Botones de acciones (sin bordes, tamaños exigidos) */
-.btn-borrar, .btn-recordar {
-  color: #fff;
-  border: none;
-  border-radius: 15px;
-  height: 30px;
-  width: 80px;
-  margin: 0 4px;
-}
-.btn-borrar { background: red; }
-.btn-recordar { background: blue; }
+/* Hook automático al form para usar validarFormulario() en submit */
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById('form-reserva');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      if (validarFormulario() === false) {
+        e.preventDefault();
+      }
+    });
+  }
+});
