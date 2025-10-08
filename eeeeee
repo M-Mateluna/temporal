@@ -1,128 +1,99 @@
-/* =======================
-   utils.js  (validaciones)
-   ======================= */
+/* ============ utils.js (compat ES5) ============ */
 
-/** Limpia y valida RUT chileno (con dígito verificador). 
- *  Retorna true si es válido, false si no. */
+/* ---- RUT ---- */
 function validaRUT(rut) {
   if (!rut) return false;
 
-  // Normaliza: quita puntos y espacios, deja mayúsculas
-  const limpio = String(rut).replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
-
-  // Debe venir con dígito verificador separado por guion
-  const partes = limpio.split('-');
+  var limpio = (rut + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+  var partes = limpio.split('-');
   if (partes.length !== 2) return false;
 
-  const cuerpo = partes[0];
-  const dv = partes[1];
+  var cuerpo = partes[0];
+  var dv = partes[1];
 
-  if (!/^\d+$/.test(cuerpo)) return false;               // solo números en el cuerpo
-  if (!/^[0-9K]$/.test(dv)) return false;                // DV numérico o K
+  if (!/^\d+$/.test(cuerpo)) return false;
+  if (!/^[0-9K]$/.test(dv)) return false;
 
-  // Cálculo del DV (método módulo 11)
-  let suma = 0;
-  let multiplo = 2;
-
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    suma += parseInt(cuerpo[i], 10) * multiplo;
-    multiplo = multiplo === 7 ? 2 : multiplo + 1;
+  var suma = 0, multiplo = 2;
+  for (var i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
+    multiplo = (multiplo === 7) ? 2 : multiplo + 1;
   }
 
-  const resto = suma % 11;
-  const dvCalcNum = 11 - resto;
-  const dvCalc =
-    dvCalcNum === 11 ? '0' :
-    dvCalcNum === 10 ? 'K' :
-    String(dvCalcNum);
-
+  var resto = suma % 11;
+  var dvCalcNum = 11 - resto;
+  var dvCalc = (dvCalcNum === 11) ? '0' : (dvCalcNum === 10 ? 'K' : String(dvCalcNum));
   return dv === dvCalc;
 }
 
-/** Valida email con una expresión regular sencilla y robusta.
- *  Retorna true si es válido, false si no. */
+/* ---- Email ---- */
 function validaEmail(email) {
   if (!email) return false;
-  const e = String(email).trim();
-  // No buscamos RFC completo; suficiente para formularios comunes
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  var e = ('' + email).replace(/^\s+|\s+$/g, '');
+  var re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   return re.test(e);
 }
 
-/** Valida todos los campos del formulario y, si todo OK, llama a reservar(). 
- *  Retorna false para prevenir submit (hasta implementar reservar()). */
+/* Helpers seguros para leer valores y checks */
+function getVal(id) {
+  var el = document.getElementById(id);
+  return el ? (('value' in el) ? ('' + el.value).replace(/^\s+|\s+$/g, '') : '') : '';
+}
+function isChecked(id) {
+  var el = document.getElementById(id);
+  return !!(el && el.checked);
+}
+
+/* ---- Validación general ---- */
 function validarFormulario() {
-  // Obtención de valores
-  const nombre         = document.getElementById('nombre')?.value.trim() || '';
-  const apellidos      = document.getElementById('apellidos')?.value.trim() || '';
-  const rut            = document.getElementById('rut')?.value.trim() || '';
-  const email          = document.getElementById('email')?.value.trim() || '';
-  const fecha          = document.getElementById('fecha')?.value.trim() || '';
-  const horario        = document.getElementById('horario')?.value || '';
-  const region         = document.getElementById('region')?.value || '';
-  const comuna         = document.getElementById('comuna')?.value || '';
-  const nombremascota  = document.getElementById('nombremascota')?.value.trim() || '';
+  var nombre        = getVal('nombre');
+  var apellidos     = getVal('apellidos');
+  var rut           = getVal('rut');
+  var email         = getVal('email');
+  var fecha         = getVal('fecha');
+  var horario       = getVal('horario');
+  var region        = getVal('region');
+  var comuna        = getVal('comuna');
+  var nombremascota = getVal('nombremascota');
 
-  // Helper para obligatorio
-  const obligatorio = (val, nombreCampo) => {
-    if (!val) {
-      alert(`El campo ${nombreCampo} es obligatorio`);
-      return false;
-    }
+  function obligatorio(val, nombreCampo) {
+    if (!val) { alert('El campo ' + nombreCampo + ' es obligatorio'); return false; }
     return true;
-  };
+  }
 
-  // Validaciones de requerido (en el orden del formulario)
   if (!obligatorio(nombre, 'Nombre')) return false;
   if (!obligatorio(apellidos, 'Apellidos')) return false;
   if (!obligatorio(rut, 'RUT')) return false;
-  if (!validaRUT(rut)) {
-    alert('El campo RUT no tiene un formato correcto');
-    return false;
-  }
+  if (!validaRUT(rut)) { alert('El campo RUT no tiene un formato correcto'); return false; }
   if (!obligatorio(email, 'Email')) return false;
-  if (!validaEmail(email)) {
-    alert('El campo Email no tiene un formato correcto');
-    return false;
-  }
+  if (!validaEmail(email)) { alert('El campo Email no tiene un formato correcto'); return false; }
   if (!obligatorio(fecha, 'Fecha de Consulta')) return false;
   if (!obligatorio(horario, 'Horario')) return false;
   if (!obligatorio(region, 'Region')) return false;
   if (!obligatorio(comuna, 'Comuna')) return false;
   if (!obligatorio(nombremascota, 'Nombre Mascota')) return false;
 
-  // Al menos 2 checkboxes de cómo se enteró
-  const checks = ['web', 'tv', 'amigos'];
-  const seleccionados = checks.reduce((acc, id) => {
-    const el = document.getElementById(id);
-    return acc + (el && el.checked ? 1 : 0);
-  }, 0);
-
+  var seleccionados = (isChecked('web')?1:0) + (isChecked('tv')?1:0) + (isChecked('amigos')?1:0);
   if (seleccionados < 2) {
     alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros');
     return false;
   }
 
-  // Si todas las validaciones pasan:
   reservar();
-  // Por ahora evitamos que el form se envíe (hasta implementar reservar())
-  return false;
+  return false; // por ahora prevenimos el submit real
 }
 
-/** Se implementará en la siguiente actividad */
+/* Se implementará en la siguiente actividad */
 function reservar() {
-  // TODO: Implementar inserción/envío de datos
-  // Por ahora solo es un “stub”.
+  // TODO: enviar/insertar datos
 }
 
-/* Hook automático al form para usar validarFormulario() en submit */
-document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('form-reserva');
+/* Hook de envío del form */
+(function () {
+  var form = document.getElementById('form-reserva');
   if (form) {
     form.addEventListener('submit', function (e) {
-      if (validarFormulario() === false) {
-        e.preventDefault();
-      }
+      if (validarFormulario() === false) e.preventDefault();
     });
   }
-});
+})();
