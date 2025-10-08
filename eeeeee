@@ -1,100 +1,58 @@
-/* ============ utils.js (compat ES5, sin navegación) ============ */
+// --- utils.js (ES5) ---
 
-/* ---- RUT ---- */
-function validaRUT(rut) {
+function validaRUT(rut){
   if (!rut) return false;
-  var limpio = (rut + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
-  var partes = limpio.split('-');
-  if (partes.length !== 2) return false;
-  var cuerpo = partes[0], dv = partes[1];
+  var limpio = (rut+'').replace(/\./g,'').replace(/\s+/g,'').toUpperCase();
+  var p = limpio.split('-'); if (p.length!==2) return false;
+  var cuerpo=p[0], dv=p[1];
   if (!/^\d+$/.test(cuerpo)) return false;
   if (!/^[0-9K]$/.test(dv)) return false;
-
-  var suma = 0, multiplo = 2;
-  for (var i = cuerpo.length - 1; i >= 0; i--) {
-    suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
-    multiplo = (multiplo === 7) ? 2 : multiplo + 1;
-  }
-  var resto = suma % 11;
-  var dvCalcNum = 11 - resto;
-  var dvCalc = (dvCalcNum === 11) ? '0' : (dvCalcNum === 10 ? 'K' : String(dvCalcNum));
-  return dv === dvCalc;
+  var suma=0,m=2; for (var i=cuerpo.length-1;i>=0;i--){ suma+=parseInt(cuerpo.charAt(i),10)*m; m=(m===7)?2:m+1; }
+  var r=suma%11, x=11-r, d=(x===11)?'0':(x===10?'K':''+x);
+  return dv===d;
 }
 
-/* ---- Email ---- */
-function validaEmail(email) {
+function validaEmail(email){
   if (!email) return false;
-  var e = ('' + email).replace(/^\s+|\s+$/g, '');
-  var re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  return re.test(e);
+  var e=(''+email).replace(/^\s+|\s+$/g,'');
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 }
 
-/* Helpers */
-function getVal(id) {
-  var el = document.getElementById(id);
-  return el ? (('value' in el) ? ('' + el.value).replace(/^\s+|\s+$/g, '') : '') : '';
-}
-function isChecked(id) {
-  var el = document.getElementById(id);
-  return !!(el && el.checked);
-}
+function getVal(id){ var el=document.getElementById(id); return el?(''+el.value).replace(/^\s+|\s+$/g,''):''; }
+function isChecked(id){ var el=document.getElementById(id); return !!(el && el.checked); }
 
-/* ---- Validación general ---- */
-function validarFormulario(evt) {
-  if (evt && evt.preventDefault) evt.preventDefault(); // clave: NO navegar
+// Retorna true/false y muestra alert en caso de error.
+// No previene eventos ni toca el DOM más que leer valores.
+function validarFormulario(){
+  var nombre=getVal('nombre');
+  var apellidos=getVal('apellidos');
+  var rut=getVal('rut');
+  var email=getVal('email');
+  var fecha=getVal('fecha');
+  var horario=getVal('horario');
+  var region=getVal('region');
+  var comuna=getVal('comuna');
+  var mascota=getVal('nombremascota');
 
-  var nombre        = getVal('nombre');
-  var apellidos     = getVal('apellidos');
-  var rut           = getVal('rut');
-  var email         = getVal('email');
-  var fecha         = getVal('fecha');
-  var horario       = getVal('horario');
-  var region        = getVal('region');
-  var comuna        = getVal('comuna');
-  var nombremascota = getVal('nombremascota');
+  function req(v,n){ if(!v){ alert('El campo '+n+' es obligatorio'); return false; } return true; }
 
-  function obligatorio(val, nombreCampo) {
-    if (!val) { alert('El campo ' + nombreCampo + ' es obligatorio'); return false; }
-    return true;
-  }
+  if(!req(nombre,'Nombre')) return false;
+  if(!req(apellidos,'Apellidos')) return false;
+  if(!req(rut,'RUT')) return false;
+  if(!validaRUT(rut)){ alert('El campo RUT no tiene un formato correcto'); return false; }
+  if(!req(email,'Email')) return false;
+  if(!validaEmail(email)){ alert('El campo Email no tiene un formato correcto'); return false; }
+  if(!req(fecha,'Fecha de Consulta')) return false;
+  if(!req(horario,'Horario')) return false;
+  if(!req(region,'Region')) return false;
+  if(!req(comuna,'Comuna')) return false;
+  if(!req(mascota,'Nombre Mascota')) return false;
 
-  if (!obligatorio(nombre, 'Nombre')) return false;
-  if (!obligatorio(apellidos, 'Apellidos')) return false;
-  if (!obligatorio(rut, 'RUT')) return false;
-  if (!validaRUT(rut)) { alert('El campo RUT no tiene un formato correcto'); return false; }
-  if (!obligatorio(email, 'Email')) return false;
-  if (!validaEmail(email)) { alert('El campo Email no tiene un formato correcto'); return false; }
-  if (!obligatorio(fecha, 'Fecha de Consulta')) return false;
-  if (!obligatorio(horario, 'Horario')) return false;
-  if (!obligatorio(region, 'Region')) return false;
-  if (!obligatorio(comuna, 'Comuna')) return false;
-  if (!obligatorio(nombremascota, 'Nombre Mascota')) return false;
+  var seleccionados=(isChecked('web')?1:0)+(isChecked('tv')?1:0)+(isChecked('amigos')?1:0);
+  if(seleccionados<2){ alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros'); return false; }
 
-  var seleccionados = (isChecked('web')?1:0) + (isChecked('tv')?1:0) + (isChecked('amigos')?1:0);
-  if (seleccionados < 2) {
-    alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros');
-    return false;
-  }
-
-  // Si todo OK:
-  alert('Validación exitosa. (Aquí se llamará a reservar())');
-  reservar(); // aún vacía
-  return false; // mantiene la página sin navegar
+  return true; // OK
 }
 
-/* Stub de inserción */
-function reservar() {
-  // TODO: implementar en la siguiente actividad
-}
-
-/* ---- Hook tras cargar el DOM ---- */
-document.addEventListener('DOMContentLoaded', function () {
-  var form = document.getElementById('form-reserva');
-  if (form) {
-    // Previene navegación tanto por Enter como por click
-    form.addEventListener('submit', validarFormulario);
-    // Por si el botón es type="submit"
-    var btn = form.querySelector('.btn-reservar');
-    if (btn) btn.addEventListener('click', validarFormulario);
-  }
-});
+// Stub para la próxima etapa
+function reservar(){ /* TODO: implementar */ }
