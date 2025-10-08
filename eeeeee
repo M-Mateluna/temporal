@@ -1,58 +1,126 @@
-// --- utils.js (ES5) ---
+/* =======================
+   utils.js  (validaciones + hook)
+   ES5 compatible
+   ======================= */
 
-function validaRUT(rut){
+/* --- Normaliza y valida RUT chileno --- */
+function validaRUT(rut) {
   if (!rut) return false;
-  var limpio = (rut+'').replace(/\./g,'').replace(/\s+/g,'').toUpperCase();
-  var p = limpio.split('-'); if (p.length!==2) return false;
-  var cuerpo=p[0], dv=p[1];
-  if (!/^\d+$/.test(cuerpo)) return false;
-  if (!/^[0-9K]$/.test(dv)) return false;
-  var suma=0,m=2; for (var i=cuerpo.length-1;i>=0;i--){ suma+=parseInt(cuerpo.charAt(i),10)*m; m=(m===7)?2:m+1; }
-  var r=suma%11, x=11-r, d=(x===11)?'0':(x===10?'K':''+x);
-  return dv===d;
+
+  var limpio = (rut + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+
+  // Si viene sin guion, asumimos último carácter como DV
+  if (limpio.indexOf('-') === -1 && limpio.length > 1) {
+    limpio = limpio.slice(0, -1) + '-' + limpio.slice(-1);
+  }
+
+  var partes = limpio.split('-');
+  if (partes.length !== 2) return false;
+
+  var cuerpo = partes[0];
+  var dv = partes[1];
+
+  if (!/^\d+$/.test(cuerpo)) return false;     // solo números en el cuerpo
+  if (!/^[0-9K]$/.test(dv)) return false;      // DV numérico o K
+
+  // Cálculo DV (módulo 11)
+  var suma = 0, multiplo = 2;
+  for (var i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
+    multiplo = (multiplo === 7) ? 2 : multiplo + 1;
+  }
+
+  var resto = suma % 11;
+  var dvCalcNum = 11 - resto;
+  var dvCalc = (dvCalcNum === 11) ? '0' : (dvCalcNum === 10 ? 'K' : String(dvCalcNum));
+
+  return dv === dvCalc;
 }
 
-function validaEmail(email){
+/* --- Valida email simple y robusto --- */
+function validaEmail(email) {
   if (!email) return false;
-  var e=(''+email).replace(/^\s+|\s+$/g,'');
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+  var e = ('' + email).replace(/^\s+|\s+$/g, '');
+  var re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  return re.test(e);
 }
 
-function getVal(id){ var el=document.getElementById(id); return el?(''+el.value).replace(/^\s+|\s+$/g,''):''; }
-function isChecked(id){ var el=document.getElementById(id); return !!(el && el.checked); }
-
-// Retorna true/false y muestra alert en caso de error.
-// No previene eventos ni toca el DOM más que leer valores.
-function validarFormulario(){
-  var nombre=getVal('nombre');
-  var apellidos=getVal('apellidos');
-  var rut=getVal('rut');
-  var email=getVal('email');
-  var fecha=getVal('fecha');
-  var horario=getVal('horario');
-  var region=getVal('region');
-  var comuna=getVal('comuna');
-  var mascota=getVal('nombremascota');
-
-  function req(v,n){ if(!v){ alert('El campo '+n+' es obligatorio'); return false; } return true; }
-
-  if(!req(nombre,'Nombre')) return false;
-  if(!req(apellidos,'Apellidos')) return false;
-  if(!req(rut,'RUT')) return false;
-  if(!validaRUT(rut)){ alert('El campo RUT no tiene un formato correcto'); return false; }
-  if(!req(email,'Email')) return false;
-  if(!validaEmail(email)){ alert('El campo Email no tiene un formato correcto'); return false; }
-  if(!req(fecha,'Fecha de Consulta')) return false;
-  if(!req(horario,'Horario')) return false;
-  if(!req(region,'Region')) return false;
-  if(!req(comuna,'Comuna')) return false;
-  if(!req(mascota,'Nombre Mascota')) return false;
-
-  var seleccionados=(isChecked('web')?1:0)+(isChecked('tv')?1:0)+(isChecked('amigos')?1:0);
-  if(seleccionados<2){ alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros'); return false; }
-
-  return true; // OK
+/* --- Helpers para leer valores/checkbox --- */
+function getVal(id) {
+  var el = document.getElementById(id);
+  return el ? (('value' in el) ? ('' + el.value).replace(/^\s+|\s+$/g, '') : '') : '';
+}
+function isChecked(id) {
+  var el = document.getElementById(id);
+  return !!(el && el.checked);
 }
 
-// Stub para la próxima etapa
-function reservar(){ /* TODO: implementar */ }
+/* --- Validación general del formulario ---
+   Retorna true si todo OK; si no, muestra alert y retorna false. */
+function validarFormulario() {
+  var nombre        = getVal('nombre');
+  var apellidos     = getVal('apellidos');
+  var rut           = getVal('rut');
+  var email         = getVal('email');
+  var fecha         = getVal('fecha');
+  var horario       = getVal('horario');
+  var region        = getVal('region');
+  var comuna        = getVal('comuna');
+  var nombremascota = getVal('nombremascota');
+
+  function obligatorio(val, nombreCampo) {
+    if (!val) { alert('El campo ' + nombreCampo + ' es obligatorio'); return false; }
+    return true;
+  }
+
+  if (!obligatorio(nombre, 'Nombre')) return false;
+  if (!obligatorio(apellidos, 'Apellidos')) return false;
+
+  if (!obligatorio(rut, 'RUT')) return false;
+  if (!validaRUT(rut)) { alert('El campo RUT no tiene un formato correcto'); return false; }
+
+  if (!obligatorio(email, 'Email')) return false;
+  if (!validaEmail(email)) { alert('El campo Email no tiene un formato correcto'); return false; }
+
+  if (!obligatorio(fecha, 'Fecha de Consulta')) return false;
+  if (!obligatorio(horario, 'Horario')) return false;
+  if (!obligatorio(region, 'Region')) return false;
+  if (!obligatorio(comuna, 'Comuna')) return false;
+  if (!obligatorio(nombremascota, 'Nombre Mascota')) return false;
+
+  // Al menos 2 checkboxes: web, tv, amigos
+  var seleccionados = (isChecked('web') ? 1 : 0) + (isChecked('tv') ? 1 : 0) + (isChecked('amigos') ? 1 : 0);
+  if (seleccionados < 2) {
+    alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros');
+    return false;
+  }
+
+  return true; // listo para continuar
+}
+
+/* --- Reservar (stub) --- */
+function reservar() {
+  // TODO: implementar envío/inserción en la próxima actividad
+}
+
+/* --- Hook: evitar navegación y usar las validaciones --- */
+function handleSubmit(e) {
+  if (e && e.preventDefault) e.preventDefault(); // nunca navegar
+  if (!validarFormulario()) return false;
+  alert('Validación exitosa. (Aquí se llamará a reservar())');
+  reservar();
+  return false; // mantener en página
+}
+
+/* Enganche al cargar el DOM (sin otros archivos JS) */
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.getElementById('form-reserva');
+  if (form) {
+    form.addEventListener('submit', handleSubmit);
+  }
+  // Por si tu botón “Reservar” es type="button"
+  var btn = document.querySelector('.btn-reservar');
+  if (btn) {
+    btn.addEventListener('click', handleSubmit);
+  }
+});
