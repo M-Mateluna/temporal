@@ -1,68 +1,108 @@
-CREATE OR REPLACE FUNCTION ejercicioajax.fn_persona_iu(
-  _idpersona   INT,
-  _nombre      TEXT,
-  _apellidos   TEXT,
-  _idregion    INT,
-  _idcomuna    INT,
-  _idprofesion INT
-)
-RETURNS TABLE(success BOOLEAN, message VARCHAR)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  -- VALIDACIONES BÁSICAS
-  IF _nombre IS NULL OR BTRIM(_nombre) = '' THEN
-    RETURN QUERY SELECT FALSE::BOOLEAN, 'EL NOMBRE ES OBLIGATORIO'::VARCHAR; RETURN;
-  END IF;
+/* Base */
+body {
+  font-family: Verdana, sans-serif;
+  font-size: 16px;
+  background: #fff;
+  color: #222;
+}
+h1 { text-align: center; margin: 10px 0 16px; }
 
-  IF _apellidos IS NULL OR BTRIM(_apellidos) = '' THEN
-    RETURN QUERY SELECT FALSE::BOOLEAN, 'LOS APELLIDOS SON OBLIGATORIOS'::VARCHAR; RETURN;
-  END IF;
+/* Layout principal (tabla externa) */
+.layout { border-collapse: collapse; margin: 0 auto 16px; }
 
-  -- EXISTE PROFESIÓN (mismo esquema)
-  IF NOT EXISTS (SELECT 1 FROM ejercicioajax.profesion WHERE idprofesion = _idprofesion) THEN
-    RETURN QUERY SELECT FALSE::BOOLEAN, 'IDPROFESION INEXISTENTE'::VARCHAR; RETURN;
-  END IF;
+/* --------- FORMULARIO --------- */
+.tabla-form {
+  width: 900px;
+  margin: 0 auto 16px;
+  border-collapse: collapse;
+  table-layout: fixed;         /* columnas rígidas */
+  border: 1px solid #cfcfcf;   /* borde suave de contorno */
+}
+.tabla-form col.col12 { width: calc(100% / 12); }
 
-  -- COMUNA PERTENECE A LA REGIÓN
-  IF NOT EXISTS (
-    SELECT 1 FROM ejercicioajax.comuna
-     WHERE idcomuna = _idcomuna AND idregion = _idregion
-  ) THEN
-    RETURN QUERY SELECT FALSE::BOOLEAN, 'LA COMUNA NO PERTENECE A LA REGION'::VARCHAR; RETURN;
-  END IF;
+.tabla-form th {
+  background: #f3f3f3;
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid #cfcfcf;
+  font-weight: 700;
+}
+.tabla-form td {
+  text-align: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e9e9e9;
+  border-right: 1px solid #efefef;
+}
+.tabla-form tr td:last-child { border-right: none; }
 
-  -- UNICIDAD NOMBRE+APELLIDOS (excluye al propio en UPDATE)
-  IF EXISTS (
-    SELECT 1
-      FROM ejercicioajax.persona
-     WHERE LOWER(BTRIM(nombre))    = LOWER(BTRIM(_nombre))
-       AND LOWER(BTRIM(apellidos)) = LOWER(BTRIM(_apellidos))
-       AND (_idpersona = 0 OR idpersona <> _idpersona)
-  ) THEN
-    RETURN QUERY SELECT FALSE::BOOLEAN, 'YA EXISTE UNA PERSONA CON EL MISMO NOMBRE Y APELLIDOS'::VARCHAR; RETURN;
-  END IF;
+/* Labels arriba del control */
+.tabla-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
 
-  -- INSERT / UPDATE
-  IF _idpersona = 0 THEN
-    INSERT INTO ejercicioajax.persona (nombre, apellidos, idregion, idcomuna, idprofesion)
-    VALUES (BTRIM(_nombre), BTRIM(_apellidos), _idregion, _idcomuna, _idprofesion);
+/* Controles (tamaños exigidos) */
+.tabla-form input[type="text"],
+.tabla-form input[type="email"],
+.tabla-form input[type="date"],
+.tabla-form select {
+  display: block;
+  margin: 0 auto;
+  height: 30px;
+  width: 180px;
+  border-radius: 10px;
+  border: 1px solid #000;
+  font: 16px Verdana, sans-serif;
+  padding: 2px 6px;
+  box-sizing: border-box;
+}
 
-    RETURN QUERY SELECT TRUE::BOOLEAN, 'INSERTADO'::VARCHAR;
-  ELSE
-    IF NOT EXISTS (SELECT 1 FROM ejercicioajax.persona WHERE idpersona = _idpersona) THEN
-      RETURN QUERY SELECT FALSE::BOOLEAN, 'IDPERSONA NO ENCONTRADO'::VARCHAR; RETURN;
-    END IF;
+/* Grupo checks */
+.checks { text-align: center; }
+.lbl-inline { display: block; margin-bottom: 6px; font-weight: 700; }
+.checks-row label { margin: 0 10px; }
 
-    UPDATE ejercicioajax.persona
-       SET nombre      = BTRIM(_nombre),
-           apellidos   = BTRIM(_apellidos),
-           idregion    = _idregion,
-           idcomuna    = _idcomuna,
-           idprofesion = _idprofesion
-     WHERE idpersona   = _idpersona;
+/* Recordatorio */
+.fila-recordatorio { text-align: center; }
+.lbl-recordatorio { font-weight: 700; }
 
-    RETURN QUERY SELECT TRUE::BOOLEAN, 'ACTUALIZADO'::VARCHAR;
-  END IF;
-END;
-$$;
+/* Botones */
+button { font: 16px Verdana, sans-serif; cursor: pointer; }
+
+.btn-reservar {
+  background: #58B957;
+  color: #fff;
+  border: none;
+  border-radius: 15px;
+  height: 40px;
+  width: 230px;
+}
+
+/* --------- TABLA DEMANDA --------- */
+.tabla-demanda {
+  border-collapse: collapse;
+  margin: 0 auto;
+}
+.tabla-demanda th, .tabla-demanda td { text-align: center; }
+.tabla-demanda th { background: #f3f3f3; }
+
+/* --------- LISTADO --------- */
+.tabla-listado {
+  border-collapse: collapse;
+  margin-bottom: 24px;
+}
+.tabla-listado th { background: #f3f3f3; }
+.tabla-listado th, .tabla-listado td { text-align: center; }
+
+/* Botones de acciones (sin bordes, tamaños exigidos) */
+.btn-borrar, .btn-recordar {
+  color: #fff;
+  border: none;
+  border-radius: 15px;
+  height: 30px;
+  width: 80px;
+  margin: 0 4px;
+}
+.btn-borrar { background: red; }
+.btn-recordar { background: blue; }
