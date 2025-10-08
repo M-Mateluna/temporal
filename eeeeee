@@ -54,6 +54,13 @@ function isChecked(id) {
   var el = document.getElementById(id);
   return !!(el && el.checked);
 }
+function getOrigenes() {
+  var arr = [];
+  if (isChecked('web')) arr.push('web');
+  if (isChecked('tv')) arr.push('tv');
+  if (isChecked('amigos')) arr.push('amigos');
+  return arr;
+}
 
 /* --- Validación general del formulario ---
    Retorna true si todo OK; si no, muestra alert y retorna false. */
@@ -89,8 +96,8 @@ function validarFormulario() {
   if (!obligatorio(nombremascota, 'Nombre Mascota')) return false;
 
   // Al menos 2 checkboxes: web, tv, amigos
-  var seleccionados = (isChecked('web') ? 1 : 0) + (isChecked('tv') ? 1 : 0) + (isChecked('amigos') ? 1 : 0);
-  if (seleccionados < 2) {
+  var origenes = getOrigenes();
+  if (origenes.length < 2) {
     alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros');
     return false;
   }
@@ -98,17 +105,38 @@ function validarFormulario() {
   return true; // listo para continuar
 }
 
-/* --- Reservar (stub) --- */
-function reservar() {
-  // TODO: implementar envío/inserción en la próxima actividad
+/* --- Reservar (stub) ---
+   Ahora recibe un objeto con todos los datos, incluido 'recordatorio' y 'origenes'. */
+function reservar(data) {
+  // TODO: implementar envío/inserción en la próxima actividad con 'data'
+  // data.recordatorio es boolean; data.origenes es array ['web','tv',...]
 }
 
 /* --- Hook: evitar navegación y usar las validaciones --- */
 function handleSubmit(e) {
   if (e && e.preventDefault) e.preventDefault(); // nunca navegar
+
   if (!validarFormulario()) return false;
-  alert('Validación exitosa. (Aquí se llamará a reservar())');
-  reservar();
+
+  // Construimos el payload (incluye recordatorio y origenes)
+  var payload = {
+    nombre:        getVal('nombre'),
+    apellidos:     getVal('apellidos'),
+    rut:           getVal('rut'),
+    email:         getVal('email'),
+    fecha:         getVal('fecha'),
+    horario:       getVal('horario'),
+    region:        getVal('region'),
+    comuna:        getVal('comuna'),
+    nombremascota: getVal('nombremascota'),
+    recordatorio:  isChecked('recordatorio'),
+    origenes:      getOrigenes()
+  };
+
+  var msgRec = payload.recordatorio ? 'Sí' : 'No';
+  alert('Validación exitosa. Recordatorio: ' + msgRec + '. (Aquí se llamará a reservar())');
+
+  reservar(payload);
   return false; // mantener en página
 }
 
