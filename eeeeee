@@ -1,47 +1,60 @@
 case 'reservar': {
-    // parámetros esperados por utils.js
+    // parámetros
     $rut           = isset($_POST['rut']) ? trim($_POST['rut']) : '';
     $nombre        = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
     $nombremascota = isset($_POST['nombremascota']) ? trim($_POST['nombremascota']) : '';
     $email         = isset($_POST['email']) ? trim($_POST['email']) : '';
     $idregion      = isset($_POST['idregion']) ? (int)$_POST['idregion'] : 0;
     $idcomuna      = isset($_POST['idcomuna']) ? (int)$_POST['idcomuna'] : 0;
-    $fecha_in      = isset($_POST['fecha']) ? $_POST['fecha'] : null; // viene como YYYY-MM-DD desde <input type="date">
+    $fecha_in      = isset($_POST['fecha']) ? $_POST['fecha'] : null; // YYYY-MM-DD
     $idhorario     = isset($_POST['idhorario']) ? (int)$_POST['idhorario'] : 0;
-    $recordatorio  = (isset($_POST['recordatorio']) && $_POST['recordatorio'] === 'true');
-    $web           = (isset($_POST['web']) && $_POST['web'] === 'true');
-    $tv            = (isset($_POST['tv']) && $_POST['tv'] === 'true');
-    $amigos        = (isset($_POST['amigos']) && $_POST['amigos'] === 'true');
 
-    // Validaciones mínimas (el front ya validó)
+    // Siempre presentes como texto 'true'/'false'
+    $recordatorio  = (isset($_POST['recordatorio']) && $_POST['recordatorio'] === 'true') ? 'true' : 'false';
+    $web           = (isset($_POST['web'])          && $_POST['web']          === 'true') ? 'true' : 'false';
+    $tv            = (isset($_POST['tv'])           && $_POST['tv']           === 'true') ? 'true' : 'false';
+    $amigos        = (isset($_POST['amigos'])       && $_POST['amigos']       === 'true') ? 'true' : 'false';
+
+    // Validaciones mínimas
     if (!$rut || !$nombre || !$nombremascota || !$email || !$idregion || !$idcomuna || !$fecha_in || !$idhorario) {
       jserr("Parámetros incompletos");
     }
 
-    // Convertir YYYY-MM-DD -> DD-MM-YYYY para la función (que espera ese formato)
+    // Regla de negocio (opcional, pero evita que la función RAISE EXCEPTION)
+    $medios = 0;
+    if ($web === 'true')    $medios++;
+    if ($tv === 'true')     $medios++;
+    if ($amigos === 'true') $medios++;
+    if ($medios < 2) {
+      jserr("Debe seleccionar a lo menos 2 formas de cómo se enteró de nosotros.");
+    }
+
+    // Convertir fecha al formato que espera la función: DD-MM-YYYY
     $fecha = $fecha_in;
     if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha_in, $m)) {
         $fecha = $m[3] . '-' . $m[2] . '-' . $m[1];
     }
 
-    // Comuna pertenece a región (defensa en backend)
+    // Defensa extra: comuna ↔ región
     $sqlChk = "SELECT 1 FROM trainingmmateluna.comuna WHERE idcomuna=$1 AND idregion=$2";
     $rsChk  = pg_query_params($conn, $sqlChk, array($idcomuna, $idregion));
     if (!$rsChk) jserr(pg_last_error($conn));
     if (!pg_fetch_row($rsChk)) jserr("La comuna no pertenece a la región");
 
-    // Horario existe
+    // Defensa extra: horario existe
     $sqlHor = "SELECT 1 FROM trainingmmateluna.horario WHERE idhorario=$1";
     $rsHor  = pg_query_params($conn, $sqlHor, array($idhorario));
     if (!$rsHor) jserr(pg_last_error($conn));
     if (!pg_fetch_row($rsHor)) jserr("Horario inexistente");
 
-    // Llamada a la función (acepta fecha como DD-MM-YYYY)
-    $sql = "SELECT trainingmmateluna.fn_reserva_i($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) AS idreserva";
+    // Llamada a la función con CAST explícito a boolean
+    $sql = "SELECT trainingmmateluna.fn_reserva_i(
+                $1, $2, $3, $4, $5, $6, $7, $8,
+                $9::BOOLEAN, $10::BOOLEAN, $11::BOOLEAN, $12::BOOLEAN
+            ) AS idreserva";
     $params = array(
       $rut, $nombre, $nombremascota, $email, $idregion, $idcomuna,
-      $fecha,            // <-- ahora en DD-MM-YYYY
-      $idhorario,
+      $fecha, $idhorario,
       $recordatorio, $web, $tv, $amigos
     );
 
@@ -51,9 +64,9 @@ case 'reservar': {
     if (!$row || (int)$row->idreserva <= 0) jserr("No se pudo insertar la reserva");
 
     echo json_encode(array(
-      "success"    => true,
-      "message"    => "Reserva guardada correctamente",
-      "idreserva"  => (int)$row->idreserva
+      "success"   => true,
+      "message"   => "Reserva guardada correctamente",
+      "idreserva" => (int)$row->idreserva
     ));
     exit;
 } break;
