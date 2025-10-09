@@ -1,40 +1,18 @@
--- ============================================================
--- vw_reservas: grilla principal de reservas
--- Campos: idreserva, nombre, nombremascota, recordatorio, fecha (YYYY-MM-DD), horario
--- ============================================================
-DROP VIEW IF EXISTS public.vw_reservas;
+DROP VIEW IF EXISTS trainingmmateluna.vw_porcentaje_reservas;
 
-CREATE OR REPLACE VIEW public.vw_reservas AS
-SELECT
-  r.idreserva,
-  r.nombre,
-  r.nombremascota,
-  r.recordatorio,
-  TO_CHAR(r.fecha, 'YYYY-MM-DD') AS fecha,
-  h.descripcion AS horario
-FROM trainingmmateluna.reserva r
-JOIN trainingmmateluna.horario h
-  ON h.idhorario = r.idhorario
-ORDER BY r.fecha DESC, r.idreserva DESC;
-
-
--- ============================================================
--- vw_porcentaje_reservas: horario, cantidad, porcentaje (sin decimales)
--- Nota: incluye horarios sin reservas (LEFT JOIN)
--- ============================================================
-DROP VIEW IF EXISTS public.vw_porcentaje_reservas;
-
-CREATE OR REPLACE VIEW public.vw_porcentaje_reservas AS
+CREATE OR REPLACE VIEW trainingmmateluna.vw_porcentaje_reservas AS
 WITH tot AS (
-  SELECT COUNT(*)::NUMERIC AS n
-    FROM trainingmmateluna.reserva
+  SELECT CAST(COUNT(*) AS NUMERIC) AS n
+  FROM trainingmmateluna.reserva
 )
 SELECT
   h.descripcion AS horario,
-  COUNT(r.idreserva)::INT AS cantidad,
-  CASE WHEN (SELECT n FROM tot) > 0
-       THEN ((COUNT(r.idreserva) * 100.0) / (SELECT n FROM tot))::INT  -- sin decimales (trunca)
-       ELSE 0
+  CAST(COUNT(r.idreserva) AS INT) AS cantidad,
+  CASE
+    WHEN (SELECT n FROM tot) > 0 THEN
+      -- trunca a entero (si prefieres redondear, ver variante abajo)
+      CAST( (CAST(COUNT(r.idreserva) AS NUMERIC) * 100.0) / (SELECT n FROM tot) AS INT )
+    ELSE 0
   END AS porcentaje
 FROM trainingmmateluna.horario h
 LEFT JOIN trainingmmateluna.reserva r
