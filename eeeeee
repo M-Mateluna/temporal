@@ -1,123 +1,43 @@
 -- ============================================================
--- f1) public.fn_valida_fecha_reserva(_fecha, _idhorario)
--- Devuelve TRUE si la combinación (fecha, horario) YA está en uso
--- (esto calza con el enunciado: "… si ya está en uso" -> true)
+-- vw_reservas: grilla principal de reservas
+-- Campos: idreserva, nombre, nombremascota, recordatorio, fecha (YYYY-MM-DD), horario
 -- ============================================================
-CREATE OR REPLACE FUNCTION public.fn_valida_fecha_reserva(
-  _fecha DATE,
-  _idhorario INT
+DROP VIEW IF EXISTS public.vw_reservas;
+
+CREATE OR REPLACE VIEW public.vw_reservas AS
+SELECT
+  r.idreserva,
+  r.nombre,
+  r.nombremascota,
+  r.recordatorio,
+  TO_CHAR(r.fecha, 'YYYY-MM-DD') AS fecha,
+  h.descripcion AS horario
+FROM trainingmmateluna.reserva r
+JOIN trainingmmateluna.horario h
+  ON h.idhorario = r.idhorario
+ORDER BY r.fecha DESC, r.idreserva DESC;
+
+
+-- ============================================================
+-- vw_porcentaje_reservas: horario, cantidad, porcentaje (sin decimales)
+-- Nota: incluye horarios sin reservas (LEFT JOIN)
+-- ============================================================
+DROP VIEW IF EXISTS public.vw_porcentaje_reservas;
+
+CREATE OR REPLACE VIEW public.vw_porcentaje_reservas AS
+WITH tot AS (
+  SELECT COUNT(*)::NUMERIC AS n
+    FROM trainingmmateluna.reserva
 )
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  _existe BOOLEAN;
-BEGIN
-  SELECT EXISTS (
-    SELECT 1
-      FROM trainingmmateluna.reserva r
-     WHERE r.fecha = _fecha
-       AND r.idhorario = _idhorario
-  ) INTO _existe;
-
-  RETURN _existe; -- TRUE si ocupado, FALSE si libre
-END;
-$$;
-
-
--- ============================================================
--- f2) public.fn_valida_rut_reserva(_rut)
--- Devuelve TRUE si YA existe una reserva desde HOY hacia el futuro
--- con el mismo RUT (incluye hoy)
--- ============================================================
-CREATE OR REPLACE FUNCTION public.fn_valida_rut_reserva(
-  _rut VARCHAR
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  _existe BOOLEAN;
-BEGIN
-  SELECT EXISTS (
-    SELECT 1
-      FROM trainingmmateluna.reserva r
-     WHERE r.rut = _rut
-       AND r.fecha >= CURRENT_DATE
-  ) INTO _existe;
-
-  RETURN _existe; -- TRUE si ya tiene reserva vigente/futura
-END;
-$$;
-
-
--- ============================================================
--- f3) public.fn_reserva_i(...)
--- Usa las dos funciones anteriores. Si alguna validación falla,
--- lanza EXCEPTION. Si pasa, inserta y retorna el idreserva.
--- (El ejercicio pide "devolver excepción si fallan validaciones")
--- ============================================================
-CREATE OR REPLACE FUNCTION public.fn_reserva_i(
-  _rut           VARCHAR,
-  _nombre        VARCHAR,
-  _nombremascota VARCHAR,
-  _email         VARCHAR,
-  _idregion      INT,
-  _idcomuna      INT,
-  _fecha         DATE,
-  _idhorario     INT,
-  _recordatorio  BOOLEAN,
-  _web           BOOLEAN,
-  _tv            BOOLEAN,
-  _amigos        BOOLEAN
-)
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  _id INT;
-BEGIN
-  -- Validaciones mínimas (opcionales si ya validas en front)
-  IF _rut IS NULL OR BTRIM(_rut) = '' THEN
-    RAISE EXCEPTION 'RUT OBLIGATORIO';
-  END IF;
-  IF _nombre IS NULL OR BTRIM(_nombre) = '' THEN
-    RAISE EXCEPTION 'NOMBRE OBLIGATORIO';
-  END IF;
-  IF _nombremascota IS NULL OR BTRIM(_nombremascota) = '' THEN
-    RAISE EXCEPTION 'NOMBRE MASCOTA OBLIGATORIO';
-  END IF;
-  IF _email IS NULL OR BTRIM(_email) = '' THEN
-    RAISE EXCEPTION 'EMAIL OBLIGATORIO';
-  END IF;
-
-  -- Comuna ↔ Región
-  IF NOT EXISTS (
-    SELECT 1 FROM trainingmmateluna.comuna c
-     WHERE c.idcomuna = _idcomuna AND c.idregion = _idregion
-  ) THEN
-    RAISE EXCEPTION 'LA COMUNA NO PERTENECE A LA REGION';
-  END IF;
-
-  -- Validación de fecha/horario
-  IF public.fn_valida_fecha_reserva(_fecha, _idhorario) THEN
-    RAISE EXCEPTION 'FECHA Y HORARIO OCUPADOS';
-  END IF;
-
-  -- Validación RUT (hoy y futuro)
-  IF public.fn_valida_rut_reserva(_rut) THEN
-    RAISE EXCEPTION 'YA EXISTE UNA RESERVA VIGENTE PARA ESTE RUT';
-  END IF;
-
-  -- Inserción
-  INSERT INTO trainingmmateluna.reserva
-    (rut, nombre, nombremascota, email, idregion, idcomuna, fecha, idhorario,
-     recordatorio, web, tv, amigos)
-  VALUES
-    (_rut, _nombre, _nombremascota, _email, _idregion, _idcomuna, _fecha, _idhorario,
-     _recordatorio, _web, _tv, _amigos)
-  RETURNING idreserva INTO _id;
-
-  RETURN _id;
-END;
-$$;
+SELECT
+  h.descripcion AS horario,
+  COUNT(r.idreserva)::INT AS cantidad,
+  CASE WHEN (SELECT n FROM tot) > 0
+       THEN ((COUNT(r.idreserva) * 100.0) / (SELECT n FROM tot))::INT  -- sin decimales (trunca)
+       ELSE 0
+  END AS porcentaje
+FROM trainingmmateluna.horario h
+LEFT JOIN trainingmmateluna.reserva r
+  ON r.idhorario = h.idhorario
+GROUP BY h.descripcion
+ORDER BY cantidad DESC, horario ASC;
