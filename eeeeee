@@ -1,168 +1,237 @@
-<?php
-// command.php
-header('Content-Type: application/json; charset=UTF-8');
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // pon 1 solo si quieres ver errores en pantalla mientras depuras
+// utils.js
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('form-reserva');
+    var nombre = document.getElementById('nombre');
+    var nombremascota = document.getElementById('nombremascota');
+    var rut = document.getElementById('rut');
+    var email = document.getElementById('email');
+    var fecha = document.getElementById('fecha');
+    var region = document.getElementById('region');
+    var comuna = document.getElementById('comuna');
+    var horario = document.getElementById('horario');
+    var recordatorio = document.getElementById('recordatorio');
+    var tbodyReservas = document.getElementById('tbody-reservas');
+    var tbodyDemanda = document.getElementById('tbody-demanda');
 
-include 'conexion.php'; // Debe definir $conn con pg_connect(...)
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-  echo json_encode(array("success" => false, "message" => "Método no permitido (solo POST)"));
-  exit;
-}
-
-function jserr($msg){ echo json_encode(array("success"=>false, "message"=>$msg)); exit; }
-function jsecho($arr){ echo json_encode($arr); exit; }
-
-$cmd = isset($_POST['cmd']) ? $_POST['cmd'] : '';
-
-switch ($cmd) {
-
-  // ---------- COMBOS ----------
-  case 'listarRegiones': {
-    $sql = "SELECT idregion, nombre FROM trainingmmateluna.region ORDER BY nombre ASC";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array("idregion" => (int)$row->idregion, "nombre" => $row->nombre);
+    // Helpers
+    function xhrPOST(url, data, cb) {
+        var req = new XMLHttpRequest();
+        req.open('POST', url, true);
+        req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+        req.onreadystatechange = function() {
+            if (req.readyState === 4) {
+                if (req.status >= 200 && req.status < 300) {
+                    try { cb(null, JSON.parse(req.responseText)); } catch(e){ cb(new Error('JSON inválido')); }
+                } else cb(new Error('HTTP ' + req.status));
+            }
+        };
+        req.send(data || '');
     }
-    jsecho($out);
-  } break;
-
-  case 'listarComunas': {
-    if (!isset($_POST['idregion'])) jserr("Falta idregion");
-    $idregion = (int)$_POST['idregion'];
-    $sql = "SELECT idcomuna, nombre
-              FROM trainingmmateluna.comuna
-             WHERE idregion = $1
-             ORDER BY nombre ASC";
-    $rs  = pg_query_params($conn, $sql, array($idregion));
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array("idcomuna" => (int)$row->idcomuna, "nombre" => $row->nombre);
-    }
-    jsecho($out);
-  } break;
-
-  case 'listarHorarios': {
-    $sql = "SELECT idhorario, descripcion FROM trainingmmateluna.horario ORDER BY idhorario ASC";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array("idhorario" => (int)$row->idhorario, "descripcion" => $row->descripcion);
-    }
-    jsecho($out);
-  } break;
-
-  // ---------- GRILLAS ----------
-  case 'listarReservas': {
-    // Usa tu vista vw_reservas (fecha ya formateada y horario resuelto)
-    $sql = "SELECT idreserva, nombre, nombremascota, recordatorio, fecha, horario
-              FROM trainingmmateluna.vw_reservas";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "idreserva"     => (int)$row->idreserva,
-        "nombre"        => $row->nombre,
-        "nombremascota" => $row->nombremascota,
-        "recordatorio"  => ($row->recordatorio === 't' || $row->recordatorio === true),
-        "fecha"         => $row->fecha,
-        "horario"       => $row->horario
-      );
-    }
-    jsecho($out);
-  } break;
-
-  case 'horariosMasUsados': {
-    // Usa tu vista vw_porcentaje_reservas (TOP 3 con porcentaje)
-    $sql = "SELECT horario, cantidad, porcentaje FROM trainingmmateluna.vw_porcentaje_reservas";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "horario"    => $row->horario,
-        "cantidad"   => (int)$row->cantidad,
-        "porcentaje" => (int)$row->porcentaje
-      );
-    }
-    jsecho($out);
-  } break;
-
-  // ---------- INSERT ----------
-  case 'reservar': {
-    // parámetros esperados por utils.js
-    $rut           = isset($_POST['rut']) ? trim($_POST['rut']) : '';
-    $nombre        = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
-    $nombremascota = isset($_POST['nombremascota']) ? trim($_POST['nombremascota']) : '';
-    $email         = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $idregion      = isset($_POST['idregion']) ? (int)$_POST['idregion'] : 0;
-    $idcomuna      = isset($_POST['idcomuna']) ? (int)$_POST['idcomuna'] : 0;
-    $fecha         = isset($_POST['fecha']) ? $_POST['fecha'] : null; // YYYY-MM-DD
-    $idhorario     = isset($_POST['idhorario']) ? (int)$_POST['idhorario'] : 0;
-    $recordatorio  = (isset($_POST['recordatorio']) && $_POST['recordatorio'] === 'true');
-    $web           = (isset($_POST['web']) && $_POST['web'] === 'true');
-    $tv            = (isset($_POST['tv']) && $_POST['tv'] === 'true');
-    $amigos        = (isset($_POST['amigos']) && $_POST['amigos'] === 'true');
-
-    // Llama a la función que valida e inserta
-    $sql = "SELECT trainingmmateluna.fn_reserva_i($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) AS idreserva";
-    $params = array($rut, $nombre, $nombremascota, $email, $idregion, $idcomuna, $fecha, $idhorario, $recordatorio, $web, $tv, $amigos);
-    $rs = pg_query_params($conn, $sql, $params);
-    if (!$rs) jserr(pg_last_error($conn));
-    $row = pg_fetch_object($rs);
-    if (!$row || (int)$row->idreserva <= 0) jserr("No se pudo insertar la reserva");
-
-    echo json_encode(array("success"=>true, "message"=>"Reserva guardada correctamente", "idreserva"=>(int)$row->idreserva));
-    exit;
-  } break;
-
-  // ---------- BORRAR ----------
-  case 'eliminarReserva': {
-    if (!isset($_POST['idreserva'])) jserr("Falta idreserva");
-    $id = (int)$_POST['idreserva'];
-    $sql = "DELETE FROM trainingmmateluna.reserva WHERE idreserva = $1";
-    $ok  = pg_query_params($conn, $sql, array($id));
-    if (!$ok) jserr(pg_last_error($conn));
-    echo json_encode(array("success"=>true));
-    exit;
-  } break;
-
-  // ---------- BUSCAR (para recordar) ----------
-  case 'buscarReserva': {
-    if (!isset($_POST['idreserva'])) jserr("Falta idreserva");
-    $id = (int)$_POST['idreserva'];
-    $sql = "SELECT idreserva, email, fecha, recordatorio
-              FROM trainingmmateluna.reserva
-             WHERE idreserva = $1";
-    $rs  = pg_query_params($conn, $sql, array($id));
-    if (!$rs) jserr(pg_last_error($conn));
-    $row = pg_fetch_object($rs);
-    if (!$row) jserr("No se encontró la reserva");
-
-    // Lógica simple de estado para el botón "Recordar"
-    $hoy = new DateTime('today');
-    $f   = DateTime::createFromFormat('Y-m-d', $row->fecha);
-    $estado = 'aun'; // por defecto
-    if ($row->recordatorio === 't' || $row->recordatorio === true) {
-      $estado = 'recordar';
-    } elseif ($f && $f < $hoy) {
-      $estado = 'tarde';
+    function enc(o){ var a=[],k; for(k in o) if(o.hasOwnProperty(k)) a.push(encodeURIComponent(k)+'='+encodeURIComponent(o[k])); return a.join('&'); }
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function fillSelect(sel, data, map){
+        sel.innerHTML = '';
+        if (map.placeholder !== null && map.placeholder !== undefined) sel.add(new Option(map.placeholder, ''));
+        for (var i=0; i<data.length; i++){
+            var it = data[i];
+            if (it && !it.error) sel.add(new Option(it[map.text], it[map.value]));
+        }
     }
 
-    jsecho(array(array(
-      "idreserva" => (int)$row->idreserva,
-      "email"     => $row->email,
-      "estado"    => $estado
-    )));
-  } break;
+    // Carga inicial
+    cargarRegiones();
+    cargarHorarios();
+    cargarGrilla();
+    cargarGrillaPorcentaje();
 
-  default:
-    echo json_encode(array("success"=>false, "message"=>"cmd incorrecto"));
-  break;
-}
+    // Estado inicial de comuna
+    if (comuna) comuna.disabled = true;
+    if (region && region.options.length) {
+        region.options[0].text  = '--Seleccione--';
+        region.options[0].value = '';
+    }
+
+    region.addEventListener('change', function() {
+        if (!region.value) {
+            comuna.disabled = true;
+            comuna.innerHTML = '<option value=""></option>';
+        } else {
+            cargarComunas(region.value);
+        }
+    });
+
+    // Validaciones simples
+    function validaRUT(r){
+        if (!r) return false;
+        var t=(r+'').replace(/\./g,'').replace(/\s+/g,'').toUpperCase();
+        if (t.indexOf('-')===-1 && t.length>1) t=t.slice(0,-1)+'-'+t.slice(-1);
+        var p=t.split('-'); if (p.length!==2) return false;
+        var c=p[0], dv=p[1]; if(!/^\d+$/.test(c)) return false; if(!/^[0-9K]$/.test(dv)) return false;
+        var s=0,m=2; for (var i=c.length-1;i>=0;i--){ s+=parseInt(c.charAt(i),10)*m; m=(m===7)?2:m+1; }
+        var rmod=11-(s%11); var d=(rmod===11)?'0':(rmod===10?'K':String(rmod));
+        return dv===d;
+    }
+    function validaEmail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((''+e).trim()); }
+
+    // Submit
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        if (!nombre.value.trim()) return alert('El campo "Nombre" es obligatorio.'), nombre.focus();
+        if (!nombremascota.value.trim()) return alert('El campo "Nombre Mascota" es obligatorio.'), nombremascota.focus();
+        if (!rut.value.trim()) return alert('El campo "RUT" es obligatorio.'), rut.focus();
+        if (!validaRUT(rut.value)) return alert('El campo "RUT" no tiene un formato correcto.'), rut.focus();
+        if (!email.value.trim()) return alert('El campo "Email" es obligatorio.'), email.focus();
+        if (!validaEmail(email.value)) return alert('El campo "Email" no tiene un formato correcto.'), email.focus();
+        if (!fecha.value) return alert('El campo "Fecha" es obligatorio.'), fecha.focus();
+        if (!region.value) return alert('Debe seleccionar una Región.'), region.focus();
+        if (comuna.disabled || !comuna.value) return alert('Debe seleccionar una Comuna.'), comuna.focus();
+        if (!horario.value) return alert('Debe seleccionar un Horario.'), horario.focus();
+
+        var checks = 0;
+        if (document.getElementById('web').checked) checks++;
+        if (document.getElementById('tv').checked) checks++;
+        if (document.getElementById('amigos').checked) checks++;
+        if (checks < 2) return alert('Debe seleccionar a lo menos 2 formas de cómo se enteró de nosotros.');
+
+        reservar();
+    });
+
+    // Combos AJAX (POST)
+    function cargarRegiones(){
+        xhrPOST('command.php', enc({cmd:'listarRegiones'}), function(err,data){
+            if (err) return alert('Error cargando regiones: ' + err.message);
+            fillSelect(region, data, { value:'idregion', text:'nombre', placeholder:'--Seleccione--' });
+        });
+    }
+    function cargarComunas(idreg){
+        xhrPOST('command.php', enc({cmd:'listarComunas', idregion:idreg}), function(err,data){
+            if (err) return alert('Error cargando comunas: ' + err.message);
+            comuna.disabled = false;
+            fillSelect(comuna, data, { value:'idcomuna', text:'nombre', placeholder:'' });
+        });
+    }
+    function cargarHorarios(){
+        xhrPOST('command.php', enc({cmd:'listarHorarios'}), function(err,data){
+            if (err) return alert('Error cargando horarios: ' + err.message);
+            fillSelect(horario, data, { value:'idhorario', text:'descripcion', placeholder:'--Seleccione--' });
+        });
+    }
+
+    // Grillas
+    function cargarGrilla(){
+        xhrPOST('command.php', enc({cmd:'listarReservas'}), function(err,data){
+            if (err) return alert('Error cargando reservas: ' + err.message);
+            if (!tbodyReservas) return;
+            var rows = '';
+            for (var i=0;i<data.length;i++){
+                var r = data[i]; if (!r || r.error) continue;
+                var id = r.idreserva;
+                var record = (String(r.recordatorio)==='t' || String(r.recordatorio)==='true' || r.recordatorio===true);
+                var btnRec = record
+                    ? '<button type="button" class="btn-recordar" data-id="'+id+'">Recordar</button>'
+                    : '<button type="button" class="btn-recordar" style="visibility:hidden" data-id="'+id+'">Recordar</button>';
+                rows += '<tr align="center">'
+                      +   '<td>'+esc(r.nombre)+'</td>'
+                      +   '<td>'+esc(r.nombremascota)+'</td>'
+                      +   '<td>'+(record?'Sí':'No')+'</td>'
+                      +   '<td>'+esc(r.fecha)+' '+esc(r.horario)+'</td>'
+                      +   '<td><button type="button" class="btn-borrar" data-id="'+id+'">Borrar</button> '+btnRec+'</td>'
+                      + '</tr>';
+            }
+            tbodyReservas.innerHTML = rows;
+
+            var del = tbodyReservas.querySelectorAll('.btn-borrar');
+            for (var j=0;j<del.length;j++){
+                del[j].addEventListener('click', function(){
+                    var id = this.getAttribute('data-id');
+                    eliminarReserva(id);
+                });
+            }
+            var rec = tbodyReservas.querySelectorAll('.btn-recordar');
+            for (var k=0;k<rec.length;k++){
+                rec[k].addEventListener('click', function(){
+                    var id = this.getAttribute('data-id');
+                    recordarReserva(id);
+                });
+            }
+        });
+    }
+    function cargarGrillaPorcentaje(){
+        xhrPOST('command.php', enc({cmd:'horariosMasUsados'}), function(err,data){
+            if (err) return alert('Error cargando porcentajes: ' + err.message);
+            if (!tbodyDemanda) return;
+            var rows = '';
+            for (var i=0;i<data.length;i++){
+                var r = data[i]; if (!r || r.error) continue;
+                rows += '<tr align="center">'
+                      +   '<td>'+esc(r.horario)+'</td>'
+                      +   '<td>'+r.cantidad+'</td>'
+                      +   '<td>'+r.porcentaje+'%</td>'
+                      + '</tr>';
+            }
+            tbodyDemanda.innerHTML = rows;
+        });
+    }
+
+    // Insertar reserva
+    function reservar(){
+        var payload = enc({
+            cmd: 'reservar',
+            rut: rut.value.trim(),
+            nombre: nombre.value.trim(),
+            nombremascota: nombremascota.value.trim(),
+            email: email.value.trim(),
+            idregion: region.value,
+            idcomuna: comuna.value,
+            fecha: fecha.value,
+            idhorario: horario.value,
+            recordatorio: recordatorio.checked ? 'true' : 'false',
+            web: document.getElementById('web').checked ? 'true' : 'false',
+            tv: document.getElementById('tv').checked ? 'true' : 'false',
+            amigos: document.getElementById('amigos').checked ? 'true' : 'false'
+        });
+        xhrPOST('command.php', payload, function(err,obj){
+            if (err) return alert('Error de red/servidor');
+            if (obj && obj.success){
+                alert(obj.message || 'Reserva guardada correctamente');
+                form.reset();
+                comuna.disabled = true;
+                cargarGrilla();
+                cargarGrillaPorcentaje();
+            } else {
+                alert((obj && obj.message) || 'Error al guardar');
+            }
+        });
+    }
+
+    // Eliminar
+    function eliminarReserva(id){
+        if (!confirm('¿Eliminar la reserva ' + id + '?')) return;
+        xhrPOST('command.php', enc({cmd:'eliminarReserva', idreserva:id}), function(err,obj){
+            if (err) return alert('Error de red/servidor');
+            if (obj && obj.success){
+                cargarGrilla();
+                cargarGrillaPorcentaje();
+            } else {
+                alert((obj && obj.message) || 'Error al eliminar');
+            }
+        });
+    }
+
+    // Recordar
+    function recordarReserva(id){
+        xhrPOST('command.php', enc({cmd:'buscarReserva', idreserva:id}), function(err,arr){
+            if (err) return alert('Error al consultar reserva: ' + err.message);
+            var r = arr && arr[0];
+            if (!r || r.error) return alert('No se encontró la reserva');
+            if (r.estado === 'recordar'){
+                alert('Se debe recordar reserva a email ' + r.email);
+            } else if (r.estado === 'tarde'){
+                alert('Ya es muy tarde para recordar reserva');
+            } else {
+                alert('Aún no es tiempo de recordar la reserva');
+            }
+        });
+    }
+});
