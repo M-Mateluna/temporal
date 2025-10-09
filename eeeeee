@@ -1,216 +1,123 @@
-<?php
-header('Content-Type: application/json; charset=UTF-8');
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // si quieres ver el error en pantalla, pon 1 temporalmente
+-- ============================================================
+-- f1) public.fn_valida_fecha_reserva(_fecha, _idhorario)
+-- Devuelve TRUE si la combinación (fecha, horario) YA está en uso
+-- (esto calza con el enunciado: "… si ya está en uso" -> true)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_valida_fecha_reserva(
+  _fecha DATE,
+  _idhorario INT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  _existe BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+      FROM trainingmmateluna.reserva r
+     WHERE r.fecha = _fecha
+       AND r.idhorario = _idhorario
+  ) INTO _existe;
 
-include 'conexion.php'; // Debe definir $conn (pg_connect)
+  RETURN _existe; -- TRUE si ocupado, FALSE si libre
+END;
+$$;
 
-function jserr($msg){ echo json_encode(array("success"=>false, "message"=>$msg)); exit; }
-function jsecho($arr){ echo json_encode($arr); exit; }
 
-$cmd = isset($_REQUEST['cmd']) ? $_REQUEST['cmd'] : '';
+-- ============================================================
+-- f2) public.fn_valida_rut_reserva(_rut)
+-- Devuelve TRUE si YA existe una reserva desde HOY hacia el futuro
+-- con el mismo RUT (incluye hoy)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_valida_rut_reserva(
+  _rut VARCHAR
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  _existe BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+      FROM trainingmmateluna.reserva r
+     WHERE r.rut = _rut
+       AND r.fecha >= CURRENT_DATE
+  ) INTO _existe;
 
-switch ($cmd) {
+  RETURN _existe; -- TRUE si ya tiene reserva vigente/futura
+END;
+$$;
 
-  // ---------- COMBOS ----------
-  case 'listarRegiones': {
-    $sql = "SELECT idregion, nombre FROM trainingmmateluna.region ORDER BY nombre ASC";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "idregion" => (int)$row->idregion,
-        "nombre"   => $row->nombre
-      );
-    }
-    jsecho($out);
-  } break;
 
-  case 'listarComunas': {
-    if (!isset($_GET['idregion'])) jserr("Falta parámetro idregion");
-    $idregion = (int)$_GET['idregion'];
-    $sql = "SELECT idcomuna, nombre
-              FROM trainingmmateluna.comuna
-             WHERE idregion = $1
-             ORDER BY nombre ASC";
-    $rs  = pg_query_params($conn, $sql, array($idregion));
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "idcomuna" => (int)$row->idcomuna,
-        "nombre"   => $row->nombre
-      );
-    }
-    jsecho($out);
-  } break;
+-- ============================================================
+-- f3) public.fn_reserva_i(...)
+-- Usa las dos funciones anteriores. Si alguna validación falla,
+-- lanza EXCEPTION. Si pasa, inserta y retorna el idreserva.
+-- (El ejercicio pide "devolver excepción si fallan validaciones")
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.fn_reserva_i(
+  _rut           VARCHAR,
+  _nombre        VARCHAR,
+  _nombremascota VARCHAR,
+  _email         VARCHAR,
+  _idregion      INT,
+  _idcomuna      INT,
+  _fecha         DATE,
+  _idhorario     INT,
+  _recordatorio  BOOLEAN,
+  _web           BOOLEAN,
+  _tv            BOOLEAN,
+  _amigos        BOOLEAN
+)
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  _id INT;
+BEGIN
+  -- Validaciones mínimas (opcionales si ya validas en front)
+  IF _rut IS NULL OR BTRIM(_rut) = '' THEN
+    RAISE EXCEPTION 'RUT OBLIGATORIO';
+  END IF;
+  IF _nombre IS NULL OR BTRIM(_nombre) = '' THEN
+    RAISE EXCEPTION 'NOMBRE OBLIGATORIO';
+  END IF;
+  IF _nombremascota IS NULL OR BTRIM(_nombremascota) = '' THEN
+    RAISE EXCEPTION 'NOMBRE MASCOTA OBLIGATORIO';
+  END IF;
+  IF _email IS NULL OR BTRIM(_email) = '' THEN
+    RAISE EXCEPTION 'EMAIL OBLIGATORIO';
+  END IF;
 
-  case 'listarHorarios': {
-    $sql = "SELECT idhorario, descripcion
-              FROM trainingmmateluna.horario
-             ORDER BY idhorario ASC";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "idhorario"   => (int)$row->idhorario,
-        "descripcion" => $row->descripcion
-      );
-    }
-    jsecho($out);
-  } break;
+  -- Comuna ↔ Región
+  IF NOT EXISTS (
+    SELECT 1 FROM trainingmmateluna.comuna c
+     WHERE c.idcomuna = _idcomuna AND c.idregion = _idregion
+  ) THEN
+    RAISE EXCEPTION 'LA COMUNA NO PERTENECE A LA REGION';
+  END IF;
 
-  // ---------- GRILLA PRINCIPAL ----------
-  case 'listarReservas': {
-    // Muestra lo que el front espera: nombre, nombremascota, recordatorio, fecha/hora legibles, idreserva
-    $sql = "
-      SELECT r.idreserva,
-             r.nombre,
-             r.nombremascota,
-             r.recordatorio,
-             TO_CHAR(r.fecha, 'YYYY-MM-DD') AS fecha,
-             h.descripcion AS horario
-        FROM trainingmmateluna.reserva r
-        JOIN trainingmmateluna.horario h ON h.idhorario = r.idhorario
-       ORDER BY r.fecha DESC, r.idreserva DESC";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "idreserva"    => (int)$row->idreserva,
-        "nombre"       => $row->nombre,
-        "nombremascota"=> $row->nombremascota,
-        "recordatorio" => ($row->recordatorio === 't' || $row->recordatorio === true),
-        "fecha"        => $row->fecha,
-        "horario"      => $row->horario
-      );
-    }
-    jsecho($out);
-  } break;
+  -- Validación de fecha/horario
+  IF public.fn_valida_fecha_reserva(_fecha, _idhorario) THEN
+    RAISE EXCEPTION 'FECHA Y HORARIO OCUPADOS';
+  END IF;
 
-  // ---------- GRILLA % HORARIOS ----------
-  case 'horariosMasUsados': {
-    // Cuenta por horario y porcentaje del total
-    $sql = "
-      WITH tot AS (
-        SELECT COUNT(*)::NUMERIC AS n
-          FROM trainingmmateluna.reserva
-      )
-      SELECT h.descripcion AS horario,
-             COUNT(r.idreserva)::INT AS cantidad,
-             CASE WHEN (SELECT n FROM tot) > 0
-                  THEN ROUND( (COUNT(r.idreserva) * 100.0) / (SELECT n FROM tot), 2 )
-                  ELSE 0
-             END AS porcentaje
-        FROM trainingmmateluna.horario h
-        LEFT JOIN trainingmmateluna.reserva r ON r.idhorario = h.idhorario
-       GROUP BY h.descripcion
-       ORDER BY cantidad DESC, horario ASC";
-    $rs  = pg_query($conn, $sql);
-    if (!$rs) jserr(pg_last_error($conn));
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "horario"    => $row->horario,
-        "cantidad"   => (int)$row->cantidad,
-        "porcentaje" => (float)$row->porcentaje
-      );
-    }
-    jsecho($out);
-  } break;
+  -- Validación RUT (hoy y futuro)
+  IF public.fn_valida_rut_reserva(_rut) THEN
+    RAISE EXCEPTION 'YA EXISTE UNA RESERVA VIGENTE PARA ESTE RUT';
+  END IF;
 
-  // ---------- INSERT ----------
-  case 'guardarReserva': {
-    // POST esperados por utils.js
-    $rut          = isset($_POST['rut']) ? trim($_POST['rut']) : '';
-    $nombre       = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
-    $nombremascota= isset($_POST['nombremascota']) ? trim($_POST['nombremascota']) : '';
-    $email        = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $idregion     = isset($_POST['idregion']) ? (int)$_POST['idregion'] : 0;
-    $idcomuna     = isset($_POST['idcomuna']) ? (int)$_POST['idcomuna'] : 0;
-    $fecha        = isset($_POST['fecha']) ? $_POST['fecha'] : null; // 'YYYY-MM-DD'
-    $idhorario    = isset($_POST['idhorario']) ? (int)$_POST['idhorario'] : 0;
-    $recordatorio = (isset($_POST['recordatorio']) && $_POST['recordatorio'] === 'true') ? 't' : 'f';
-    $web          = (isset($_POST['web']) && $_POST['web'] === 'true') ? 't' : 'f';
-    $tv           = (isset($_POST['tv']) && $_POST['tv'] === 'true') ? 't' : 'f';
-    $amigos       = (isset($_POST['amigos']) && $_POST['amigos'] === 'true') ? 't' : 'f';
+  -- Inserción
+  INSERT INTO trainingmmateluna.reserva
+    (rut, nombre, nombremascota, email, idregion, idcomuna, fecha, idhorario,
+     recordatorio, web, tv, amigos)
+  VALUES
+    (_rut, _nombre, _nombremascota, _email, _idregion, _idcomuna, _fecha, _idhorario,
+     _recordatorio, _web, _tv, _amigos)
+  RETURNING idreserva INTO _id;
 
-    // Validaciones mínimas (las de front ya existen)
-    if (!$rut || !$nombre || !$nombremascota || !$email || !$idregion || !$idcomuna || !$fecha || !$idhorario) {
-      jserr("Parámetros incompletos");
-    }
-
-    // Comuna pertenece a región
-    $sqlChk = "SELECT 1
-                 FROM trainingmmateluna.comuna
-                WHERE idcomuna=$1 AND idregion=$2";
-    $rsChk  = pg_query_params($conn, $sqlChk, array($idcomuna, $idregion));
-    if (!$rsChk) jserr(pg_last_error($conn));
-    if (!pg_fetch_row($rsChk)) jserr("La comuna no pertenece a la región");
-
-    // Horario existe
-    $sqlHor = "SELECT 1 FROM trainingmmateluna.horario WHERE idhorario=$1";
-    $rsHor  = pg_query_params($conn, $sqlHor, array($idhorario));
-    if (!$rsHor) jserr(pg_last_error($conn));
-    if (!pg_fetch_row($rsHor)) jserr("Horario inexistente");
-
-    // Insert
-    $sql = "INSERT INTO trainingmmateluna.reserva
-              (rut, nombre, nombremascota, email, idregion, idcomuna, fecha, idhorario, recordatorio, web, tv, amigos)
-            VALUES
-              ($1,  $2,     $3,           $4,    $5,       $6,       $7,    $8,        $9,          $10,$11,$12)";
-    $params = array($rut, $nombre, $nombremascota, $email, $idregion, $idcomuna, $fecha, $idhorario, $recordatorio, $web, $tv, $amigos);
-    $ok = pg_query_params($conn, $sql, $params);
-    if (!$ok) jserr(pg_last_error($conn));
-
-    jsecho(array("success"=>true, "message"=>"Reserva guardada correctamente"));
-  } break;
-
-  // ---------- BORRAR ----------
-  case 'eliminarReserva': {
-    if (!isset($_POST['idreserva'])) jserr("Falta idreserva");
-    $id = (int)$_POST['idreserva'];
-    $sql = "DELETE FROM trainingmmateluna.reserva WHERE idreserva = $1";
-    $ok  = pg_query_params($conn, $sql, array($id));
-    if (!$ok) jserr(pg_last_error($conn));
-    jsecho(array("success"=>true));
-  } break;
-
-  // ---------- BUSCAR (para recordar) ----------
-  case 'buscarReserva': {
-    if (!isset($_GET['idreserva'])) jserr("Falta idreserva");
-    $id = (int)$_GET['idreserva'];
-    $sql = "SELECT idreserva,
-                   rut,
-                   nombre,
-                   nombremascota,
-                   email,
-                   TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha,
-                   idhorario
-              FROM trainingmmateluna.reserva
-             WHERE idreserva = $1";
-    $rs  = pg_query_params($conn, $sql, array($id));
-    if (!$rs) jserr(pg_last_error($conn));
-
-    $out = array();
-    while ($row = pg_fetch_object($rs)) {
-      $out[] = array(
-        "idreserva"    => (int)$row->idreserva,
-        "rut"          => $row->rut,
-        "nombre"       => $row->nombre,
-        "nombremascota"=> $row->nombremascota,
-        "email"        => $row->email,
-        "fecha"        => $row->fecha,
-        "idhorario"    => (int)$row->idhorario
-      );
-    }
-    jsecho($out);
-  } break;
-
-  default:
-    echo json_encode(array(array("error"=>"cmd incorrecto")));
-  break;
-}
+  RETURN _id;
+END;
+$$;
