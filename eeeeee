@@ -1,154 +1,162 @@
-/* =======================
-   utils.js  (validaciones + hook)
-   ES5 compatible
-   ======================= */
+<?php
+header('Content-Type: application/json; charset=utf-8');
+require_once 'conexion.php'; // define $conn (pg_connect)
 
-/* --- Normaliza y valida RUT chileno --- */
-function validaRUT(rut) {
-  if (!rut) return false;
+if (!$conn) {
+  http_response_code(500);
+  echo json_encode(['ok'=>false,'error'=>'No hay conexión a la base de datos']);
+  exit;
+}
 
-  var limpio = (rut + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+/* Helpers JSON simples */
+function send_json_error($message, $http_status = 400) {
+  http_response_code($http_status);
+  echo json_encode(['ok'=>false,'error'=>$message], JSON_UNESCAPED_UNICODE);
+  exit;
+}
+function send_json_success($payload) {
+  echo json_encode(['ok'=>true,'data'=>$payload], JSON_UNESCAPED_UNICODE);
+  exit;
+}
 
-  // Si viene sin guion, asumimos último carácter como DV
-  if (limpio.indexOf('-') === -1 && limpio.length > 1) {
-    limpio = limpio.slice(0, -1) + '-' + limpio.slice(-1);
+$cmd = $_POST['cmd'] ?? ($_GET['cmd'] ?? '');
+
+switch ($cmd) {
+
+  /* 1) Regiones (ciudades) */
+  case 'get_regiones': {
+    $sql = "SELECT idregion, nombre FROM trainingmmateluna.region ORDER BY nombre";
+    $res = pg_query_params($conn, $sql, []);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
+
+    $rows = [];
+    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
+    send_json_success($rows);
   }
 
-  var partes = limpio.split('-');
-  if (partes.length !== 2) return false;
+  /* 2) Horarios */
+  case 'get_horarios': {
+    $sql = "SELECT idhorario, descripcion FROM trainingmmateluna.horario ORDER BY idhorario";
+    $res = pg_query_params($conn, $sql, []);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
 
-  var cuerpo = partes[0];
-  var dv = partes[1];
-
-  if (!/^\d+$/.test(cuerpo)) return false;     // solo números en el cuerpo
-  if (!/^[0-9K]$/.test(dv)) return false;      // DV numérico o K
-
-  // Cálculo DV (módulo 11)
-  var suma = 0, multiplo = 2;
-  for (var i = cuerpo.length - 1; i >= 0; i--) {
-    suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
-    multiplo = (multiplo === 7) ? 2 : multiplo + 1;
+    $rows = [];
+    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
+    send_json_success($rows);
   }
 
-  var resto = suma % 11;
-  var dvCalcNum = 11 - resto;
-  var dvCalc = (dvCalcNum === 11) ? '0' : (dvCalcNum === 10 ? 'K' : String(dvCalcNum));
+  /* 3) Comunas por región */
+  case 'get_comunas_by_region': {
+    $idregion = (int)($_POST['idregion'] ?? 0);
+    if ($idregion <= 0) send_json_error('idregion requerido');
 
-  return dv === dvCalc;
-}
+    $sql = "SELECT idcomuna, nombre
+            FROM trainingmmateluna.comuna
+            WHERE idregion = $1
+            ORDER BY nombre";
+    $res = pg_query_params($conn, $sql, [$idregion]);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
 
-/* --- Valida email simple y robusto --- */
-function validaEmail(email) {
-  if (!email) return false;
-  var e = ('' + email).replace(/^\s+|\s+$/g, '');
-  var re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  return re.test(e);
-}
-
-/* --- Helpers para leer valores/checkbox --- */
-function getVal(id) {
-  var el = document.getElementById(id);
-  return el ? (('value' in el) ? ('' + el.value).replace(/^\s+|\s+$/g, '') : '') : '';
-}
-function isChecked(id) {
-  var el = document.getElementById(id);
-  return !!(el && el.checked);
-}
-function getOrigenes() {
-  var arr = [];
-  if (isChecked('web')) arr.push('web');
-  if (isChecked('tv')) arr.push('tv');
-  if (isChecked('amigos')) arr.push('amigos');
-  return arr;
-}
-
-/* --- Validación general del formulario ---
-   Retorna true si todo OK; si no, muestra alert y retorna false. */
-function validarFormulario() {
-  var nombre        = getVal('nombre');
-  var apellidos     = getVal('apellidos');
-  var rut           = getVal('rut');
-  var email         = getVal('email');
-  var fecha         = getVal('fecha');
-  var horario       = getVal('horario');
-  var region        = getVal('region');
-  var comuna        = getVal('comuna');
-  var nombremascota = getVal('nombremascota');
-
-  function obligatorio(val, nombreCampo) {
-    if (!val) { alert('El campo ' + nombreCampo + ' es obligatorio'); return false; }
-    return true;
+    $rows = [];
+    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
+    send_json_success($rows);
   }
 
-  if (!obligatorio(nombre, 'Nombre')) return false;
-  if (!obligatorio(apellidos, 'Apellidos')) return false;
+  /* 4) Insertar reserva */
+  case 'insert_reserva': {
+    $rut           = $_POST['rut']           ?? '';
+    $nombre        = $_POST['nombre']        ?? '';
+    $nombremascota = $_POST['nombremascota'] ?? '';
+    $email         = $_POST['email']         ?? '';
+    $idregion      = (int)($_POST['idregion'] ?? 0);
+    $idcomuna      = (int)($_POST['idcomuna'] ?? 0);
+    $fecha         = $_POST['fecha']         ?? '';   // YYYY-MM-DD
+    $idhorario     = (int)($_POST['idhorario'] ?? 0);
 
-  if (!obligatorio(rut, 'RUT')) return false;
-  if (!validaRUT(rut)) { alert('El campo RUT no tiene un formato correcto'); return false; }
+    $recordatorio  = filter_var($_POST['recordatorio'] ?? 'false', FILTER_VALIDATE_BOOLEAN);
+    $web           = filter_var($_POST['web']          ?? 'false', FILTER_VALIDATE_BOOLEAN);
+    $tv            = filter_var($_POST['tv']           ?? 'false', FILTER_VALIDATE_BOOLEAN);
+    $amigos        = filter_var($_POST['amigos']       ?? 'false', FILTER_VALIDATE_BOOLEAN);
 
-  if (!obligatorio(email, 'Email')) return false;
-  if (!validaEmail(email)) { alert('El campo Email no tiene un formato correcto'); return false; }
+    $sql = "INSERT INTO trainingmmateluna.reserva
+            (rut, nombre, nombremascota, email, idregion, idcomuna, fecha, idhorario, recordatorio, web, tv, amigos)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            RETURNING idreserva";
+    $params = [$rut,$nombre,$nombremascota,$email,$idregion,$idcomuna,$fecha,$idhorario,$recordatorio,$web,$tv,$amigos];
+    $res = pg_query_params($conn, $sql, $params);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
 
-  if (!obligatorio(fecha, 'Fecha de Consulta')) return false;
-  if (!obligatorio(horario, 'Horario')) return false;
-  if (!obligatorio(region, 'Region')) return false;
-  if (!obligatorio(comuna, 'Comuna')) return false;
-  if (!obligatorio(nombremascota, 'Nombre Mascota')) return false;
-
-  // Al menos 2 checkboxes: web, tv, amigos
-  var origenes = getOrigenes();
-  if (origenes.length < 2) {
-    alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros');
-    return false;
+    $row = pg_fetch_assoc($res);
+    send_json_success(['idreserva'=>(int)$row['idreserva']]);
   }
 
-  return true; // listo para continuar
-}
+  /* 5) Listado reservas */
+  case 'list_reservas': {
+    $sql = "SELECT r.idreserva, r.nombre, r.nombremascota, r.recordatorio, r.email,
+                   to_char(r.fecha,'DD/MM/YYYY') AS fecha,
+                   h.descripcion AS horario
+            FROM trainingmmateluna.reserva r
+            JOIN trainingmmateluna.horario h ON h.idhorario = r.idhorario
+            ORDER BY r.idreserva DESC";
+    $res = pg_query_params($conn, $sql, []);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
 
-/* --- Reservar (stub) ---
-   Ahora recibe un objeto con todos los datos, incluido 'recordatorio' y 'origenes'. */
-function reservar(data) {
-  // TODO: implementar envío/inserción en la próxima actividad con 'data'
-  // data.recordatorio es boolean; data.origenes es array ['web','tv',...]
-}
-
-/* --- Hook: evitar navegación y usar las validaciones --- */
-function handleSubmit(e) {
-  if (e && e.preventDefault) e.preventDefault(); // nunca navegar
-
-  if (!validarFormulario()) return false;
-
-  // Construimos el payload (incluye recordatorio y origenes)
-  var payload = {
-    nombre:        getVal('nombre'),
-    apellidos:     getVal('apellidos'),
-    rut:           getVal('rut'),
-    email:         getVal('email'),
-    fecha:         getVal('fecha'),
-    horario:       getVal('horario'),
-    region:        getVal('region'),
-    comuna:        getVal('comuna'),
-    nombremascota: getVal('nombremascota'),
-    recordatorio:  isChecked('recordatorio'),
-    origenes:      getOrigenes()
-  };
-
-  var msgRec = payload.recordatorio ? 'Sí' : 'No';
-  alert('Validación exitosa. Recordatorio: ' + msgRec + '. (Aquí se llamará a reservar())');
-
-  reservar(payload);
-  return false; // mantener en página
-}
-
-/* Enganche al cargar el DOM (sin otros archivos JS) */
-document.addEventListener('DOMContentLoaded', function () {
-  var form = document.getElementById('form-reserva');
-  if (form) {
-    form.addEventListener('submit', handleSubmit);
+    $rows = [];
+    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
+    send_json_success($rows);
   }
-  // Por si tu botón “Reservar” es type="button"
-  var btn = document.querySelector('.btn-reservar');
-  if (btn) {
-    btn.addEventListener('click', handleSubmit);
+
+  /* 6) Horarios más usados (cantidad/porcentaje) */
+  case 'top_horarios': {
+    $resT = pg_query_params($conn, "SELECT COUNT(*)::int AS total FROM trainingmmateluna.reserva", []);
+    if (!$resT) send_json_error(pg_last_error($conn), 500);
+    $total = (int)pg_fetch_result($resT, 0, 'total');
+
+    $sql = "SELECT h.descripcion AS horario,
+                   COUNT(*)::int AS cantidad,
+                   CASE WHEN $1 = 0 THEN 0
+                        ELSE ROUND(100.0 * COUNT(*) / $1)::int END AS porcentaje
+            FROM trainingmmateluna.reserva r
+            JOIN trainingmmateluna.horario h ON h.idhorario = r.idhorario
+            GROUP BY h.descripcion
+            ORDER BY cantidad DESC, horario";
+    $res = pg_query_params($conn, $sql, [$total]);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
+
+    $rows = [];
+    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
+    send_json_success($rows);
   }
-});
+
+  /* 7) Eliminar reserva */
+  case 'delete_reserva': {
+    $id = (int)($_POST['idreserva'] ?? 0);
+    if ($id <= 0) send_json_error('idreserva requerido');
+
+    $sql = "DELETE FROM trainingmmateluna.reserva WHERE idreserva = $1 RETURNING idreserva";
+    $res = pg_query_params($conn, $sql, [$id]);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
+
+    $ok = pg_affected_rows($res) > 0;
+    send_json_success(['deleted'=>$ok]);
+  }
+
+  /* Extra: traer una reserva (para “recordar”) */
+  case 'get_reserva': {
+    $id = (int)($_POST['idreserva'] ?? 0);
+    if ($id <= 0) send_json_error('idreserva requerido');
+
+    $sql = "SELECT idreserva, email, fecha, recordatorio
+            FROM trainingmmateluna.reserva
+            WHERE idreserva = $1";
+    $res = pg_query_params($conn, $sql, [$id]);
+    if (!$res) send_json_error(pg_last_error($conn), 500);
+
+    $row = pg_fetch_assoc($res);
+    if (!$row) send_json_error('Reserva no encontrada', 404);
+    send_json_success($row);
+  }
+
+  default:
+    send_json_error('cmd inválido o no especificado', 400);
+}
