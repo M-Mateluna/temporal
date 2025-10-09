@@ -1,283 +1,164 @@
-document.addEventListener('DOMContentLoaded', function() {
-    var form = document.getElementById('form-reserva');
-    var nombre = document.getElementById('nombre');
-    var nombremascota = document.getElementById('nombremascota');
-    var rut = document.getElementById('rut');
-    var email = document.getElementById('email');
-    var fecha = document.getElementById('fecha');
-    var region = document.getElementById('region');
-    var comuna = document.getElementById('comuna');
-    var horario = document.getElementById('horario');
-    var recordatorio = document.getElementById('recordatorio');
-    var tbodyReservas = document.getElementById('tbody-reservas');
-    var tbodyDemanda = document.getElementById('tbody-demanda');
+-- =========================================================
+-- SCHEMA: trainingmmateluna
+-- ACTUALIZA FUNCIONES Y VISTAS (IU + RESERVAS + PORCENTAJE)
+-- =========================================================
 
-    // --- Propuesta aplicada: URL centralizada + POST con URLSearchParams ---
-    var URL_CMD = 'command.php';
+-- =========================
+-- FUNCIÓN: fn_reserva_iu
+-- Inserta (_idreserva = 0) o actualiza (>0).
+-- Retorna: idreserva, mensaje.
+-- =========================
+CREATE OR REPLACE FUNCTION trainingmmateluna.fn_reserva_iu(
+  _idreserva     INT,
+  _rut           VARCHAR,
+  _nombre        VARCHAR,
+  _nombremascota VARCHAR,
+  _email         VARCHAR,
+  _idregion      INT,
+  _idcomuna      INT,
+  _fecha         TEXT,      -- FORMATO ESPERADO: 'DD-MM-YYYY'
+  _idhorario     INT,
+  _recordatorio  BOOLEAN,
+  _web           BOOLEAN,
+  _tv            BOOLEAN,
+  _amigos        BOOLEAN
+)
+RETURNS TABLE(idreserva INT, mensaje TEXT)
+LANGUAGE plpgsql
+VOLATILE
+AS
+$$
+DECLARE
+  __fecha_date DATE;
+  __tiene_choque INT;
+  __dup_rut INT;
+  __medios INT := 0;
+  __es_insert BOOLEAN;
+BEGIN
+  -- NORMALIZA FECHA (DD-MM-YYYY -> DATE)
+  __fecha_date := TO_DATE(_fecha, 'DD-MM-YYYY');
 
-    // Enviamos SIEMPRE POST, con body application/x-www-form-urlencoded
-    function xhrPOST(url, body, cb) {
-        var req = new XMLHttpRequest();
-        req.open('POST', url, true);
-        req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-        // robusto con JSON
-        req.onreadystatechange = function() {
-            if (req.readyState === 4) {
-                if (req.status >= 200 && req.status < 300) {
-                    try {
-                        var json = JSON.parse(req.responseText);
-                        cb(null, json);
-                    } catch (e) {
-                        cb(new Error('JSON inválido: ' + req.responseText));
-                    }
-                } else {
-                    cb(new Error('HTTP ' + req.status + ' -> ' + req.responseText));
-                }
-            }
-        };
-        req.send(body || '');
-    }
+  -- REGLA: AL MENOS 2 MEDIOS (WEB/TV/AMIGOS)
+  IF _web THEN __medios := __medios + 1; END IF;
+  IF _tv THEN __medios := __medios + 1; END IF;
+  IF _amigos THEN __medios := __medios + 1; END IF;
+  IF __medios < 2 THEN
+    RAISE EXCEPTION 'DEBE SELECCIONAR AL MENOS DOS MEDIOS (WEB/TV/AMIGOS)';
+  END IF;
 
-    // Helper: POST con cmd + params en URLSearchParams (más limpio que enc manual)
-    function post(cmd, params, cb) {
-        var usp = new URLSearchParams();
-        usp.append('cmd', cmd);
-        if (params) {
-            for (var k in params) {
-                if (Object.prototype.hasOwnProperty.call(params, k)) {
-                    usp.append(k, params[k]);
-                }
-            }
-        }
-        xhrPOST(URL_CMD, usp.toString(), cb);
-    }
+  -- CHOQUE MISMO DÍA + MISMO HORARIO CON OTRA RESERVA
+  SELECT COUNT(*)::INT INTO __tiene_choque
+    FROM trainingmmateluna.reserva r
+   WHERE r.fecha = __fecha_date
+     AND r.idhorario = _idhorario
+     AND (_idreserva = 0 OR r.idreserva <> _idreserva);
+  IF __tiene_choque > 0 THEN
+    RAISE EXCEPTION 'FECHA Y HORARIO OCUPADOS';
+  END IF;
 
-    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  -- RUT NO DEBE TENER OTRA RESERVA VIGENTE (HOY O FUTURO)
+  SELECT COUNT(*)::INT INTO __dup_rut
+    FROM trainingmmateluna.reserva r
+   WHERE r.rut = _rut
+     AND r.fecha >= CURRENT_DATE
+     AND (_idreserva = 0 OR r.idreserva <> _idreserva);
+  IF __dup_rut > 0 THEN
+    RAISE EXCEPTION 'YA EXISTE UNA RESERVA VIGENTE PARA ESTE RUT';
+  END IF;
 
-    function fillSelect(sel, data, map) {
-        sel.innerHTML = '';
-        if (map.placeholder !== null && map.placeholder !== undefined) sel.add(new Option(map.placeholder, ''));
-        for (var i = 0; i < data.length; i++) {
-            var it = data[i];
-            if (it && !it.error) sel.add(new Option(it[map.text], it[map.value]));
-        }
-    }
+  __es_insert := (_idreserva = 0);
 
-    // Carga inicial
-    cargarCiudad();
-    cargarHorario();
-    cargarGrilla();
-    cargarGrillaPorcentaje();
+  IF __es_insert THEN
+    INSERT INTO trainingmmateluna.reserva(
+      rut, nombre, nombremascota, email,
+      idregion, idcomuna, fecha, idhorario,
+      recordatorio, web, tv, amigos
+    ) VALUES (
+      _rut, _nombre, _nombremascota, _email,
+      _idregion, _idcomuna, __fecha_date, _idhorario,
+      _recordatorio, _web, _tv, _amigos
+    )
+    RETURNING idreserva INTO idreserva;
 
-    // Estado inicial de comuna
-    if (comuna) comuna.disabled = true;
-    if (region && region.options.length) {
-        region.options[0].text = '--Seleccione--';
-        region.options[0].value = '';
-    }
+    mensaje := 'INSERTADO';
+    RETURN NEXT;
+    RETURN;
 
-    region.addEventListener('change', function() {
-        if (!region.value) {
-            comuna.disabled = true;
-            comuna.innerHTML = '<option value=""></option>';
-        } else {
-            recargaComuna(region.value);
-        }
-    });
+  ELSE
+    UPDATE trainingmmateluna.reserva
+       SET rut           = _rut,
+           nombre        = _nombre,
+           nombremascota = _nombremascota,
+           email         = _email,
+           idregion      = _idregion,
+           idcomuna      = _idcomuna,
+           fecha         = __fecha_date,
+           idhorario     = _idhorario,
+           recordatorio  = _recordatorio,
+           web           = _web,
+           tv            = _tv,
+           amigos        = _amigos
+     WHERE idreserva = _idreserva
+     RETURNING idreserva INTO idreserva;
 
-    // validaciones RUT
-    function validaRUT(r) {
-        if (!r) return false;
-        var t = (r + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
-        if (t.indexOf('-') === -1 && t.length > 1) t = t.slice(0, -1) + '-' + t.slice(-1);
-        var p = t.split('-');
-        if (p.length !== 2) return false;
-        var c = p[0], dv = p[1];
-        if (!/^\d+$/.test(c)) return false;
-        if (!/^[0-9K]$/.test(dv)) return false;
-        var s = 0, m = 2;
-        for (var i = c.length - 1; i >= 0; i--) {
-            s += parseInt(c.charAt(i), 10) * m;
-            m = (m === 7) ? 2 : m + 1;
-        }
-        var rmod = 11 - (s % 11);
-        var d = (rmod === 11) ? '0' : (rmod === 10 ? 'K' : String(rmod));
-        return dv === d;
-    }
+    IF idreserva IS NULL THEN
+      RAISE EXCEPTION 'NO SE ENCONTRÓ LA RESERVA A ACTUALIZAR';
+    END IF;
 
-    function validaEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(('' + e).trim()); }
+    mensaje := 'ACTUALIZADO';
+    RETURN NEXT;
+    RETURN;
+  END IF;
+END;
+$$;
 
-    // Submit
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
+-- ===========================================
+-- VISTA: vw_reservas
+-- Muestra la reserva con FECHA formateada y el TEXTO del horario.
+-- ===========================================
+DROP VIEW IF EXISTS trainingmmateluna.vw_reservas;
 
-        if (!nombre.value.trim()) return alert('El campo "Nombre" es obligatorio.'), nombre.focus();
-        if (!nombremascota.value.trim()) return alert('El campo "Nombre Mascota" es obligatorio.'), nombremascota.focus();
-        if (!rut.value.trim()) return alert('El campo "RUT" es obligatorio.'), rut.focus();
-        if (!validaRUT(rut.value)) return alert('El campo "RUT" no tiene un formato correcto.'), rut.focus();
-        if (!email.value.trim()) return alert('El campo "Email" es obligatorio.'), email.focus();
-        if (!validaEmail(email.value)) return alert('El campo "Email" no tiene un formato correcto.'), email.focus();
-        if (!fecha.value) return alert('El campo "Fecha" es obligatorio.'), fecha.focus();
-        if (!region.value) return alert('Debe seleccionar una Región.'), region.focus();
-        if (comuna.disabled || !comuna.value) return alert('Debe seleccionar una Comuna.'), comuna.focus();
-        if (!horario.value) return alert('Debe seleccionar un Horario.'), horario.focus();
+CREATE VIEW trainingmmateluna.vw_reservas AS
+SELECT
+  r.idreserva,
+  r.nombre,
+  r.nombremascota,
+  r.recordatorio,
+  TO_CHAR(r.fecha, 'DD-MM-YYYY') AS fecha,
+  h.descripcion AS horario
+FROM trainingmmateluna.reserva r
+INNER JOIN trainingmmateluna.horario h
+  ON h.idhorario = r.idhorario
+ORDER BY r.idreserva DESC;
 
-        var checks = 0;
-        if (document.getElementById('web').checked) checks++;
-        if (document.getElementById('tv').checked) checks++;
-        if (document.getElementById('amigos').checked) checks++;
-        if (checks < 2) return alert('Debe seleccionar a lo menos 2 formas de cómo se enteró de nosotros.');
+-- =========================================================
+-- VISTA: vw_porcentaje_reservas
+-- TOP 3 horarios más usados, con porcentaje del total.
+-- =========================================================
+DROP VIEW IF EXISTS trainingmmateluna.vw_porcentaje_reservas;
 
-        reservar();
-    });
-
-    // Combos AJAX (todas por POST ahora)
-    function cargarCiudad() {
-        post('listarRegiones', null, function(err, data) {
-            if (err) return alert('Error cargando regiones: ' + err.message);
-            fillSelect(region, data, { value: 'idregion', text: 'nombre', placeholder: '--Seleccione--' });
-        });
-    }
-
-    function cargarHorario() {
-        post('listarHorarios', null, function(err, data) {
-            if (err) return alert('Error cargando horarios: ' + err.message);
-            fillSelect(horario, data, { value: 'idhorario', text: 'descripcion', placeholder: '--Seleccione--' });
-        });
-    }
-
-    function recargaComuna(idreg, cb) {
-        post('listarComunas', { idregion: idreg }, function(err, data) {
-            if (err) return alert('Error cargando comunas: ' + err.message);
-            comuna.disabled = false;
-            fillSelect(comuna, data, { value: 'idcomuna', text: 'nombre', placeholder: '' });
-            if (typeof cb === 'function') cb();
-        });
-    }
-
-    // Grilla reservas
-    function cargarGrilla() {
-        post('listarReservas', null, function(err, data) {
-            if (err) return alert('Error cargando reservas: ' + err.message);
-            if (!tbodyReservas) return;
-            var rows = '';
-            for (var i = 0; i < data.length; i++) {
-                var r = data[i];
-                if (!r || r.error) continue;
-                var id = r.idreserva;
-                var record = (String(r.recordatorio) === 't' || String(r.recordatorio) === 'true' || r.recordatorio === true);
-                var btnRec = record
-                    ? '<button type="button" class="btn-recordar" data-id="' + id + '">Recordar</button>'
-                    : '<button type="button" class="btn-recordar" style="visibility:hidden" data-id="' + id + '">Recordar</button>';
-                rows += '<tr align="center">' +
-                    '<td>' + esc(r.nombre) + '</td>' +
-                    '<td>' + esc(r.nombremascota) + '</td>' +
-                    '<td>' + (record ? 'Sí' : 'No') + '</td>' +
-                    '<td>' + esc(r.fecha) + ' ' + esc(r.horario) + '</td>' +
-                    '<td>' +
-                    '<button type="button" class="btn-borrar" data-id="' + id + '">Borrar</button> ' +
-                    btnRec +
-                    '</td>' +
-                    '</tr>';
-            }
-            tbodyReservas.innerHTML = rows;
-
-            var del = tbodyReservas.querySelectorAll('.btn-borrar');
-            for (var j = 0; j < del.length; j++) {
-                del[j].addEventListener('click', function() {
-                    var id = this.getAttribute('data-id');
-                    eliminarReserva(id);
-                });
-            }
-            var rec = tbodyReservas.querySelectorAll('.btn-recordar');
-            for (var k = 0; k < rec.length; k++) {
-                rec[k].addEventListener('click', function() {
-                    var id = this.getAttribute('data-id');
-                    recordarReserva(id);
-                });
-            }
-        });
-    }
-
-    // Grilla Alta demanda (propuesta aplicada: usar POST enviando {cmd:'horariosMasUsados'})
-    function cargarGrillaPorcentaje() {
-        post('horariosMasUsados', null, function(err, data) {
-            if (err) return alert('Error cargando porcentajes: ' + err.message);
-            if (!tbodyDemanda) return;
-            var rows = '';
-            for (var i = 0; i < data.length; i++) {
-                var r = data[i];
-                if (!r || r.error) continue;
-                rows += '<tr align="center">' +
-                    '<td>' + esc(r.horario) + '</td>' +
-                    '<td>' + r.cantidad + '</td>' +
-                    '<td>' + r.porcentaje + '%</td>' +
-                    '</tr>';
-            }
-            tbodyDemanda.innerHTML = rows;
-        });
-    }
-
-    // Insertar reserva
-    function reservar() {
-        // Enviar SIEMPRE las banderas como 'true' / 'false'
-        var payload = {
-            rut: rut.value.trim(),
-            nombre: nombre.value.trim(),
-            nombremascota: nombremascota.value.trim(),
-            email: email.value.trim(),
-            idregion: region.value,
-            idcomuna: comuna.value,
-            fecha: fecha.value,
-            idhorario: horario.value,
-            recordatorio: recordatorio.checked ? 'true' : 'false',
-            web: document.getElementById('web').checked ? 'true' : 'false',
-            tv: document.getElementById('tv').checked ? 'true' : 'false',
-            amigos: document.getElementById('amigos').checked ? 'true' : 'false'
-        };
-
-        post('reservar', payload, function(err, obj) {
-            if (err) return alert('Error de red/servidor');
-            if (obj && obj.success) {
-                alert(obj.message || 'Reserva guardada correctamente');
-                form.reset();
-                comuna.disabled = true;
-                cargarGrilla();
-                cargarGrillaPorcentaje();
-            } else {
-                alert((obj && obj.message) || 'Error al guardar');
-            }
-        });
-    }
-
-    // Eliminar Reserva
-    function eliminarReserva(id) {
-        if (!confirm('¿Eliminar la reserva ' + id + '?')) return;
-        post('eliminarReserva', { idreserva: id }, function(err, obj) {
-            if (err) return alert('Error de red/servidor');
-            if (obj && obj.success) {
-                cargarGrilla();
-                cargarGrillaPorcentaje();
-            } else {
-                alert((obj && obj.message) || 'Error al eliminar');
-            }
-        });
-    }
-
-    // Recordar reserva (propuesta aplicada: POST en lugar de GET)
-    function recordarReserva(id) {
-        post('buscarReserva', { idreserva: id }, function(err, arr) {
-            if (err) return alert('Error al consultar reserva: ' + err.message);
-            var r = arr && arr[0];
-            if (!r || r.error) return alert('No se encontró la reserva');
-
-            if (r.estado === 'recordar') {
-                alert('Se debe recordar reserva a email ' + r.email);
-            } else if (r.estado === 'tarde') {
-                alert('Ya es muy tarde para recordar reserva');
-            } else {
-                alert('Aún no es tiempo de recordar la reserva');
-            }
-        });
-    }
-});
+CREATE VIEW trainingmmateluna.vw_porcentaje_reservas AS
+WITH tot AS (
+  SELECT COUNT(*)::NUMERIC AS total
+    FROM trainingmmateluna.reserva
+),
+acum AS (
+  SELECT
+    h.descripcion AS horario,
+    COUNT(*)::INT AS cantidad
+  FROM trainingmmateluna.reserva r
+  INNER JOIN trainingmmateluna.horario h
+    ON h.idhorario = r.idhorario
+  GROUP BY h.descripcion
+)
+SELECT
+  a.horario,
+  a.cantidad,
+  CASE
+    WHEN t.total = 0 THEN 0
+    ELSE ROUND((a.cantidad / t.total) * 100)
+  END::INT AS porcentaje
+FROM acum a
+CROSS JOIN tot t
+ORDER BY a.cantidad DESC, a.horario
+LIMIT 3;
