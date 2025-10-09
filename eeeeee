@@ -1,21 +1,168 @@
-DROP VIEW IF EXISTS trainingmmateluna.vw_porcentaje_reservas;
+<?php
+// command.php
+header('Content-Type: application/json; charset=UTF-8');
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // pon 1 solo si quieres ver errores en pantalla mientras depuras
 
-CREATE OR REPLACE VIEW trainingmmateluna.vw_porcentaje_reservas AS
-WITH tot AS (
-  SELECT CAST(COUNT(*) AS NUMERIC) AS n
-  FROM trainingmmateluna.reserva
-)
-SELECT
-  h.descripcion AS horario,
-  CAST(COUNT(r.idreserva) AS INT) AS cantidad,
-  CASE
-    WHEN (SELECT n FROM tot) > 0 THEN
-      -- trunca a entero (si prefieres redondear, ver variante abajo)
-      CAST( (CAST(COUNT(r.idreserva) AS NUMERIC) * 100.0) / (SELECT n FROM tot) AS INT )
-    ELSE 0
-  END AS porcentaje
-FROM trainingmmateluna.horario h
-LEFT JOIN trainingmmateluna.reserva r
-  ON r.idhorario = h.idhorario
-GROUP BY h.descripcion
-ORDER BY cantidad DESC, horario ASC;
+include 'conexion.php'; // Debe definir $conn con pg_connect(...)
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+  echo json_encode(array("success" => false, "message" => "Método no permitido (solo POST)"));
+  exit;
+}
+
+function jserr($msg){ echo json_encode(array("success"=>false, "message"=>$msg)); exit; }
+function jsecho($arr){ echo json_encode($arr); exit; }
+
+$cmd = isset($_POST['cmd']) ? $_POST['cmd'] : '';
+
+switch ($cmd) {
+
+  // ---------- COMBOS ----------
+  case 'listarRegiones': {
+    $sql = "SELECT idregion, nombre FROM trainingmmateluna.region ORDER BY nombre ASC";
+    $rs  = pg_query($conn, $sql);
+    if (!$rs) jserr(pg_last_error($conn));
+    $out = array();
+    while ($row = pg_fetch_object($rs)) {
+      $out[] = array("idregion" => (int)$row->idregion, "nombre" => $row->nombre);
+    }
+    jsecho($out);
+  } break;
+
+  case 'listarComunas': {
+    if (!isset($_POST['idregion'])) jserr("Falta idregion");
+    $idregion = (int)$_POST['idregion'];
+    $sql = "SELECT idcomuna, nombre
+              FROM trainingmmateluna.comuna
+             WHERE idregion = $1
+             ORDER BY nombre ASC";
+    $rs  = pg_query_params($conn, $sql, array($idregion));
+    if (!$rs) jserr(pg_last_error($conn));
+    $out = array();
+    while ($row = pg_fetch_object($rs)) {
+      $out[] = array("idcomuna" => (int)$row->idcomuna, "nombre" => $row->nombre);
+    }
+    jsecho($out);
+  } break;
+
+  case 'listarHorarios': {
+    $sql = "SELECT idhorario, descripcion FROM trainingmmateluna.horario ORDER BY idhorario ASC";
+    $rs  = pg_query($conn, $sql);
+    if (!$rs) jserr(pg_last_error($conn));
+    $out = array();
+    while ($row = pg_fetch_object($rs)) {
+      $out[] = array("idhorario" => (int)$row->idhorario, "descripcion" => $row->descripcion);
+    }
+    jsecho($out);
+  } break;
+
+  // ---------- GRILLAS ----------
+  case 'listarReservas': {
+    // Usa tu vista vw_reservas (fecha ya formateada y horario resuelto)
+    $sql = "SELECT idreserva, nombre, nombremascota, recordatorio, fecha, horario
+              FROM trainingmmateluna.vw_reservas";
+    $rs  = pg_query($conn, $sql);
+    if (!$rs) jserr(pg_last_error($conn));
+    $out = array();
+    while ($row = pg_fetch_object($rs)) {
+      $out[] = array(
+        "idreserva"     => (int)$row->idreserva,
+        "nombre"        => $row->nombre,
+        "nombremascota" => $row->nombremascota,
+        "recordatorio"  => ($row->recordatorio === 't' || $row->recordatorio === true),
+        "fecha"         => $row->fecha,
+        "horario"       => $row->horario
+      );
+    }
+    jsecho($out);
+  } break;
+
+  case 'horariosMasUsados': {
+    // Usa tu vista vw_porcentaje_reservas (TOP 3 con porcentaje)
+    $sql = "SELECT horario, cantidad, porcentaje FROM trainingmmateluna.vw_porcentaje_reservas";
+    $rs  = pg_query($conn, $sql);
+    if (!$rs) jserr(pg_last_error($conn));
+    $out = array();
+    while ($row = pg_fetch_object($rs)) {
+      $out[] = array(
+        "horario"    => $row->horario,
+        "cantidad"   => (int)$row->cantidad,
+        "porcentaje" => (int)$row->porcentaje
+      );
+    }
+    jsecho($out);
+  } break;
+
+  // ---------- INSERT ----------
+  case 'reservar': {
+    // parámetros esperados por utils.js
+    $rut           = isset($_POST['rut']) ? trim($_POST['rut']) : '';
+    $nombre        = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
+    $nombremascota = isset($_POST['nombremascota']) ? trim($_POST['nombremascota']) : '';
+    $email         = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $idregion      = isset($_POST['idregion']) ? (int)$_POST['idregion'] : 0;
+    $idcomuna      = isset($_POST['idcomuna']) ? (int)$_POST['idcomuna'] : 0;
+    $fecha         = isset($_POST['fecha']) ? $_POST['fecha'] : null; // YYYY-MM-DD
+    $idhorario     = isset($_POST['idhorario']) ? (int)$_POST['idhorario'] : 0;
+    $recordatorio  = (isset($_POST['recordatorio']) && $_POST['recordatorio'] === 'true');
+    $web           = (isset($_POST['web']) && $_POST['web'] === 'true');
+    $tv            = (isset($_POST['tv']) && $_POST['tv'] === 'true');
+    $amigos        = (isset($_POST['amigos']) && $_POST['amigos'] === 'true');
+
+    // Llama a la función que valida e inserta
+    $sql = "SELECT trainingmmateluna.fn_reserva_i($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) AS idreserva";
+    $params = array($rut, $nombre, $nombremascota, $email, $idregion, $idcomuna, $fecha, $idhorario, $recordatorio, $web, $tv, $amigos);
+    $rs = pg_query_params($conn, $sql, $params);
+    if (!$rs) jserr(pg_last_error($conn));
+    $row = pg_fetch_object($rs);
+    if (!$row || (int)$row->idreserva <= 0) jserr("No se pudo insertar la reserva");
+
+    echo json_encode(array("success"=>true, "message"=>"Reserva guardada correctamente", "idreserva"=>(int)$row->idreserva));
+    exit;
+  } break;
+
+  // ---------- BORRAR ----------
+  case 'eliminarReserva': {
+    if (!isset($_POST['idreserva'])) jserr("Falta idreserva");
+    $id = (int)$_POST['idreserva'];
+    $sql = "DELETE FROM trainingmmateluna.reserva WHERE idreserva = $1";
+    $ok  = pg_query_params($conn, $sql, array($id));
+    if (!$ok) jserr(pg_last_error($conn));
+    echo json_encode(array("success"=>true));
+    exit;
+  } break;
+
+  // ---------- BUSCAR (para recordar) ----------
+  case 'buscarReserva': {
+    if (!isset($_POST['idreserva'])) jserr("Falta idreserva");
+    $id = (int)$_POST['idreserva'];
+    $sql = "SELECT idreserva, email, fecha, recordatorio
+              FROM trainingmmateluna.reserva
+             WHERE idreserva = $1";
+    $rs  = pg_query_params($conn, $sql, array($id));
+    if (!$rs) jserr(pg_last_error($conn));
+    $row = pg_fetch_object($rs);
+    if (!$row) jserr("No se encontró la reserva");
+
+    // Lógica simple de estado para el botón "Recordar"
+    $hoy = new DateTime('today');
+    $f   = DateTime::createFromFormat('Y-m-d', $row->fecha);
+    $estado = 'aun'; // por defecto
+    if ($row->recordatorio === 't' || $row->recordatorio === true) {
+      $estado = 'recordar';
+    } elseif ($f && $f < $hoy) {
+      $estado = 'tarde';
+    }
+
+    jsecho(array(array(
+      "idreserva" => (int)$row->idreserva,
+      "email"     => $row->email,
+      "estado"    => $estado
+    )));
+  } break;
+
+  default:
+    echo json_encode(array("success"=>false, "message"=>"cmd incorrecto"));
+  break;
+}
