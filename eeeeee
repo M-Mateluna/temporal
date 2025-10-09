@@ -1,59 +1,16 @@
-case 'reservar': {
-    // parámetros esperados por utils.js
-    $rut           = isset($_POST['rut']) ? trim($_POST['rut']) : '';
-    $nombre        = isset($_POST['nombre']) ? trim($_POST['nombre']) : '';
-    $nombremascota = isset($_POST['nombremascota']) ? trim($_POST['nombremascota']) : '';
-    $email         = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $idregion      = isset($_POST['idregion']) ? (int)$_POST['idregion'] : 0;
-    $idcomuna      = isset($_POST['idcomuna']) ? (int)$_POST['idcomuna'] : 0;
-    $fecha_in      = isset($_POST['fecha']) ? $_POST['fecha'] : null; // viene como YYYY-MM-DD desde <input type="date">
-    $idhorario     = isset($_POST['idhorario']) ? (int)$_POST['idhorario'] : 0;
-    $recordatorio  = (isset($_POST['recordatorio']) && $_POST['recordatorio'] === 'true');
-    $web           = (isset($_POST['web']) && $_POST['web'] === 'true');
-    $tv            = (isset($_POST['tv']) && $_POST['tv'] === 'true');
-    $amigos        = (isset($_POST['amigos']) && $_POST['amigos'] === 'true');
-
-    // Validaciones mínimas (el front ya validó)
-    if (!$rut || !$nombre || !$nombremascota || !$email || !$idregion || !$idcomuna || !$fecha_in || !$idhorario) {
-      jserr("Parámetros incompletos");
+function xhrPOST(url, data, cb) {
+  var req = new XMLHttpRequest();
+  req.open('POST', url, true);
+  req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+  req.onreadystatechange = function() {
+    if (req.readyState === 4) {
+      if (req.status >= 200 && req.status < 300) {
+        try { cb(null, JSON.parse(req.responseText)); }
+        catch(e){ cb(new Error('JSON inválido: ' + req.responseText)); }
+      } else {
+        cb(new Error('HTTP ' + req.status + ' -> ' + req.responseText));
+      }
     }
-
-    // Convertir YYYY-MM-DD -> DD-MM-YYYY para la función (que espera ese formato)
-    $fecha = $fecha_in;
-    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $fecha_in, $m)) {
-        $fecha = $m[3] . '-' . $m[2] . '-' . $m[1];
-    }
-
-    // Comuna pertenece a región (defensa en backend)
-    $sqlChk = "SELECT 1 FROM trainingmmateluna.comuna WHERE idcomuna=$1 AND idregion=$2";
-    $rsChk  = pg_query_params($conn, $sqlChk, array($idcomuna, $idregion));
-    if (!$rsChk) jserr(pg_last_error($conn));
-    if (!pg_fetch_row($rsChk)) jserr("La comuna no pertenece a la región");
-
-    // Horario existe
-    $sqlHor = "SELECT 1 FROM trainingmmateluna.horario WHERE idhorario=$1";
-    $rsHor  = pg_query_params($conn, $sqlHor, array($idhorario));
-    if (!$rsHor) jserr(pg_last_error($conn));
-    if (!pg_fetch_row($rsHor)) jserr("Horario inexistente");
-
-    // Llamada a la función (acepta fecha como DD-MM-YYYY)
-    $sql = "SELECT trainingmmateluna.fn_reserva_i($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) AS idreserva";
-    $params = array(
-      $rut, $nombre, $nombremascota, $email, $idregion, $idcomuna,
-      $fecha,            // <-- ahora en DD-MM-YYYY
-      $idhorario,
-      $recordatorio, $web, $tv, $amigos
-    );
-
-    $rs = pg_query_params($conn, $sql, $params);
-    if (!$rs) jserr(pg_last_error($conn));
-    $row = pg_fetch_object($rs);
-    if (!$row || (int)$row->idreserva <= 0) jserr("No se pudo insertar la reserva");
-
-    echo json_encode(array(
-      "success"    => true,
-      "message"    => "Reserva guardada correctamente",
-      "idreserva"  => (int)$row->idreserva
-    ));
-    exit;
-} break;
+  };
+  req.send(data || '');
+}
