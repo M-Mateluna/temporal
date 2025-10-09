@@ -1,162 +1,249 @@
-<?php
-header('Content-Type: application/json; charset=utf-8');
-require_once 'conexion.php'; // define $conn (pg_connect)
+/* =======================
+   utils.js  (validaciones + AJAX + UI)
+   ES5 compatible
+   ======================= */
 
-if (!$conn) {
-  http_response_code(500);
-  echo json_encode(['ok'=>false,'error'=>'No hay conexión a la base de datos']);
-  exit;
+/* --------- Validaciones --------- */
+function validaRUT(rut) {
+  if (!rut) return false;
+  var limpio = (rut + '').replace(/\./g, '').replace(/\s+/g, '').toUpperCase();
+  if (limpio.indexOf('-') === -1 && limpio.length > 1) {
+    limpio = limpio.slice(0, -1) + '-' + limpio.slice(-1);
+  }
+  var partes = limpio.split('-');
+  if (partes.length !== 2) return false;
+  var cuerpo = partes[0], dv = partes[1];
+  if (!/^\d+$/.test(cuerpo)) return false;
+  if (!/^[0-9K]$/.test(dv)) return false;
+
+  var suma = 0, multiplo = 2;
+  for (var i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo.charAt(i), 10) * multiplo;
+    multiplo = (multiplo === 7) ? 2 : multiplo + 1;
+  }
+  var resto = suma % 11;
+  var dvCalcNum = 11 - resto;
+  var dvCalc = (dvCalcNum === 11) ? '0' : (dvCalcNum === 10 ? 'K' : String(dvCalcNum));
+  return dv === dvCalc;
 }
 
-/* Helpers JSON simples */
-function send_json_error($message, $http_status = 400) {
-  http_response_code($http_status);
-  echo json_encode(['ok'=>false,'error'=>$message], JSON_UNESCAPED_UNICODE);
-  exit;
-}
-function send_json_success($payload) {
-  echo json_encode(['ok'=>true,'data'=>$payload], JSON_UNESCAPED_UNICODE);
-  exit;
+function validaEmail(email) {
+  if (!email) return false;
+  var e = ('' + email).replace(/^\s+|\s+$/g, '');
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 }
 
-$cmd = $_POST['cmd'] ?? ($_GET['cmd'] ?? '');
+/* --------- Helpers UI --------- */
+function getVal(id){ var el=document.getElementById(id); return el?(''+el.value).trim():''; }
+function isChecked(id){ var el=document.getElementById(id); return !!(el && el.checked); }
+function getOrigenes(){ var a=[]; if(isChecked('web'))a.push('web'); if(isChecked('tv'))a.push('tv'); if(isChecked('amigos'))a.push('amigos'); return a; }
+function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-switch ($cmd) {
-
-  /* 1) Regiones (ciudades) */
-  case 'get_regiones': {
-    $sql = "SELECT idregion, nombre FROM trainingmmateluna.region ORDER BY nombre";
-    $res = pg_query_params($conn, $sql, []);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $rows = [];
-    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
-    send_json_success($rows);
-  }
-
-  /* 2) Horarios */
-  case 'get_horarios': {
-    $sql = "SELECT idhorario, descripcion FROM trainingmmateluna.horario ORDER BY idhorario";
-    $res = pg_query_params($conn, $sql, []);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $rows = [];
-    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
-    send_json_success($rows);
-  }
-
-  /* 3) Comunas por región */
-  case 'get_comunas_by_region': {
-    $idregion = (int)($_POST['idregion'] ?? 0);
-    if ($idregion <= 0) send_json_error('idregion requerido');
-
-    $sql = "SELECT idcomuna, nombre
-            FROM trainingmmateluna.comuna
-            WHERE idregion = $1
-            ORDER BY nombre";
-    $res = pg_query_params($conn, $sql, [$idregion]);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $rows = [];
-    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
-    send_json_success($rows);
-  }
-
-  /* 4) Insertar reserva */
-  case 'insert_reserva': {
-    $rut           = $_POST['rut']           ?? '';
-    $nombre        = $_POST['nombre']        ?? '';
-    $nombremascota = $_POST['nombremascota'] ?? '';
-    $email         = $_POST['email']         ?? '';
-    $idregion      = (int)($_POST['idregion'] ?? 0);
-    $idcomuna      = (int)($_POST['idcomuna'] ?? 0);
-    $fecha         = $_POST['fecha']         ?? '';   // YYYY-MM-DD
-    $idhorario     = (int)($_POST['idhorario'] ?? 0);
-
-    $recordatorio  = filter_var($_POST['recordatorio'] ?? 'false', FILTER_VALIDATE_BOOLEAN);
-    $web           = filter_var($_POST['web']          ?? 'false', FILTER_VALIDATE_BOOLEAN);
-    $tv            = filter_var($_POST['tv']           ?? 'false', FILTER_VALIDATE_BOOLEAN);
-    $amigos        = filter_var($_POST['amigos']       ?? 'false', FILTER_VALIDATE_BOOLEAN);
-
-    $sql = "INSERT INTO trainingmmateluna.reserva
-            (rut, nombre, nombremascota, email, idregion, idcomuna, fecha, idhorario, recordatorio, web, tv, amigos)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-            RETURNING idreserva";
-    $params = [$rut,$nombre,$nombremascota,$email,$idregion,$idcomuna,$fecha,$idhorario,$recordatorio,$web,$tv,$amigos];
-    $res = pg_query_params($conn, $sql, $params);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $row = pg_fetch_assoc($res);
-    send_json_success(['idreserva'=>(int)$row['idreserva']]);
-  }
-
-  /* 5) Listado reservas */
-  case 'list_reservas': {
-    $sql = "SELECT r.idreserva, r.nombre, r.nombremascota, r.recordatorio, r.email,
-                   to_char(r.fecha,'DD/MM/YYYY') AS fecha,
-                   h.descripcion AS horario
-            FROM trainingmmateluna.reserva r
-            JOIN trainingmmateluna.horario h ON h.idhorario = r.idhorario
-            ORDER BY r.idreserva DESC";
-    $res = pg_query_params($conn, $sql, []);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $rows = [];
-    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
-    send_json_success($rows);
-  }
-
-  /* 6) Horarios más usados (cantidad/porcentaje) */
-  case 'top_horarios': {
-    $resT = pg_query_params($conn, "SELECT COUNT(*)::int AS total FROM trainingmmateluna.reserva", []);
-    if (!$resT) send_json_error(pg_last_error($conn), 500);
-    $total = (int)pg_fetch_result($resT, 0, 'total');
-
-    $sql = "SELECT h.descripcion AS horario,
-                   COUNT(*)::int AS cantidad,
-                   CASE WHEN $1 = 0 THEN 0
-                        ELSE ROUND(100.0 * COUNT(*) / $1)::int END AS porcentaje
-            FROM trainingmmateluna.reserva r
-            JOIN trainingmmateluna.horario h ON h.idhorario = r.idhorario
-            GROUP BY h.descripcion
-            ORDER BY cantidad DESC, horario";
-    $res = pg_query_params($conn, $sql, [$total]);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $rows = [];
-    while ($r = pg_fetch_assoc($res)) $rows[] = $r;
-    send_json_success($rows);
-  }
-
-  /* 7) Eliminar reserva */
-  case 'delete_reserva': {
-    $id = (int)($_POST['idreserva'] ?? 0);
-    if ($id <= 0) send_json_error('idreserva requerido');
-
-    $sql = "DELETE FROM trainingmmateluna.reserva WHERE idreserva = $1 RETURNING idreserva";
-    $res = pg_query_params($conn, $sql, [$id]);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $ok = pg_affected_rows($res) > 0;
-    send_json_success(['deleted'=>$ok]);
-  }
-
-  /* Extra: traer una reserva (para “recordar”) */
-  case 'get_reserva': {
-    $id = (int)($_POST['idreserva'] ?? 0);
-    if ($id <= 0) send_json_error('idreserva requerido');
-
-    $sql = "SELECT idreserva, email, fecha, recordatorio
-            FROM trainingmmateluna.reserva
-            WHERE idreserva = $1";
-    $res = pg_query_params($conn, $sql, [$id]);
-    if (!$res) send_json_error(pg_last_error($conn), 500);
-
-    $row = pg_fetch_assoc($res);
-    if (!$row) send_json_error('Reserva no encontrada', 404);
-    send_json_success($row);
-  }
-
-  default:
-    send_json_error('cmd inválido o no especificado', 400);
+/* --------- AJAX (XMLHttpRequest) --------- */
+function ajax(cmd, params, onOk, onErr){
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'command.php', true);
+  xhr.onreadystatechange = function(){
+    if (xhr.readyState === 4){
+      if (xhr.status >= 200 && xhr.status < 300){
+        var resp; try { resp = JSON.parse(xhr.responseText); } catch(e){ onErr && onErr('Respuesta inválida'); return; }
+        if (resp && resp.ok) onOk && onOk(resp.data);
+        else onErr && onErr(resp && resp.error ? resp.error : 'Error desconocido');
+      } else {
+        onErr && onErr('HTTP ' + xhr.status);
+      }
+    }
+  };
+  var fd = new FormData();
+  fd.append('cmd', cmd);
+  if (params){ for (var k in params){ if (Object.prototype.hasOwnProperty.call(params,k)) fd.append(k, params[k]); } }
+  xhr.send(fd);
 }
+
+/* --------- Validación del formulario --------- */
+function validarFormulario() {
+  var nombre = getVal('nombre');
+  var apellidos = getVal('apellidos');
+  var rut = getVal('rut');
+  var email = getVal('email');
+  var fecha = getVal('fecha');
+  var horario = getVal('horario');
+  var region = getVal('region');
+  var comuna = getVal('comuna');
+  var nombremascota = getVal('nombremascota');
+
+  function req(v,n){ if(!v){ alert('El campo ' + n + ' es obligatorio'); return false; } return true; }
+
+  if(!req(nombre,'Nombre')) return false;
+  if(!req(apellidos,'Apellidos')) return false;
+  if(!req(rut,'RUT')) return false;
+  if(!validaRUT(rut)){ alert('El campo RUT no tiene un formato correcto'); return false; }
+  if(!req(email,'Email')) return false;
+  if(!validaEmail(email)){ alert('El campo Email no tiene un formato correcto'); return false; }
+  if(!req(fecha,'Fecha de Consulta')) return false;
+  if(!req(horario,'Horario')) return false;
+  if(!req(region,'Region')) return false;
+  if(!req(comuna,'Comuna')) return false;
+  if(!req(nombremascota,'Nombre Mascota')) return false;
+
+  if (getOrigenes().length < 2){ alert('Debe seleccionar a lo menos 2 formas de como se enteró de nosotros'); return false; }
+
+  return true;
+}
+
+/* --------- Limpiar / reiniciar --------- */
+function limpiarFormulario(){
+  var form = document.getElementById('form-reserva');
+  if (form) form.reset();
+  var comuna = document.getElementById('comuna');
+  if (comuna) comuna.innerHTML = '<option value="">--Seleccione--</option>';
+}
+
+/* --------- Inserción de reserva --------- */
+function reservar(){
+  var payload = {
+    rut:           getVal('rut'),
+    nombre:        getVal('nombre') + ' ' + getVal('apellidos'), // puedes unirlos o guardar por separado si cambias el PHP
+    nombremascota: getVal('nombremascota'),
+    email:         getVal('email'),
+    idregion:      getVal('region'),
+    idcomuna:      getVal('comuna'),
+    fecha:         getVal('fecha'),
+    idhorario:     getVal('horario'),
+    recordatorio:  isChecked('recordatorio') ? 'true' : 'false',
+    web:           isChecked('web') ? 'true' : 'false',
+    tv:            isChecked('tv') ? 'true' : 'false',
+    amigos:        isChecked('amigos') ? 'true' : 'false'
+  };
+
+  ajax('insert_reserva', payload, function(){
+    alert('Reserva guardada correctamente');
+    limpiarFormulario();
+    cargaGrilla();
+    cargaGrillaPorcentaje();
+  }, function(err){
+    alert('Error al guardar: ' + err);
+  });
+}
+
+/* --------- Grilla reservas --------- */
+function cargaGrilla(){
+  ajax('list_reservas', null, function(rows){
+    var tbody = document.getElementById('tbody-reservas');
+    if (!tbody) return;
+    var html = '';
+    for (var i=0;i<rows.length;i++){
+      var r = rows[i], id = r.idreserva;
+      var showRec = (String(r.recordatorio)==='t'||String(r.recordatorio)==='true'||r.recordatorio===true);
+      var btnRec = showRec
+        ? '<button class="btn-recordar" onclick="recordarReserva('+id+')">Recordar</button>'
+        : '<button class="btn-recordar" style="visibility:hidden">Recordar</button>';
+
+      html += '<tr align="center">'
+           +  '<td>'+escapeHtml(r.nombre)+'</td>'
+           +  '<td>'+escapeHtml(r.nombremascota)+'</td>'
+           +  '<td>'+(showRec?'Sí':'No')+'</td>'
+           +  '<td>'+escapeHtml(r.fecha)+' '+escapeHtml(r.horario)+'</td>'
+           +  '<td>'
+           +    '<button class="btn-borrar" onclick="eliminaReserva('+id+')">Borrar</button> '
+           +     btnRec
+           +  '</td>'
+           +  '</tr>';
+    }
+    tbody.innerHTML = html;
+  }, function(err){ alert('Error cargando reservas: '+err); });
+}
+
+/* --------- Grilla porcentajes (alta demanda) --------- */
+function cargaGrillaPorcentaje(){
+  ajax('top_horarios', null, function(rows){
+    var tbody = document.getElementById('tbody-demanda');
+    if (!tbody) return;
+    var html = '';
+    for (var i=0;i<rows.length;i++){
+      var r = rows[i];
+      html += '<tr align="center">'
+           +  '<td>'+escapeHtml(r.horario)+'</td>'
+           +  '<td>'+r.cantidad+'</td>'
+           +  '<td>'+r.porcentaje+'%</td>'
+           +  '</tr>';
+    }
+    tbody.innerHTML = html;
+  }, function(err){ alert('Error cargando porcentajes: '+err); });
+}
+
+/* --------- Eliminar --------- */
+function eliminaReserva(id){
+  if (!confirm('¿Eliminar la reserva '+id+'?')) return;
+  ajax('delete_reserva', {idreserva:id}, function(){
+    cargaGrilla();
+    cargaGrillaPorcentaje();
+  }, function(err){ alert('Error al eliminar: '+err); });
+}
+
+/* --------- Recordar --------- */
+function recordarReserva(id){
+  ajax('get_reserva', {idreserva:id}, function(r){
+    var email = r.email || '';
+    var hoy = new Date(); hoy.setHours(0,0,0,0);
+    var f = new Date(r.fecha + 'T00:00:00'); // r.fecha debe venir YYYY-MM-DD
+    var tomorrow = new Date(hoy.getTime()); tomorrow.setDate(hoy.getDate()+1);
+
+    if (f.getTime() === tomorrow.getTime()){
+      alert('Se debe recordar reserva a email ' + email);
+    } else if (f.getTime() <= hoy.getTime()){
+      alert('Ya es muy tarde para recordar reserva');
+    } else {
+      alert('Aún no es tiempo de recordar la reserva');
+    }
+  }, function(err){ alert('Error consultando reserva: '+err); });
+}
+
+/* --------- Combos --------- */
+function cargaCiudad(){
+  ajax('get_regiones', null, function(rows){
+    var sel = document.getElementById('region'); if (!sel) return;
+    var out = '<option value="">--Seleccione--</option>';
+    for (var i=0;i<rows.length;i++){ out += '<option value="'+rows[i].idregion+'">'+escapeHtml(rows[i].nombre)+'</option>'; }
+    sel.innerHTML = out;
+  }, function(err){ alert('Error cargando regiones: ' + err); });
+}
+
+function recargaComuna(){
+  var idregion = getVal('region');
+  var sel = document.getElementById('comuna'); if (!sel) return;
+  if (!idregion){ sel.innerHTML = '<option value="">--Seleccione--</option>'; return; }
+  ajax('get_comunas_by_region', {idregion:idregion}, function(rows){
+    var out = '<option value="">--Seleccione--</option>';
+    for (var i=0;i<rows.length;i++){ out += '<option value="'+rows[i].idcomuna+'">'+escapeHtml(rows[i].nombre)+'</option>'; }
+    sel.innerHTML = out;
+  }, function(err){ alert('Error cargando comunas: ' + err); });
+}
+
+function cargaHorario(){
+  ajax('get_horarios', null, function(rows){
+    var sel = document.getElementById('horario'); if (!sel) return;
+    var out = '<option value="">--Seleccione--</option>';
+    for (var i=0;i<rows.length;i++){ out += '<option value="'+rows[i].idhorario+'">'+escapeHtml(rows[i].descripcion)+'</option>'; }
+    sel.innerHTML = out;
+  }, function(err){ alert('Error cargando horarios: ' + err); });
+}
+
+/* --------- Arranque --------- */
+document.addEventListener('DOMContentLoaded', function(){
+  cargaCiudad();
+  cargaHorario();
+  cargaGrilla();
+  cargaGrillaPorcentaje();
+
+  var form = document.getElementById('form-reserva');
+  if (form){
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      if (!validarFormulario()) return;
+      reservar();
+    });
+  }
+  var selRegion = document.getElementById('region');
+  if (selRegion) selRegion.addEventListener('change', recargaComuna);
+});
