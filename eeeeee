@@ -1,52 +1,86 @@
-CREATE OR REPLACE FUNCTION evaluacion.fn_carrera_ig(
-  _nombre         VARCHAR,
-  _descripcion    VARCHAR,
-  _tiempocarrera  INTEGER
+CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_g(
+  _idparticipacion INTEGER,     -- NULL => INSERT, NOT NULL => UPDATE
+  _idatleta        INTEGER,
+  _carrera_nombre  VARCHAR,
+  _carrera_desc    VARCHAR,
+  _tiempocarrera   INTEGER,
+  _avance          INTEGER
 ) RETURNS INTEGER
 LANGUAGE plpgsql AS
 $$
 DECLARE
-  __id   INTEGER;
-  __nom  VARCHAR;   -- nombre normalizado
-  __desc VARCHAR;   -- descripcion normalizada (trim)
+  __idcarrera INTEGER;
+  __dup       INTEGER;
+  __id        INTEGER;
 BEGIN
-  -- Validaciones del enunciado
-  IF _nombre IS NULL OR length(btrim(_nombre)) < 5 THEN
-    RAISE EXCEPTION 'NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)';
-  END IF;
-  IF _descripcion IS NULL OR length(btrim(_descripcion)) = 0 THEN
-    RAISE EXCEPTION 'DESCRIPCIÓN OBLIGATORIA';
-  END IF;
-  IF _tiempocarrera IS NULL OR _tiempocarrera < 1 THEN
-    RAISE EXCEPTION 'TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)';
+  -- ===== Validaciones comunes =====
+  IF _idatleta IS NULL THEN
+    RAISE EXCEPTION 'ATLETA OBLIGATORIO';
   END IF;
 
-  __nom  := upper(btrim(_nombre));
-  __desc := btrim(_descripcion);
+  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'ATLETA NO EXISTE';
+  END IF;
 
-  -- Evitar duplicados por concurrencia (unicidad lógica por NOMBRE+TIEMPO)
-  PERFORM pg_advisory_xact_lock( (hashtext(__nom) # _tiempocarrera)::bigint );
+  -- Obtiene o crea la carrera (unicidad por NOMBRE+TIEMPO; actualiza descripción si existe)
+  __idcarrera := evaluacion.fn_carrera_ig(_carrera_nombre, _carrera_desc, _tiempocarrera);
 
-  -- 1) ¿Existe por (NOMBRE normalizado, TIEMPO)? -> actualizar descripción
-  SELECT idcarrera
-    INTO __id
-    FROM evaluacion.carrera
-   WHERE upper(btrim(nombre)) = __nom
-     AND tiempocarrera        = _tiempocarrera
-   LIMIT 1;
+  -- Avance
+  IF _avance IS NULL THEN
+    RAISE EXCEPTION 'AVANCE OBLIGATORIO';
+  END IF;
+  IF _avance < 0 OR _avance > 100 THEN
+    RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
+  END IF;
 
-  IF FOUND THEN
-    UPDATE evaluacion.carrera
-       SET descripcion = __desc
-     WHERE idcarrera = __id;
+  -- ===== Flujo INSERT / UPDATE =====
+  IF _idparticipacion IS NULL THEN
+    -- INSERT: validar unicidad atleta+carrera
+    SELECT 1 INTO __dup
+      FROM evaluacion.participacion
+     WHERE idatleta = _idatleta
+       AND idcarrera = __idcarrera;
+
+    IF FOUND THEN
+      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+    END IF;
+
+    INSERT INTO evaluacion.participacion (idatleta, idcarrera, avance)
+    VALUES (_idatleta, __idcarrera, _avance)
+    RETURNING idparticipacion INTO __id;
+
     RETURN __id;
+
+  ELSE
+    -- UPDATE: debe existir la participación
+    PERFORM 1 FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
+    END IF;
+
+    -- Unicidad atleta+carrera excluyendo el propio registro
+    SELECT 1 INTO __dup
+      FROM evaluacion.participacion
+     WHERE idatleta = _idatleta
+       AND idcarrera = __idcarrera
+       AND idparticipacion <> _idparticipacion;
+
+    IF FOUND THEN
+      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+    END IF;
+
+    UPDATE evaluacion.participacion
+       SET idatleta  = _idatleta,
+           idcarrera = __idcarrera,
+           avance    = _avance
+     WHERE idparticipacion = _idparticipacion;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
+    END IF;
+
+    RETURN _idparticipacion;
   END IF;
-
-  -- 2) No existe -> crear nueva
-  INSERT INTO evaluacion.carrera(nombre, descripcion, tiempocarrera)
-  VALUES (_nombre, __desc, _tiempocarrera)
-  RETURNING idcarrera INTO __id;
-
-  RETURN __id;
 END;
 $$;
