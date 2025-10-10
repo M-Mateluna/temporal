@@ -1,86 +1,125 @@
-CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_g(
-  _idparticipacion INTEGER,     -- NULL => INSERT, NOT NULL => UPDATE
-  _idatleta        INTEGER,
-  _carrera_nombre  VARCHAR,
-  _carrera_desc    VARCHAR,
-  _tiempocarrera   INTEGER,
-  _avance          INTEGER
-) RETURNS INTEGER
-LANGUAGE plpgsql AS
-$$
-DECLARE
-  __idcarrera INTEGER;
-  __dup       INTEGER;
-  __id        INTEGER;
-BEGIN
-  -- ===== Validaciones comunes =====
-  IF _idatleta IS NULL THEN
-    RAISE EXCEPTION 'ATLETA OBLIGATORIO';
-  END IF;
+<?php
+header('Content-Type: application/json; charset=UTF-8');
 
-  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'ATLETA NO EXISTE';
-  END IF;
+$conn = pg_connect("host=192.168.1.11 dbname=mmateluna user=externo password=desis123");
+if (!$conn) {
+  echo json_encode(array("ok"=>false, "message"=>"Failed connecting to postgres database mmateluna"));
+  exit;
+}
+@pg_set_client_encoding($conn, "UTF8");
 
-  -- Obtiene o crea la carrera (unicidad por NOMBRE+TIEMPO; actualiza descripción si existe)
-  __idcarrera := evaluacion.fn_carrera_ig(_carrera_nombre, _carrera_desc, _tiempocarrera);
+// ---------------------------
+// Helpers JSON
+// ---------------------------
+function jserr($msg){ echo json_encode(array("ok"=>false,"message"=>$msg)); exit; }
+function jsok($data=array(), $msg=""){
+  $out = array("ok"=>true);
+  if ($msg !== "") $out["message"] = $msg;
+  if (!empty($data)) $out["data"] = $data;
+  echo json_encode($out); exit;
+}
+function fetch_all_assoc($res){
+  $rows = array();
+  if ($res){ while($r = pg_fetch_assoc($res)){ $rows[] = $r; } }
+  return $rows;
+}
 
-  -- Avance
-  IF _avance IS NULL THEN
-    RAISE EXCEPTION 'AVANCE OBLIGATORIO';
-  END IF;
-  IF _avance < 0 OR _avance > 100 THEN
-    RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
-  END IF;
+// ---------------------------
+// Helper: convertir error PG en mensaje amigable
+// ---------------------------
+function pg_error_to_message($conn) {
+  $err = pg_last_error($conn);
+  if (!$err) return "Error";
 
-  -- ===== Flujo INSERT / UPDATE =====
-  IF _idparticipacion IS NULL THEN
-    -- INSERT: validar unicidad atleta+carrera
-    SELECT 1 INTO __dup
-      FROM evaluacion.participacion
-     WHERE idatleta = _idatleta
-       AND idcarrera = __idcarrera;
+  // limpiar prefijo y CONTEXT
+  $err = preg_replace('/^ERROR:\s*/i', '', $err);
+  $err = preg_replace('/CONTEXT:.*/is', '', $err);
+  $err = trim($err);
 
-    IF FOUND THEN
-      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-    END IF;
+  // Mensajes de nuestras funciones
+  if (stripos($err, 'YA ESTÁ INSCRITO EN ESTA CARRERA') !== false) {
+    return 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+  }
+  if (stripos($err, 'ATLETA NO EXISTE') !== false) return 'ATLETA NO EXISTE';
+  if (stripos($err, 'PARTICIPACIÓN NO EXISTE') !== false) return 'PARTICIPACIÓN NO EXISTE';
+  if (stripos($err, 'NOMBRE CARRERA OBLIGATORIO') !== false) return $err;
+  if (stripos($err, 'DESCRIPCIÓN OBLIGATORIA') !== false) return $err;
+  if (stripos($err, 'TIEMPO DE CARRERA') !== false) return $err;
+  if (stripos($err, 'AVANCE') !== false) return $err;
 
-    INSERT INTO evaluacion.participacion (idatleta, idcarrera, avance)
-    VALUES (_idatleta, __idcarrera, _avance)
-    RETURNING idparticipacion INTO __id;
+  // Violaciones de UNIQUE (independiente del nombre de la constraint)
+  if (stripos($err, 'duplicate key value violates unique constraint') !== false ||
+      stripos($err, 'violates unique constraint') !== false) {
+    return 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+  }
 
-    RETURN __id;
+  return $err;
+}
 
-  ELSE
-    -- UPDATE: debe existir la participación
-    PERFORM 1 FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
-    END IF;
+// ---------------------------
+// Router por comando
+// ---------------------------
+$cmd = isset($_POST['cmd']) ? trim($_POST['cmd']) :
+       (isset($_GET['cmd']) ? trim($_GET['cmd']) : '');
 
-    -- Unicidad atleta+carrera excluyendo el propio registro
-    SELECT 1 INTO __dup
-      FROM evaluacion.participacion
-     WHERE idatleta = _idatleta
-       AND idcarrera = __idcarrera
-       AND idparticipacion <> _idparticipacion;
+switch ($cmd) {
 
-    IF FOUND THEN
-      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-    END IF;
+  // ---- LOV atletas ----
+  case 'listarAtletas': {
+    $sql = "SELECT id, nombre FROM evaluacion.vw_listaratletas ORDER BY nombre";
+    $res = pg_query($conn, $sql);
+    if (!$res) { jserr(pg_error_to_message($conn)); }
+    jsok(fetch_all_assoc($res));
+  }
 
-    UPDATE evaluacion.participacion
-       SET idatleta  = _idatleta,
-           idcarrera = __idcarrera,
-           avance    = _avance
-     WHERE idparticipacion = _idparticipacion;
+  // ---- Grilla ----
+  case 'listarGrilla': {
+    $sql = "SELECT id, idcarrera, idatleta, carrera, descripcion, tiempo, atleta, comienzo, avance
+              FROM evaluacion.vw_grillaparticipaciones
+             ORDER BY comienzo DESC, id DESC";
+    $res = pg_query($conn, $sql);
+    if (!$res) { jserr(pg_error_to_message($conn)); }
+    jsok(fetch_all_assoc($res));
+  }
 
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
-    END IF;
+  // ---- Guardar (INSERT/UPDATE) ----
+  case 'guardar': {
+    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) : '';
+    $idatleta        = isset($_POST['idatleta'])        ? trim($_POST['idatleta'])        : '';
+    $nombre          = isset($_POST['nombre'])          ? trim($_POST['nombre'])          : '';
+    $descripcion     = isset($_POST['descripcion'])     ? trim($_POST['descripcion'])     : '';
+    $tiempocarrera   = isset($_POST['tiempocarrera'])   ? trim($_POST['tiempocarrera'])   : '';
+    $avance          = isset($_POST['avance'])          ? trim($_POST['avance'])          : '';
 
-    RETURN _idparticipacion;
-  END IF;
-END;
-$$;
+    $idparticipacion = ($idparticipacion === '' ? null : (int)$idparticipacion);
+    $idatleta_int    = ($idatleta === '' ? null : (int)$idatleta);
+    $tiempo_int      = ($tiempocarrera === '' ? null : (int)$tiempocarrera);
+    $avance_int      = ($avance === '' ? null : (int)$avance);
+
+    $sql = "SELECT evaluacion.fn_participacion_g($1,$2,$3,$4,$5,$6) AS id";
+    $params = array($idparticipacion, $idatleta_int, $nombre, $descripcion, $tiempo_int, $avance_int);
+
+    $res = pg_query_params($conn, $sql, $params);
+    if (!$res) { jserr(pg_error_to_message($conn)); }
+
+    $row = pg_fetch_assoc($res);
+    $newId = isset($row['id']) ? (int)$row['id'] : null;
+    jsok(array("idparticipacion"=>$newId), "Guardado correctamente");
+  }
+
+  // ---- Eliminar ----
+  case 'eliminar': {
+    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) :
+                       (isset($_GET['idparticipacion']) ? trim($_GET['idparticipacion']) : '');
+    if ($idparticipacion === '') { jserr("ID PARTICIPACIÓN OBLIGATORIO"); }
+
+    $sql = "SELECT evaluacion.fn_participacion_d($1)";
+    $res = pg_query_params($conn, $sql, array((int)$idparticipacion));
+    if (!$res) { jserr(pg_error_to_message($conn)); }
+
+    jsok(array(), "Eliminado correctamente");
+  }
+
+  default:
+    jserr("Comando no reconocido");
+}
