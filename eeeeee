@@ -2,30 +2,29 @@
 // command.php
 header('Content-Type: application/json; charset=UTF-8');
 
-// ---------------------------
-// Conexión (exacta como pediste)
-// ---------------------------
+// -----------------------------------------
+// Conexión (exacta como indicaste)
+// -----------------------------------------
 $conn = pg_connect("host=192.168.1.11 dbname=mmateluna user=externo password=desis123");
 if (!$conn) {
-  echo json_encode(array("ok" => false, "message" => "Failed connecting to postgres database mmateluna"));
+  echo json_encode(array("ok"=>false, "message"=>"Failed connecting to postgres database mmateluna"));
   exit;
 }
 @pg_set_client_encoding($conn, "UTF8");
 
-// ---------------------------
-// Helpers
-// ---------------------------
-function jserr($msg){ echo json_encode(array("ok"=>false, "message"=>$msg)); exit; }
-function jsok($data=array(), $msg=""){
+// -----------------------------------------
+// Helpers mínimos (salidas JSON)
+// -----------------------------------------
+function jserr($msg){
+  echo json_encode(array("ok"=>false, "message"=>$msg));
+  exit;
+}
+function jsok($data = array(), $msg = ""){
   $out = array("ok"=>true);
   if ($msg !== "") $out["message"] = $msg;
   if (!empty($data)) $out["data"] = $data;
-  echo json_encode($out); exit;
-}
-function p($name, $default=null){
-  if (isset($_POST[$name])) return $_POST[$name];
-  if (isset($_GET[$name]))  return $_GET[$name];
-  return $default;
+  echo json_encode($out);
+  exit;
 }
 function fetch_all_assoc($res){
   $rows = array();
@@ -35,72 +34,81 @@ function fetch_all_assoc($res){
   return $rows;
 }
 
-// ---------------------------
-/*  CMD esperados:
-      - listarAtletas
-      - listarGrilla
-      - guardar           (INSERT/UPDATE con evaluacion.fn_participacion_g)
-      - eliminar
-*/
-$cmd = trim((string) p('cmd', ''));
+// -----------------------------------------
+// Router por comando
+//   - listarAtletas
+//   - listarGrilla
+//   - guardar         (INSERT/UPDATE unificados: fn_participacion_g)
+//   - eliminar        (fn_participacion_d)
+// -----------------------------------------
+$cmd = isset($_POST['cmd']) ? trim($_POST['cmd']) :
+       (isset($_GET['cmd']) ? trim($_GET['cmd']) : '');
 
-switch ($cmd){
+switch ($cmd) {
 
-  // -------------------------
-  // LOV: Atletas para el <select>
-  // -------------------------
+  // ---------------------------------------
+  // 1) LOV: atletas para el <select>
+  // ---------------------------------------
   case 'listarAtletas': {
     $sql = "SELECT id, nombre FROM evaluacion.vw_listaratletas ORDER BY nombre";
     $res = pg_query($conn, $sql);
-    if(!$res){ jserr("Error al listar atletas"); }
+    if (!$res) { jserr("Error al listar atletas"); }
     $rows = fetch_all_assoc($res);
     jsok($rows);
   }
 
-  // -------------------------
-  // Grilla principal
-  // -------------------------
+  // ---------------------------------------
+  // 2) Grilla principal
+  // ---------------------------------------
   case 'listarGrilla': {
     $sql = "SELECT id, carrera, tiempo, atleta, comienzo, avance
               FROM evaluacion.vw_grillaparticipaciones
              ORDER BY comienzo DESC, id DESC";
     $res = pg_query($conn, $sql);
-    if(!$res){ jserr("Error al listar participaciones"); }
+    if (!$res) { jserr("Error al listar participaciones"); }
     $rows = fetch_all_assoc($res);
     jsok($rows);
   }
 
-  // -------------------------
-  // Guardar (INSERT/UPDATE en una sola función)
-  // Parámetros esperados (POST):
-  //  - idparticipacion (vacío o null => INSERT; con valor => UPDATE)
-  //  - idatleta (requerido)
-  //  - nombre (carrera)  [>=5]
-  //  - descripcion       [obligatoria]
-  //  - tiempocarrera     [entero >=1]
-  //  - avance            [0..100]
-  // -------------------------
+  // ---------------------------------------
+  // 3) Guardar (INSERT o UPDATE)
+  //    Parámetros esperados (POST):
+  //     - idparticipacion ('' o null => INSERT; con valor => UPDATE)
+  //     - idatleta        (requerido)
+  //     - nombre          (carrera, ≥5)
+  //     - descripcion     (obligatoria)
+  //     - tiempocarrera   (entero ≥1)
+  //     - avance          (0..100)
+  // ---------------------------------------
   case 'guardar': {
-    $idparticipacion = trim((string)p('idparticipacion', ''));
-    $idatleta        = trim((string)p('idatleta', ''));
-    $nombre          = trim((string)p('nombre', ''));
-    $descripcion     = trim((string)p('descripcion', ''));
-    $tiempocarrera   = trim((string)p('tiempocarrera', ''));
-    $avance          = trim((string)p('avance', ''));
+    // Lectura tipo "isset" + trim (tu estilo)
+    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) : '';
+    $idatleta        = isset($_POST['idatleta'])        ? trim($_POST['idatleta'])        : '';
+    $nombre          = isset($_POST['nombre'])          ? trim($_POST['nombre'])          : '';
+    $descripcion     = isset($_POST['descripcion'])     ? trim($_POST['descripcion'])     : '';
+    $tiempocarrera   = isset($_POST['tiempocarrera'])   ? trim($_POST['tiempocarrera'])   : '';
+    $avance          = isset($_POST['avance'])          ? trim($_POST['avance'])          : '';
 
-    // Normalizaciones mínimas
+    // Normalizaciones (manteniendo (int))
     $idparticipacion = ($idparticipacion === '' ? null : (int)$idparticipacion);
     $idatleta_int    = ($idatleta === '' ? null : (int)$idatleta);
     $tiempo_int      = ($tiempocarrera === '' ? null : (int)$tiempocarrera);
     $avance_int      = ($avance === '' ? null : (int)$avance);
 
-    // Llamada a la función unificada (devuelve id)
+    // Llamada a la función unificada de BD (devuelve idparticipacion)
     $sql = "SELECT evaluacion.fn_participacion_g($1,$2,$3,$4,$5,$6) AS id";
-    $params = array($idparticipacion, $idatleta_int, $nombre, $descripcion, $tiempo_int, $avance_int);
+    $params = array(
+      $idparticipacion,
+      $idatleta_int,
+      $nombre,
+      $descripcion,
+      $tiempo_int,
+      $avance_int
+    );
 
     $res = pg_query_params($conn, $sql, $params);
-    if(!$res){
-      // Mensaje genérico; en dev puedes usar pg_last_error($conn)
+    if (!$res) {
+      // En producción mantenlo genérico; en desarrollo puedes concatenar pg_last_error($conn)
       jserr("Error al guardar participación");
     }
 
@@ -110,24 +118,23 @@ switch ($cmd){
     jsok(array("idparticipacion"=>$newId), "Guardado correctamente");
   }
 
-  // -------------------------
-  // Eliminar
-  // Parámetro: idparticipacion
-  // -------------------------
+  // ---------------------------------------
+  // 4) Eliminar
+  //    Parámetro: idparticipacion
+  // ---------------------------------------
   case 'eliminar': {
-    $idparticipacion = trim((string)p('idparticipacion', ''));
-    if ($idparticipacion === ''){ jserr("ID PARTICIPACIÓN OBLIGATORIO"); }
+    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) :
+                       (isset($_GET['idparticipacion']) ? trim($_GET['idparticipacion']) : '');
+    if ($idparticipacion === '') { jserr("ID PARTICIPACIÓN OBLIGATORIO"); }
 
     $sql = "SELECT evaluacion.fn_participacion_d($1)";
     $res = pg_query_params($conn, $sql, array((int)$idparticipacion));
-    if(!$res){ jserr("Error al eliminar participación"); }
+    if (!$res) { jserr("Error al eliminar participación"); }
 
     jsok(array(), "Eliminado correctamente");
   }
 
-  // -------------------------
-  // Cmd desconocido
-  // -------------------------
+  // ---------------------------------------
   default:
     jserr("Comando no reconocido");
 }
