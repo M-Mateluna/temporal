@@ -1,9 +1,3 @@
--- Unicidad por (nombre, tiempocarrera) solo en la función (sin UNIQUE en la tabla)
--- Regla:
---   - Si (nombre, tiempo) ya existe -> actualiza descripcion y devuelve idcarrera
---   - Si no existe -> crea nueva carrera y devuelve idcarrera
--- Comparación de nombre en UPPER(TRIM) para evitar duplicados "cosméticos"
-
 CREATE OR REPLACE FUNCTION evaluacion.fn_carrera_ig(
   _nombre         VARCHAR,
   _descripcion    VARCHAR,
@@ -12,9 +6,9 @@ CREATE OR REPLACE FUNCTION evaluacion.fn_carrera_ig(
 LANGUAGE plpgsql AS
 $$
 DECLARE
-  _id   INTEGER;
-  _nrm  TEXT;   -- nombre normalizado
-  _desc TEXT;   -- descripcion normalizada (aquí solo trim; no la forzamos a upper)
+  __id   INTEGER;
+  __nom  VARCHAR;   -- nombre normalizado
+  __desc VARCHAR;   -- descripcion normalizada (trim)
 BEGIN
   -- Validaciones del enunciado
   IF _nombre IS NULL OR length(btrim(_nombre)) < 5 THEN
@@ -27,32 +21,32 @@ BEGIN
     RAISE EXCEPTION 'TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)';
   END IF;
 
-  _nrm  := upper(btrim(_nombre));
-  _desc := btrim(_descripcion);
+  __nom  := upper(btrim(_nombre));
+  __desc := btrim(_descripcion);
 
-  -- Evitar duplicados por carrera de concurrencia (sin UNIQUE):
-  -- bloqueamos por clave (nombre_normalizado, tiempo)
-  PERFORM pg_advisory_xact_lock( (hashtext(_nrm) # _tiempocarrera)::bigint );
+  -- Evitar duplicados por concurrencia (unicidad lógica por NOMBRE+TIEMPO)
+  PERFORM pg_advisory_xact_lock( (hashtext(__nom) # _tiempocarrera)::bigint );
 
-  -- 1) ¿Existe por (nombre_normalizado, tiempo)? -> actualizar descripción
-  SELECT idcarrera INTO _id
+  -- 1) ¿Existe por (NOMBRE normalizado, TIEMPO)? -> actualizar descripción
+  SELECT idcarrera
+    INTO __id
     FROM evaluacion.carrera
-   WHERE upper(btrim(nombre)) = _nrm
+   WHERE upper(btrim(nombre)) = __nom
      AND tiempocarrera        = _tiempocarrera
    LIMIT 1;
 
   IF FOUND THEN
     UPDATE evaluacion.carrera
-       SET descripcion = _desc
-     WHERE idcarrera = _id;
-    RETURN _id;
+       SET descripcion = __desc
+     WHERE idcarrera = __id;
+    RETURN __id;
   END IF;
 
   -- 2) No existe -> crear nueva
   INSERT INTO evaluacion.carrera(nombre, descripcion, tiempocarrera)
-  VALUES (_nombre, _desc, _tiempocarrera)
-  RETURNING idcarrera INTO _id;
+  VALUES (_nombre, __desc, _tiempocarrera)
+  RETURNING idcarrera INTO __id;
 
-  RETURN _id;
+  RETURN __id;
 END;
 $$;
