@@ -1,91 +1,87 @@
--- Función única: inserta o actualiza según _idparticipacion
-CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_g(
-  _idparticipacion INTEGER,   -- NULL => INSERT, NOT NULL => UPDATE
-  _idatleta        INTEGER,
-  _carrera_nombre  VARCHAR,
-  _carrera_desc    VARCHAR,
-  _tiempocarrera   INTEGER,
-  _avance          INTEGER
-) RETURNS INTEGER  -- devuelve idparticipacion (nuevo o editado)
-LANGUAGE plpgsql AS
-$$
-DECLARE
-  _idcarrera INTEGER;
-  _id        INTEGER;
-  _dup       INTEGER;
-BEGIN
-  -- Validaciones comunes
-  IF _idatleta IS NULL THEN
-    RAISE EXCEPTION 'ATLETA OBLIGATORIO';
-  END IF;
-  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'ATLETA NO EXISTE';
-  END IF;
+<?php header('Content-Type: text/html; charset=UTF-8'); ?>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Maratones</title>
+</head>
+<body>
 
-  IF _carrera_nombre IS NULL OR length(btrim(_carrera_nombre)) < 5 THEN
-    RAISE EXCEPTION 'NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)';
-  END IF;
-  IF _carrera_desc IS NULL OR length(btrim(_carrera_desc)) = 0 THEN
-    RAISE EXCEPTION 'DESCRIPCIÓN OBLIGATORIA';
-  END IF;
-  IF _tiempocarrera IS NULL OR _tiempocarrera::INT < 1 THEN
-    RAISE EXCEPTION 'TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)';
-  END IF;
+  <!-- CONTENEDOR PRINCIPAL -->
+  <table width="100%" border="0" cellpadding="8" cellspacing="0">
+    <!-- Título -->
+    <tr>
+      <td colspan="4" align="center">
+        <h2>Maratones</h2>
+      </td>
+    </tr>
 
-  IF _avance IS NULL THEN
-    RAISE EXCEPTION 'AVANCE OBLIGATORIO';
-  END IF;
-  IF _avance::INT < 0 OR _avance::INT > 100 THEN
-    RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
-  END IF;
+    <!-- Fila: Nombre Carrera / Tiempo Carrera -->
+    <tr>
+      <td width="15%"><label for="nombre">Nombre Carrera:</label></td>
+      <td width="35%">
+        <input type="text" id="nombre" name="nombre" maxlength="255" />
+      </td>
 
-  -- Crear o reutilizar la carrera
-  _idcarrera := evaluacion.fn_get_or_create_carrera(_carrera_nombre, _carrera_desc, _tiempocarrera);
+      <td width="15%"><label for="tiempocarrera">Tiempo Carrera:</label></td>
+      <td width="35%">
+        <input type="text" id="tiempocarrera" name="tiempocarrera" />
+      </td>
+    </tr>
 
-  -- Flujo INSERT / UPDATE
-  IF _idparticipacion IS NULL THEN
-    -- INSERT: validar unicidad atleta+carrera
-    SELECT 1 INTO _dup
-      FROM evaluacion.participacion
-     WHERE idatleta = _idatleta AND idcarrera = _idcarrera;
-    IF FOUND THEN
-      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-    END IF;
+    <!-- Fila: Atleta / Porcentaje de Avance -->
+    <tr>
+      <td><label for="idatleta">Atleta:</label></td>
+      <td>
+        <select id="idatleta" name="idatleta">
+          <option value="">--Seleccione--</option>
+          <!-- opciones se cargarán por AJAX desde vw_listaratletas -->
+        </select>
+      </td>
 
-    INSERT INTO evaluacion.participacion(idatleta, idcarrera, avance)
-    VALUES (_idatleta, _idcarrera, _avance)
-    RETURNING idparticipacion INTO _id;
+      <td><label for="avance">Porcentaje de Avance:</label></td>
+      <td>
+        <input type="text" id="avance" name="avance" />
+      </td>
+    </tr>
 
-    RETURN _id;
-  ELSE
-    -- UPDATE: debe existir el registro
-    PERFORM 1 FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
-    END IF;
+    <!-- Fila: Descripción (ocupa todo el ancho) -->
+    <tr>
+      <td valign="top"><label for="descripcion">Descripción:</label></td>
+      <td colspan="3">
+        <textarea id="descripcion" name="descripcion" rows="5"></textarea>
+      </td>
+    </tr>
 
-    -- Unicidad atleta+carrera excluyendo el propio registro
-    SELECT 1 INTO _dup
-      FROM evaluacion.participacion
-     WHERE idatleta = _idatleta
-       AND idcarrera = _idcarrera
-       AND idparticipacion <> _idparticipacion;
-    IF FOUND THEN
-      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-    END IF;
+    <!-- Fila: Botón Guardar centrado -->
+    <tr>
+      <td colspan="4" align="center">
+        <button type="button" id="btnGuardar">Guardar</button>
+      </td>
+    </tr>
+  </table>
 
-    UPDATE evaluacion.participacion
-       SET idatleta  = _idatleta,
-           idcarrera = _idcarrera,
-           avance    = _avance
-     WHERE idparticipacion = _idparticipacion;
+  <!-- SECCIÓN LISTADO/GRILLA -->
+  <br />
+  <table width="100%" border="1" cellpadding="6" cellspacing="0" id="tblGrilla">
+    <thead>
+      <tr>
+        <th>Carrera</th>
+        <th>Tiempo</th>
+        <th>Atleta</th>
+        <th>Comienzo</th>
+        <th>Avance</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="grillaBody">
+      <!-- filas dinámicas por AJAX -->
+    </tbody>
+  </table>
 
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
-    END IF;
+  <!-- Placeholders para scripts (se conectarán después) -->
+  <!-- <script src="utils.js"></script>
+  <script src="controlador.js"></script> -->
 
-    RETURN _idparticipacion;
-  END IF;
-END;
-$$;
+</body>
+</html>
