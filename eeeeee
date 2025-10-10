@@ -1,129 +1,175 @@
-// util.js
+// controlador.js
 (function () {
   "use strict";
 
+  var currentId = null;       // idparticipacion (null => INSERT, número => UPDATE)
+  var currentIdAtleta = null; // para mantener selección en el <select>
+  var currentIdCarrera = null;
+
+  document.addEventListener("DOMContentLoaded", function () {
+    // Forzar MAYÚSCULAS y solo números donde corresponde
+    enforceUppercase($("#nombre"));
+    onlyIntegerInput($("#tiempocarrera"));
+    onlyIntegerInput($("#avance"));
+
+    // Enter -> Guardar
+    ["#nombre", "#descripcion", "#tiempocarrera", "#idatleta", "#avance"].forEach(function (s) {
+      var el = $(s);
+      if (el) el.addEventListener("keypress", function (ev) {
+        if (ev.key === "Enter") { ev.preventDefault(); onGuardar(); }
+      });
+    });
+
+    cargarAtletas();
+    cargarGrilla();
+
+    var btn = $("#btnGuardar");
+    if (btn) btn.addEventListener("click", onGuardar);
+  });
+
   // ---------------------------
-  // AJAX (POST a command.php con cmd + params)
+  // Cargar LOV atletas
   // ---------------------------
-  window.postCmd = function (cmd, params, onOk, onErr) {
-    var fd = new FormData();
-    fd.append("cmd", cmd);
-    if (params && typeof params === "object") {
-      Object.keys(params).forEach(function (k) { fd.append(k, params[k]); });
-    }
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "command.php", true);
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          var resp;
-          try { resp = JSON.parse(xhr.responseText); }
-          catch (e) { return onErr && onErr("Respuesta inválida del servidor"); }
-          if (!resp || resp.ok !== true) {
-            return onErr && onErr((resp && resp.message) ? resp.message : "Error");
-          }
-          return onOk && onOk(resp.data || resp);
-        } else {
-          return onErr && onErr("Error de red (" + xhr.status + ")");
-        }
-      }
+  function cargarAtletas() {
+    postCmd("listarAtletas", null, function (rows) {
+      fillSelect($("#idatleta"), rows, "--Seleccione--");
+      if (currentIdAtleta != null) $("#idatleta").value = String(currentIdAtleta);
+    }, function (msg) {
+      alert("Error al cargar atletas: " + msg);
+    });
+  }
+
+  // ---------------------------
+  // Cargar grilla
+  // ---------------------------
+  function cargarGrilla() {
+    postCmd("listarGrilla", null, function (rows) {
+      var tbody = $("#grillaBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      (rows || []).forEach(function (r) {
+        var tr = document.createElement("tr");
+
+        addTd(tr, r.carrera);
+        addTd(tr, r.tiempo);
+        addTd(tr, r.atleta);
+        // Si la vista ya viene formateada, pinta r.comienzo tal cual;
+        // si viene como timestamp ISO, formatea:
+        addTd(tr, formatFechaDDMMYYYY_HHMM(r.comienzo));
+        addTd(tr, r.avance + "%");
+
+        var tdAcc = document.createElement("td");
+
+        var btnEdit = document.createElement("button");
+        btnEdit.type = "button";
+        btnEdit.textContent = "Editar";
+        btnEdit.addEventListener("click", function () { onEditar(r); });
+
+        var btnDel = document.createElement("button");
+        btnDel.type = "button";
+        btnDel.textContent = "Eliminar";
+        btnDel.style.marginLeft = "8px";
+        btnDel.addEventListener("click", function () { onEliminar(r.id); });
+
+        tdAcc.appendChild(btnEdit);
+        tdAcc.appendChild(btnDel);
+        tr.appendChild(tdAcc);
+
+        tbody.appendChild(tr);
+      });
+
+    }, function (msg) {
+      alert("Error al cargar grilla: " + msg);
+    });
+  }
+
+  function addTd(tr, txt) {
+    var td = document.createElement("td");
+    td.textContent = (txt == null ? "" : txt);
+    tr.appendChild(td);
+  }
+
+  // ---------------------------
+  // Guardar (INSERT/UPDATE)
+  // ---------------------------
+  function onGuardar() {
+    var nombre        = val("#nombre").trim().toUpperCase();
+    var descripcion   = val("#descripcion").trim();
+    var tiempoStr     = val("#tiempocarrera").trim();
+    var idatletaStr   = val("#idatleta").trim();
+    var avanceStr     = val("#avance").trim();
+
+    // Validaciones con helpers
+    var err =
+      validateNombreCarrera(nombre) ||
+      validateDescripcion(descripcion) ||
+      validateTiempo(tiempoStr) ||
+      validateAtleta(idatletaStr) ||
+      validateAvance(avanceStr);
+
+    if (err) { alert(err); return; }
+
+    var params = {
+      idparticipacion: (currentId == null ? "" : String(currentId)), // "" => INSERT
+      idatleta: idatletaStr,
+      nombre: nombre,
+      descripcion: descripcion,
+      tiempocarrera: tiempoStr,
+      avance: avanceStr
     };
-    xhr.send(fd);
-  };
 
-  // ---------------------------
-  // DOM helpers
-  // ---------------------------
-  window.$     = function (sel) { return document.querySelector(sel); };
-  window.val   = function (sel) { var el = $(sel); return el ? el.value : ""; };
-  window.setVal= function (sel, v) { var el = $(sel); if (el) el.value = v; };
-
-  // ---------------------------
-  // Conversión / formateo
-  // ---------------------------
-  window.toIntOrNull = function (x) {
-    if (x === null || x === undefined) return null;
-    x = ("" + x).trim();
-    return x === "" ? null : parseInt(x, 10);
-  };
-
-  window.formatFechaDDMMYYYY_HHMM = function (s) {
-    if (!s) return "";
-    var d = new Date(s);
-    if (isNaN(d.getTime())) return s;
-    var dd = String(d.getDate()).padStart(2, "0");
-    var mm = String(d.getMonth() + 1).padStart(2, "0");
-    var yyyy = d.getFullYear();
-    var hh = String(d.getHours()).padStart(2, "0");
-    var mi = String(d.getMinutes()).padStart(2, "0");
-    return dd + "-" + mm + "-" + yyyy + " " + hh + ":" + mi;
-  };
-
-  // ---------------------------
-  // Inputs: forzar MAYÚSCULAS / solo números
-  // ---------------------------
-  window.enforceUppercase = function (inputEl) {
-    if (!inputEl) return;
-    inputEl.addEventListener("input", function () { this.value = this.value.toUpperCase(); });
-    inputEl.addEventListener("blur",  function () { this.value = this.value.trim().toUpperCase(); });
-  };
-
-  window.onlyIntegerInput = function (inputEl) {
-    if (!inputEl) return;
-    // Bloquear caracteres no numéricos en tiempo real
-    inputEl.addEventListener("keypress", function (ev) {
-      var c = ev.key;
-      if (c.length === 1 && !/[0-9]/.test(c)) { ev.preventDefault(); }
+    postCmd("guardar", params, function () {
+      alert("Guardado correctamente");
+      limpiarFormulario();
+      cargarGrilla();
+    }, function (msg) {
+      alert("Error al guardar: " + msg);
     });
-    // Sanitizar pegados/arrastres
-    inputEl.addEventListener("input", function () {
-      this.value = this.value.replace(/[^0-9]/g, "");
-    });
-  };
+  }
+
+  function limpiarFormulario() {
+    currentId = null;
+    currentIdAtleta = null;
+    currentIdCarrera = null;
+    setVal("#nombre", "");
+    setVal("#descripcion", "");
+    setVal("#tiempocarrera", "");
+    setVal("#idatleta", "");
+    setVal("#avance", "");
+    try { $("#nombre").focus(); } catch (e) {}
+  }
 
   // ---------------------------
-  // Select helper
+  // Editar
   // ---------------------------
-  window.fillSelect = function (selectEl, rows, blankText) {
-    if (!selectEl) return;
-    selectEl.innerHTML = '<option value="">' + (blankText || "--Seleccione--") + "</option>";
-    (rows || []).forEach(function (r) {
-      var opt = document.createElement("option");
-      opt.value = r.id;
-      opt.textContent = r.nombre;
-      selectEl.appendChild(opt);
-    });
-  };
+  function onEditar(r) {
+    currentId = r.id;
+    currentIdAtleta = r.idatleta;
+    currentIdCarrera = r.idcarrera;
+
+    setVal("#nombre", (r.carrera || "").toString().toUpperCase());
+    setVal("#descripcion", (r.descripcion || ""));
+    setVal("#tiempocarrera", (r.tiempo != null ? String(r.tiempo) : ""));
+    setVal("#idatleta", (r.idatleta != null ? String(r.idatleta) : ""));
+    setVal("#avance", (r.avance != null ? String(r.avance) : ""));
+    try { $("#nombre").focus(); } catch (e) {}
+  }
 
   // ---------------------------
-  // Validaciones (devuelven mensaje de error o null)
+  // Eliminar
   // ---------------------------
-  window.validateNombreCarrera = function (nombre) {
-    if (!nombre) return "NOMBRE CARRERA OBLIGATORIO";
-    if (nombre.trim().length < 5) return "NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)";
-    return null;
-  };
-  window.validateDescripcion = function (d) {
-    if (!d || !d.trim()) return "DESCRIPCIÓN OBLIGATORIA";
-    return null;
-  };
-  window.validateTiempo = function (tStr) {
-    if (tStr === "") return "TIEMPO DE CARRERA OBLIGATORIO";
-    var t = toIntOrNull(tStr);
-    if (t === null || isNaN(t) || t < 1) return "TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)";
-    return null;
-  };
-  window.validateAtleta = function (idStr) {
-    if (!idStr) return "ATLETA OBLIGATORIO";
-    var i = toIntOrNull(idStr);
-    if (i === null || isNaN(i)) return "ATLETA OBLIGATORIO";
-    return null;
-  };
-  window.validateAvance = function (aStr) {
-    if (aStr === "") return "AVANCE OBLIGATORIO";
-    var a = toIntOrNull(aStr);
-    if (a === null || isNaN(a) || a < 0 || a > 100) return "AVANCE DEBE ESTAR ENTRE 0 Y 100";
-    return null;
-  };
+  function onEliminar(id) {
+    if (!id) return;
+    if (!confirm("¿Eliminar la participación seleccionada?")) return;
+
+    postCmd("eliminar", { idparticipacion: String(id) }, function () {
+      alert("Eliminado correctamente");
+      if (currentId === id) limpiarFormulario();
+      cargarGrilla();
+    }, function (msg) {
+      alert("Error al eliminar: " + msg);
+    });
+  }
 
 })();
