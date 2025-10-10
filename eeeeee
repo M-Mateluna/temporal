@@ -1,140 +1,266 @@
-<?php
-// command.php
-header('Content-Type: application/json; charset=UTF-8');
+// controlador.js
+(function () {
+  "use strict";
 
-// -----------------------------------------
-// Conexión (exacta como indicaste)
-// -----------------------------------------
-$conn = pg_connect("host=192.168.1.11 dbname=mmateluna user=externo password=desis123");
-if (!$conn) {
-  echo json_encode(array("ok"=>false, "message"=>"Failed connecting to postgres database mmateluna"));
-  exit;
-}
-@pg_set_client_encoding($conn, "UTF8");
-
-// -----------------------------------------
-// Helpers mínimos (salidas JSON)
-// -----------------------------------------
-function jserr($msg){
-  echo json_encode(array("ok"=>false, "message"=>$msg));
-  exit;
-}
-function jsok($data = array(), $msg = ""){
-  $out = array("ok"=>true);
-  if ($msg !== "") $out["message"] = $msg;
-  if (!empty($data)) $out["data"] = $data;
-  echo json_encode($out);
-  exit;
-}
-function fetch_all_assoc($res){
-  $rows = array();
-  if ($res){
-    while($r = pg_fetch_assoc($res)){ $rows[] = $r; }
+  // ---------------------------
+  // Helpers (XHR + DOM)
+  // ---------------------------
+  function ajax(cmd, params, onOk, onErr) {
+    var fd = new FormData();
+    fd.append("cmd", cmd);
+    if (params && typeof params === "object") {
+      Object.keys(params).forEach(function (k) {
+        fd.append(k, params[k]);
+      });
+    }
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "command.php", true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          var resp;
+          try { resp = JSON.parse(xhr.responseText); }
+          catch (e) { return onErr && onErr("Respuesta inválida del servidor"); }
+          if (!resp || resp.ok !== true) {
+            return onErr && onErr((resp && resp.message) ? resp.message : "Error");
+          }
+          return onOk && onOk(resp.data || resp);
+        } else {
+          return onErr && onErr("Error de red (" + xhr.status + ")");
+        }
+      }
+    };
+    xhr.send(fd);
   }
-  return $rows;
-}
-
-// -----------------------------------------
-// Router por comando
-//   - listarAtletas
-//   - listarGrilla
-//   - guardar         (INSERT/UPDATE unificados: fn_participacion_g)
-//   - eliminar        (fn_participacion_d)
-// -----------------------------------------
-$cmd = isset($_POST['cmd']) ? trim($_POST['cmd']) :
-       (isset($_GET['cmd']) ? trim($_GET['cmd']) : '');
-
-switch ($cmd) {
-
-  // ---------------------------------------
-  // 1) LOV: atletas para el <select>
-  // ---------------------------------------
-  case 'listarAtletas': {
-    $sql = "SELECT id, nombre FROM evaluacion.vw_listaratletas ORDER BY nombre";
-    $res = pg_query($conn, $sql);
-    if (!$res) { jserr("Error al listar atletas"); }
-    $rows = fetch_all_assoc($res);
-    jsok($rows);
+  function $(sel) { return document.querySelector(sel); }
+  function val(sel) { var el = $(sel); return el ? el.value : ""; }
+  function setVal(sel, v) { var el = $(sel); if (el) el.value = v; }
+  function toIntOrNull(x) {
+    if (x === null || x === undefined) return null;
+    x = ("" + x).trim();
+    return x === "" ? null : parseInt(x, 10);
+  }
+  function addTd(tr, txt) {
+    var td = document.createElement("td");
+    td.textContent = (txt == null ? "" : txt);
+    tr.appendChild(td);
+  }
+  function formatFecha(s) {
+    if (!s) return "";
+    try { return new Date(s).toLocaleString(); }
+    catch (e) { return s; }
   }
 
-  // ---------------------------------------
-  // 2) Grilla principal
-  // ---------------------------------------
-  case 'listarGrilla': {
-    $sql = "SELECT id, carrera, tiempo, atleta, comienzo, avance
-              FROM evaluacion.vw_grillaparticipaciones
-             ORDER BY comienzo DESC, id DESC";
-    $res = pg_query($conn, $sql);
-    if (!$res) { jserr("Error al listar participaciones"); }
-    $rows = fetch_all_assoc($res);
-    jsok($rows);
-  }
+  // ---------------------------
+  // Estado de edición
+  // ---------------------------
+  var currentId = null;     // idparticipacion (null => INSERT, número => UPDATE)
+  var currentIdAtleta = null;   // útil si quieres comparar cambios
+  var currentIdCarrera = null;  // (expuesto por la vista, por si lo necesitas luego)
 
-  // ---------------------------------------
-  // 3) Guardar (INSERT o UPDATE)
-  //    Parámetros esperados (POST):
-  //     - idparticipacion ('' o null => INSERT; con valor => UPDATE)
-  //     - idatleta        (requerido)
-  //     - nombre          (carrera, ≥5)
-  //     - descripcion     (obligatoria)
-  //     - tiempocarrera   (entero ≥1)
-  //     - avance          (0..100)
-  // ---------------------------------------
-  case 'guardar': {
-    // Lectura tipo "isset" + trim (tu estilo)
-    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) : '';
-    $idatleta        = isset($_POST['idatleta'])        ? trim($_POST['idatleta'])        : '';
-    $nombre          = isset($_POST['nombre'])          ? trim($_POST['nombre'])          : '';
-    $descripcion     = isset($_POST['descripcion'])     ? trim($_POST['descripcion'])     : '';
-    $tiempocarrera   = isset($_POST['tiempocarrera'])   ? trim($_POST['tiempocarrera'])   : '';
-    $avance          = isset($_POST['avance'])          ? trim($_POST['avance'])          : '';
-
-    // Normalizaciones (manteniendo (int))
-    $idparticipacion = ($idparticipacion === '' ? null : (int)$idparticipacion);
-    $idatleta_int    = ($idatleta === '' ? null : (int)$idatleta);
-    $tiempo_int      = ($tiempocarrera === '' ? null : (int)$tiempocarrera);
-    $avance_int      = ($avance === '' ? null : (int)$avance);
-
-    // Llamada a la función unificada de BD (devuelve idparticipacion)
-    $sql = "SELECT evaluacion.fn_participacion_g($1,$2,$3,$4,$5,$6) AS id";
-    $params = array(
-      $idparticipacion,
-      $idatleta_int,
-      $nombre,
-      $descripcion,
-      $tiempo_int,
-      $avance_int
-    );
-
-    $res = pg_query_params($conn, $sql, $params);
-    if (!$res) {
-      // En producción mantenlo genérico; en desarrollo puedes concatenar pg_last_error($conn)
-      jserr("Error al guardar participación");
+  // ---------------------------
+  // Inicialización
+  // ---------------------------
+  document.addEventListener("DOMContentLoaded", function () {
+    // FORZAR MAYÚSCULAS en Nombre Carrera
+    var nombreInput = $("#nombre");
+    if (nombreInput) {
+      nombreInput.addEventListener("input", function () {
+        this.value = this.value.toUpperCase();
+      });
+      nombreInput.addEventListener("blur", function () {
+        this.value = this.value.trim().toUpperCase();
+      });
     }
 
-    $row = pg_fetch_assoc($res);
-    $newId = isset($row['id']) ? (int)$row['id'] : null;
+    // Enter → Guardar
+    ["#nombre", "#descripcion", "#tiempocarrera", "#idatleta", "#avance"].forEach(function (s) {
+      var el = $(s);
+      if (el) el.addEventListener("keypress", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          onGuardar();
+        }
+      });
+    });
 
-    jsok(array("idparticipacion"=>$newId), "Guardado correctamente");
+    // Cargas iniciales
+    cargarAtletas();
+    cargarGrilla();
+
+    // Botón Guardar
+    var btn = $("#btnGuardar");
+    if (btn) btn.addEventListener("click", onGuardar);
+  });
+
+  // ---------------------------
+  // Cargar select de Atletas
+  // ---------------------------
+  function cargarAtletas() {
+    ajax("listarAtletas", null, function (rows) {
+      var sel = $("#idatleta");
+      if (!sel) return;
+      sel.innerHTML = '<option value="">--Seleccione--</option>';
+      (rows || []).forEach(function (r) {
+        var opt = document.createElement("option");
+        opt.value = r.id;
+        opt.textContent = r.nombre;
+        sel.appendChild(opt);
+      });
+      // Si estabas editando, intenta mantener selección
+      if (currentIdAtleta != null) {
+        sel.value = String(currentIdAtleta);
+      }
+    }, function (msg) {
+      alert("Error al cargar atletas: " + msg);
+    });
   }
 
-  // ---------------------------------------
-  // 4) Eliminar
-  //    Parámetro: idparticipacion
-  // ---------------------------------------
-  case 'eliminar': {
-    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) :
-                       (isset($_GET['idparticipacion']) ? trim($_GET['idparticipacion']) : '');
-    if ($idparticipacion === '') { jserr("ID PARTICIPACIÓN OBLIGATORIO"); }
+  // ---------------------------
+  // Cargar grilla
+  // ---------------------------
+  function cargarGrilla() {
+    ajax("listarGrilla", null, function (rows) {
+      var tbody = $("#grillaBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
 
-    $sql = "SELECT evaluacion.fn_participacion_d($1)";
-    $res = pg_query_params($conn, $sql, array((int)$idparticipacion));
-    if (!$res) { jserr("Error al eliminar participación"); }
+      (rows || []).forEach(function (r) {
+        // r incluye: id, idcarrera, idatleta, carrera, descripcion, tiempo, atleta, comienzo, avance
+        var tr = document.createElement("tr");
 
-    jsok(array(), "Eliminado correctamente");
+        addTd(tr, r.carrera);
+        addTd(tr, r.tiempo);
+        addTd(tr, r.atleta);
+        addTd(tr, formatFecha(r.comienzo));
+        addTd(tr, r.avance + "%");
+
+        // Acciones
+        var tdAcc = document.createElement("td");
+
+        var btnEdit = document.createElement("button");
+        btnEdit.type = "button";
+        btnEdit.textContent = "Editar";
+        btnEdit.addEventListener("click", function () {
+          onEditar(r);
+        });
+
+        var btnDel = document.createElement("button");
+        btnDel.type = "button";
+        btnDel.textContent = "Eliminar";
+        btnDel.style.marginLeft = "8px";
+        btnDel.addEventListener("click", function () {
+          onEliminar(r.id);
+        });
+
+        tdAcc.appendChild(btnEdit);
+        tdAcc.appendChild(btnDel);
+        tr.appendChild(tdAcc);
+
+        tbody.appendChild(tr);
+      });
+
+    }, function (msg) {
+      alert("Error al cargar grilla: " + msg);
+    });
   }
 
-  // ---------------------------------------
-  default:
-    jserr("Comando no reconocido");
-}
+  // ---------------------------
+  // Guardar (INSERT/UPDATE)
+  // ---------------------------
+  function onGuardar() {
+    var nombre        = val("#nombre").trim().toUpperCase();
+    var descripcion   = val("#descripcion").trim();
+    var tiempoStr     = val("#tiempocarrera").trim();
+    var idatletaStr   = val("#idatleta").trim();
+    var avanceStr     = val("#avance").trim();
+
+    // Validaciones con alert()
+    if (!nombre) { alert("NOMBRE CARRERA OBLIGATORIO"); return; }
+    if (nombre.length < 5) { alert("NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)"); return; }
+
+    if (!descripcion) { alert("DESCRIPCIÓN OBLIGATORIA"); return; }
+
+    if (!tiempoStr) { alert("TIEMPO DE CARRERA OBLIGATORIO"); return; }
+    var tiempo = toIntOrNull(tiempoStr);
+    if (tiempo === null || isNaN(tiempo) || tiempo < 1) {
+      alert("TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)");
+      return;
+    }
+
+    if (!idatletaStr) { alert("ATLETA OBLIGATORIO"); return; }
+    var idatleta = toIntOrNull(idatletaStr);
+    if (idatleta === null || isNaN(idatleta)) { alert("ATLETA OBLIGATORIO"); return; }
+
+    if (avanceStr === "") { alert("AVANCE OBLIGATORIO"); return; }
+    var avance = toIntOrNull(avanceStr);
+    if (avance === null || isNaN(avance) || avance < 0 || avance > 100) {
+      alert("AVANCE DEBE ESTAR ENTRE 0 Y 100");
+      return;
+    }
+
+    var params = {
+      idparticipacion: (currentId == null ? "" : String(currentId)), // "" => INSERT, con valor => UPDATE
+      idatleta: String(idatleta),
+      nombre: nombre,
+      descripcion: descripcion,
+      tiempocarrera: String(tiempo),
+      avance: String(avance)
+    };
+
+    ajax("guardar", params, function () {
+      alert("Guardado correctamente");
+      limpiarFormulario();
+      cargarGrilla();
+    }, function (msg) {
+      alert("Error al guardar: " + msg);
+    });
+  }
+
+  function limpiarFormulario() {
+    currentId = null;
+    currentIdAtleta = null;
+    currentIdCarrera = null;
+    setVal("#nombre", "");
+    setVal("#descripcion", "");
+    setVal("#tiempocarrera", "");
+    setVal("#idatleta", "");
+    setVal("#avance", "");
+    try { $("#nombre").focus(); } catch (e) {}
+  }
+
+  // ---------------------------
+  // Editar (carga exacta desde la grilla)
+  // ---------------------------
+  function onEditar(r) {
+    // r: { id, idcarrera, idatleta, carrera, descripcion, tiempo, atleta, comienzo, avance }
+    currentId = r.id;
+    currentIdAtleta = r.idatleta;
+    currentIdCarrera = r.idcarrera;
+
+    setVal("#nombre", (r.carrera || "").toString().toUpperCase());
+    setVal("#descripcion", (r.descripcion || ""));
+    setVal("#tiempocarrera", (r.tiempo != null ? String(r.tiempo) : ""));
+    setVal("#idatleta", (r.idatleta != null ? String(r.idatleta) : ""));
+    setVal("#avance", (r.avance != null ? String(r.avance) : ""));
+
+    try { $("#nombre").focus(); } catch (e) {}
+  }
+
+  // ---------------------------
+  // Eliminar
+  // ---------------------------
+  function onEliminar(id) {
+    if (!id) return;
+    if (!confirm("¿Eliminar la participación seleccionada?")) return;
+
+    ajax("eliminar", { idparticipacion: String(id) }, function () {
+      alert("Eliminado correctamente");
+      if (currentId === id) limpiarFormulario();
+      cargarGrilla();
+    }, function (msg) {
+      alert("Error al eliminar: " + msg);
+    });
+  }
+
+})();
