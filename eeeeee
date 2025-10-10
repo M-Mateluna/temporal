@@ -1,125 +1,222 @@
-<?php
-header('Content-Type: application/json; charset=UTF-8');
-
-$conn = pg_connect("host=192.168.1.11 dbname=mmateluna user=externo password=desis123");
-if (!$conn) {
-  echo json_encode(array("ok"=>false, "message"=>"Failed connecting to postgres database mmateluna"));
-  exit;
-}
-@pg_set_client_encoding($conn, "UTF8");
-
-// ---------------------------
-// Helpers JSON
-// ---------------------------
-function jserr($msg){ echo json_encode(array("ok"=>false,"message"=>$msg)); exit; }
-function jsok($data=array(), $msg=""){
-  $out = array("ok"=>true);
-  if ($msg !== "") $out["message"] = $msg;
-  if (!empty($data)) $out["data"] = $data;
-  echo json_encode($out); exit;
-}
-function fetch_all_assoc($res){
-  $rows = array();
-  if ($res){ while($r = pg_fetch_assoc($res)){ $rows[] = $r; } }
-  return $rows;
+/* ===========================
+   Base
+   =========================== */
+:root{
+  --bg: #f7f8fa;
+  --card: #ffffff;
+  --text: #1f2937;         /* gris oscuro */
+  --muted: #6b7280;        /* gris medio */
+  --primary: #2563eb;      /* azul */
+  --primary-600: #1d4ed8;
+  --border: #e5e7eb;       /* gris claro */
+  --zebra: #f9fafb;
+  --danger: #ef4444;       /* rojo */
+  --focus: #93c5fd;        /* azul claro */
 }
 
-// ---------------------------
-// Helper: convertir error PG en mensaje amigable
-// ---------------------------
-function pg_error_to_message($conn) {
-  $err = pg_last_error($conn);
-  if (!$err) return "Error";
-
-  // limpiar prefijo y CONTEXT
-  $err = preg_replace('/^ERROR:\s*/i', '', $err);
-  $err = preg_replace('/CONTEXT:.*/is', '', $err);
-  $err = trim($err);
-
-  // Mensajes de nuestras funciones
-  if (stripos($err, 'YA ESTÁ INSCRITO EN ESTA CARRERA') !== false) {
-    return 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-  }
-  if (stripos($err, 'ATLETA NO EXISTE') !== false) return 'ATLETA NO EXISTE';
-  if (stripos($err, 'PARTICIPACIÓN NO EXISTE') !== false) return 'PARTICIPACIÓN NO EXISTE';
-  if (stripos($err, 'NOMBRE CARRERA OBLIGATORIO') !== false) return $err;
-  if (stripos($err, 'DESCRIPCIÓN OBLIGATORIA') !== false) return $err;
-  if (stripos($err, 'TIEMPO DE CARRERA') !== false) return $err;
-  if (stripos($err, 'AVANCE') !== false) return $err;
-
-  // Violaciones de UNIQUE (independiente del nombre de la constraint)
-  if (stripos($err, 'duplicate key value violates unique constraint') !== false ||
-      stripos($err, 'violates unique constraint') !== false) {
-    return 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-  }
-
-  return $err;
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body{
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.35;
 }
 
-// ---------------------------
-// Router por comando
-// ---------------------------
-$cmd = isset($_POST['cmd']) ? trim($_POST['cmd']) :
-       (isset($_GET['cmd']) ? trim($_GET['cmd']) : '');
+/* ===========================
+   Contenedores
+   =========================== */
+table[width="100%"][border="0"]{
+  /* “tabla” de formulario principal */
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 16px auto 12px;
+  max-width: 1000px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.04);
+}
 
-switch ($cmd) {
+h2{
+  margin: 8px 0 0;
+  font-size: 22px;
+  letter-spacing: .3px;
+}
 
-  // ---- LOV atletas ----
-  case 'listarAtletas': {
-    $sql = "SELECT id, nombre FROM evaluacion.vw_listaratletas ORDER BY nombre";
-    $res = pg_query($conn, $sql);
-    if (!$res) { jserr(pg_error_to_message($conn)); }
-    jsok(fetch_all_assoc($res));
+/* ===========================
+   Formularios (inputs/selects)
+   =========================== */
+label{
+  font-size: 14px;
+  color: var(--muted);
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+input[type="text"],
+select,
+textarea{
+  width: 100%;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+input[type="text"]:focus,
+select:focus,
+textarea:focus{
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .15);
+}
+
+textarea{
+  resize: vertical;
+  min-height: 110px;
+}
+
+#btnGuardar,
+button{
+  appearance: none;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform .05s ease, background .15s ease, border-color .15s ease;
+}
+
+#btnGuardar:hover,
+button:hover{
+  background: var(--primary-600);
+  border-color: var(--primary-600);
+}
+
+#btnGuardar:active,
+button:active{
+  transform: translateY(1px);
+}
+
+button + button{
+  margin-left: 6px;
+}
+
+/* ===========================
+   Tabla de la grilla
+   =========================== */
+#tblGrilla{
+  width: 100%;
+  max-width: 1000px;
+  margin: 6px auto 24px;
+  border-collapse: collapse;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden; /* para el redondeo en thead */
+}
+
+#tblGrilla thead th{
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+  background: #f3f4f6;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+#tblGrilla tbody td{
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+#tblGrilla tbody tr:nth-child(odd){
+  background: var(--zebra);
+}
+
+#tblGrilla tbody tr:hover{
+  background: #eef2ff; /* un lila muy claro */
+}
+
+#tblGrilla tbody td:last-child{
+  white-space: nowrap; /* botones en una línea */
+}
+
+/* ===========================
+   Tabla de formulario (labels/inputs)
+   =========================== */
+table[width="100%"][border="0"] td{
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+/* Ajustes de celdas con colspan */
+table[width="100%"][border="0"] td[colspan="3"] textarea{
+  /* textarea ancho completo ya está con width:100%; aquí solo estética extra si quieres */
+}
+
+/* ===========================
+   Estados / utilidades
+   =========================== */
+.is-error{
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, .15) !important;
+}
+
+.muted{
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ===========================
+   Responsive
+   =========================== */
+@media (max-width: 820px){
+  table[width="100%"][border="0"],
+  #tblGrilla{
+    margin-left: 10px;
+    margin-right: 10px;
   }
 
-  // ---- Grilla ----
-  case 'listarGrilla': {
-    $sql = "SELECT id, idcarrera, idatleta, carrera, descripcion, tiempo, atleta, comienzo, avance
-              FROM evaluacion.vw_grillaparticipaciones
-             ORDER BY comienzo DESC, id DESC";
-    $res = pg_query($conn, $sql);
-    if (!$res) { jserr(pg_error_to_message($conn)); }
-    jsok(fetch_all_assoc($res));
+  /* Formularios en “stack” vertical */
+  table[width="100%"][border="0"] tr{
+    display: block;
   }
-
-  // ---- Guardar (INSERT/UPDATE) ----
-  case 'guardar': {
-    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) : '';
-    $idatleta        = isset($_POST['idatleta'])        ? trim($_POST['idatleta'])        : '';
-    $nombre          = isset($_POST['nombre'])          ? trim($_POST['nombre'])          : '';
-    $descripcion     = isset($_POST['descripcion'])     ? trim($_POST['descripcion'])     : '';
-    $tiempocarrera   = isset($_POST['tiempocarrera'])   ? trim($_POST['tiempocarrera'])   : '';
-    $avance          = isset($_POST['avance'])          ? trim($_POST['avance'])          : '';
-
-    $idparticipacion = ($idparticipacion === '' ? null : (int)$idparticipacion);
-    $idatleta_int    = ($idatleta === '' ? null : (int)$idatleta);
-    $tiempo_int      = ($tiempocarrera === '' ? null : (int)$tiempocarrera);
-    $avance_int      = ($avance === '' ? null : (int)$avance);
-
-    $sql = "SELECT evaluacion.fn_participacion_g($1,$2,$3,$4,$5,$6) AS id";
-    $params = array($idparticipacion, $idatleta_int, $nombre, $descripcion, $tiempo_int, $avance_int);
-
-    $res = pg_query_params($conn, $sql, $params);
-    if (!$res) { jserr(pg_error_to_message($conn)); }
-
-    $row = pg_fetch_assoc($res);
-    $newId = isset($row['id']) ? (int)$row['id'] : null;
-    jsok(array("idparticipacion"=>$newId), "Guardado correctamente");
+  table[width="100%"][border="0"] td{
+    display: block;
+    width: 100% !important;
+    padding: 6px 10px;
   }
+  /* centra el botón */
+  #btnGuardar{ width: 100%; }
+}
 
-  // ---- Eliminar ----
-  case 'eliminar': {
-    $idparticipacion = isset($_POST['idparticipacion']) ? trim($_POST['idparticipacion']) :
-                       (isset($_GET['idparticipacion']) ? trim($_GET['idparticipacion']) : '');
-    if ($idparticipacion === '') { jserr("ID PARTICIPACIÓN OBLIGATORIO"); }
-
-    $sql = "SELECT evaluacion.fn_participacion_d($1)";
-    $res = pg_query_params($conn, $sql, array((int)$idparticipacion));
-    if (!$res) { jserr(pg_error_to_message($conn)); }
-
-    jsok(array(), "Eliminado correctamente");
+@media (max-width: 560px){
+  #tblGrilla thead{ display: none; } /* mobile: header-less table */
+  #tblGrilla tbody tr{
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 columnas */
+    gap: 6px 10px;
+    padding: 10px;
   }
-
-  default:
-    jserr("Comando no reconocido");
+  #tblGrilla tbody td{
+    border: none;
+    padding: 4px 0;
+  }
+  #tblGrilla tbody td::before{
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
 }
