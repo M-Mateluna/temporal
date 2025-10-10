@@ -1,175 +1,58 @@
-// controlador.js
-(function () {
-  "use strict";
+-- Unicidad por (nombre, tiempocarrera) solo en la función (sin UNIQUE en la tabla)
+-- Regla:
+--   - Si (nombre, tiempo) ya existe -> actualiza descripcion y devuelve idcarrera
+--   - Si no existe -> crea nueva carrera y devuelve idcarrera
+-- Comparación de nombre en UPPER(TRIM) para evitar duplicados "cosméticos"
 
-  var currentId = null;       // idparticipacion (null => INSERT, número => UPDATE)
-  var currentIdAtleta = null; // para mantener selección en el <select>
-  var currentIdCarrera = null;
+CREATE OR REPLACE FUNCTION evaluacion.fn_carrera_ig(
+  _nombre         VARCHAR,
+  _descripcion    VARCHAR,
+  _tiempocarrera  INTEGER
+) RETURNS INTEGER
+LANGUAGE plpgsql AS
+$$
+DECLARE
+  _id   INTEGER;
+  _nrm  TEXT;   -- nombre normalizado
+  _desc TEXT;   -- descripcion normalizada (aquí solo trim; no la forzamos a upper)
+BEGIN
+  -- Validaciones del enunciado
+  IF _nombre IS NULL OR length(btrim(_nombre)) < 5 THEN
+    RAISE EXCEPTION 'NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)';
+  END IF;
+  IF _descripcion IS NULL OR length(btrim(_descripcion)) = 0 THEN
+    RAISE EXCEPTION 'DESCRIPCIÓN OBLIGATORIA';
+  END IF;
+  IF _tiempocarrera IS NULL OR _tiempocarrera < 1 THEN
+    RAISE EXCEPTION 'TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)';
+  END IF;
 
-  document.addEventListener("DOMContentLoaded", function () {
-    // Forzar MAYÚSCULAS y solo números donde corresponde
-    enforceUppercase($("#nombre"));
-    onlyIntegerInput($("#tiempocarrera"));
-    onlyIntegerInput($("#avance"));
+  _nrm  := upper(btrim(_nombre));
+  _desc := btrim(_descripcion);
 
-    // Enter -> Guardar
-    ["#nombre", "#descripcion", "#tiempocarrera", "#idatleta", "#avance"].forEach(function (s) {
-      var el = $(s);
-      if (el) el.addEventListener("keypress", function (ev) {
-        if (ev.key === "Enter") { ev.preventDefault(); onGuardar(); }
-      });
-    });
+  -- Evitar duplicados por carrera de concurrencia (sin UNIQUE):
+  -- bloqueamos por clave (nombre_normalizado, tiempo)
+  PERFORM pg_advisory_xact_lock( (hashtext(_nrm) # _tiempocarrera)::bigint );
 
-    cargarAtletas();
-    cargarGrilla();
+  -- 1) ¿Existe por (nombre_normalizado, tiempo)? -> actualizar descripción
+  SELECT idcarrera INTO _id
+    FROM evaluacion.carrera
+   WHERE upper(btrim(nombre)) = _nrm
+     AND tiempocarrera        = _tiempocarrera
+   LIMIT 1;
 
-    var btn = $("#btnGuardar");
-    if (btn) btn.addEventListener("click", onGuardar);
-  });
+  IF FOUND THEN
+    UPDATE evaluacion.carrera
+       SET descripcion = _desc
+     WHERE idcarrera = _id;
+    RETURN _id;
+  END IF;
 
-  // ---------------------------
-  // Cargar LOV atletas
-  // ---------------------------
-  function cargarAtletas() {
-    postCmd("listarAtletas", null, function (rows) {
-      fillSelect($("#idatleta"), rows, "--Seleccione--");
-      if (currentIdAtleta != null) $("#idatleta").value = String(currentIdAtleta);
-    }, function (msg) {
-      alert("Error al cargar atletas: " + msg);
-    });
-  }
+  -- 2) No existe -> crear nueva
+  INSERT INTO evaluacion.carrera(nombre, descripcion, tiempocarrera)
+  VALUES (_nombre, _desc, _tiempocarrera)
+  RETURNING idcarrera INTO _id;
 
-  // ---------------------------
-  // Cargar grilla
-  // ---------------------------
-  function cargarGrilla() {
-    postCmd("listarGrilla", null, function (rows) {
-      var tbody = $("#grillaBody");
-      if (!tbody) return;
-      tbody.innerHTML = "";
-
-      (rows || []).forEach(function (r) {
-        var tr = document.createElement("tr");
-
-        addTd(tr, r.carrera);
-        addTd(tr, r.tiempo);
-        addTd(tr, r.atleta);
-        // Si la vista ya viene formateada, pinta r.comienzo tal cual;
-        // si viene como timestamp ISO, formatea:
-        addTd(tr, formatFechaDDMMYYYY_HHMM(r.comienzo));
-        addTd(tr, r.avance + "%");
-
-        var tdAcc = document.createElement("td");
-
-        var btnEdit = document.createElement("button");
-        btnEdit.type = "button";
-        btnEdit.textContent = "Editar";
-        btnEdit.addEventListener("click", function () { onEditar(r); });
-
-        var btnDel = document.createElement("button");
-        btnDel.type = "button";
-        btnDel.textContent = "Eliminar";
-        btnDel.style.marginLeft = "8px";
-        btnDel.addEventListener("click", function () { onEliminar(r.id); });
-
-        tdAcc.appendChild(btnEdit);
-        tdAcc.appendChild(btnDel);
-        tr.appendChild(tdAcc);
-
-        tbody.appendChild(tr);
-      });
-
-    }, function (msg) {
-      alert("Error al cargar grilla: " + msg);
-    });
-  }
-
-  function addTd(tr, txt) {
-    var td = document.createElement("td");
-    td.textContent = (txt == null ? "" : txt);
-    tr.appendChild(td);
-  }
-
-  // ---------------------------
-  // Guardar (INSERT/UPDATE)
-  // ---------------------------
-  function onGuardar() {
-    var nombre        = val("#nombre").trim().toUpperCase();
-    var descripcion   = val("#descripcion").trim();
-    var tiempoStr     = val("#tiempocarrera").trim();
-    var idatletaStr   = val("#idatleta").trim();
-    var avanceStr     = val("#avance").trim();
-
-    // Validaciones con helpers
-    var err =
-      validateNombreCarrera(nombre) ||
-      validateDescripcion(descripcion) ||
-      validateTiempo(tiempoStr) ||
-      validateAtleta(idatletaStr) ||
-      validateAvance(avanceStr);
-
-    if (err) { alert(err); return; }
-
-    var params = {
-      idparticipacion: (currentId == null ? "" : String(currentId)), // "" => INSERT
-      idatleta: idatletaStr,
-      nombre: nombre,
-      descripcion: descripcion,
-      tiempocarrera: tiempoStr,
-      avance: avanceStr
-    };
-
-    postCmd("guardar", params, function () {
-      alert("Guardado correctamente");
-      limpiarFormulario();
-      cargarGrilla();
-    }, function (msg) {
-      alert("Error al guardar: " + msg);
-    });
-  }
-
-  function limpiarFormulario() {
-    currentId = null;
-    currentIdAtleta = null;
-    currentIdCarrera = null;
-    setVal("#nombre", "");
-    setVal("#descripcion", "");
-    setVal("#tiempocarrera", "");
-    setVal("#idatleta", "");
-    setVal("#avance", "");
-    try { $("#nombre").focus(); } catch (e) {}
-  }
-
-  // ---------------------------
-  // Editar
-  // ---------------------------
-  function onEditar(r) {
-    currentId = r.id;
-    currentIdAtleta = r.idatleta;
-    currentIdCarrera = r.idcarrera;
-
-    setVal("#nombre", (r.carrera || "").toString().toUpperCase());
-    setVal("#descripcion", (r.descripcion || ""));
-    setVal("#tiempocarrera", (r.tiempo != null ? String(r.tiempo) : ""));
-    setVal("#idatleta", (r.idatleta != null ? String(r.idatleta) : ""));
-    setVal("#avance", (r.avance != null ? String(r.avance) : ""));
-    try { $("#nombre").focus(); } catch (e) {}
-  }
-
-  // ---------------------------
-  // Eliminar
-  // ---------------------------
-  function onEliminar(id) {
-    if (!id) return;
-    if (!confirm("¿Eliminar la participación seleccionada?")) return;
-
-    postCmd("eliminar", { idparticipacion: String(id) }, function () {
-      alert("Eliminado correctamente");
-      if (currentId === id) limpiarFormulario();
-      cargarGrilla();
-    }, function (msg) {
-      alert("Error al eliminar: " + msg);
-    });
-  }
-
-})();
+  RETURN _id;
+END;
+$$;
