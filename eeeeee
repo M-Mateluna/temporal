@@ -1,149 +1,208 @@
-CREATE OR REPLACE FUNCTION trainingmmateluna.fn_reserva_iu(
-  _idreserva     INT,
-  _rut           VARCHAR,
-  _nombre        VARCHAR(100),
-  _nombremascota VARCHAR(100),
-  _email         VARCHAR,
-  _idregion      INT,
-  _idcomuna      INT,
-  _fecha         DATE,       -- <- ahora DATE
-  _idhorario     INT,
-  _recordatorio  BOOLEAN,
-  _web           BOOLEAN,
-  _tv            BOOLEAN,
-  _amigos        BOOLEAN
-)
-RETURNS TABLE(idreserva INT, mensaje TEXT)
-LANGUAGE plpgsql
-VOLATILE
-AS
+-- =========================================================
+-- EVALUACIÓN S1 — BASE DE DATOS (PostgreSQL)
+-- ÚNICO <select>: ATLETA. Carrera se crea/reutiliza desde inputs.
+-- Tablas + Vistas + Funciones (validaciones para alert()).
+-- =========================================================
+
+-- 1) Esquema
+CREATE SCHEMA IF NOT EXISTS evaluacion;
+
+-- 2) Tablas
+CREATE TABLE IF NOT EXISTS evaluacion.atleta (
+  idatleta  SERIAL PRIMARY KEY,
+  nombre    VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS evaluacion.carrera (
+  idcarrera      SERIAL PRIMARY KEY,
+  nombre         VARCHAR  NOT NULL,
+  descripcion    VARCHAR  NOT NULL,
+  tiempocarrera  INTEGER  NOT NULL,
+  CONSTRAINT uq_carrera UNIQUE (nombre, descripcion, tiempocarrera)  -- evita duplicar mismas carreras
+);
+
+CREATE TABLE IF NOT EXISTS evaluacion.participacion (
+  idparticipacion  SERIAL PRIMARY KEY,
+  idatleta         INTEGER NOT NULL REFERENCES evaluacion.atleta(idatleta)  ON UPDATE RESTRICT ON DELETE RESTRICT,
+  idcarrera        INTEGER NOT NULL REFERENCES evaluacion.carrera(idcarrera) ON UPDATE RESTRICT ON DELETE CASCADE,
+  avance           INTEGER NOT NULL,
+  comienzo         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT uq_atleta_carrera UNIQUE (idatleta, idcarrera) -- atleta no repite carrera
+);
+
+CREATE INDEX IF NOT EXISTS ix_participacion_carrera ON evaluacion.participacion(idcarrera);
+CREATE INDEX IF NOT EXISTS ix_participacion_atleta  ON evaluacion.participacion(idatleta);
+
+-- 3) Vistas (únicas necesarias)
+-- 3.1) LOV para el <select> de atletas (con opción en blanco en el front)
+CREATE OR REPLACE VIEW evaluacion.vw_lov_atletas AS
+SELECT idatleta AS id, nombre
+FROM evaluacion.atleta
+ORDER BY nombre;
+
+-- 3.2) Grilla (Carrera, Tiempo, Atleta, Comienzo, Avance)
+CREATE OR REPLACE VIEW evaluacion.vw_grilla_participaciones AS
+SELECT
+  p.idparticipacion AS id,
+  c.nombre          AS carrera,
+  c.tiempocarrera   AS tiempo,
+  a.nombre          AS atleta,
+  p.comienzo        AS comienzo,
+  p.avance          AS avance
+FROM evaluacion.participacion p
+JOIN evaluacion.carrera c ON c.idcarrera = p.idcarrera
+JOIN evaluacion.atleta  a ON a.idatleta = p.idatleta
+ORDER BY p.comienzo DESC, p.idparticipacion DESC;
+
+-- 4) Funciones
+-- 4.1) Crear o reutilizar carrera con los inputs (sin <select> de carrera)
+CREATE OR REPLACE FUNCTION evaluacion.fn_get_or_create_carrera(
+  _nombre         VARCHAR,
+  _descripcion    VARCHAR,
+  _tiempocarrera  INTEGER
+) RETURNS INTEGER
+LANGUAGE plpgsql AS
 $$
-DECLARE
-  __tiene_choque INT;
-  __dup_rut INT;
-  __medios INT := 0;
-  __es_insert BOOLEAN;
+DECLARE _id INTEGER;
 BEGIN
-  -- AL MENOS 2 MEDIOS
-  IF _web THEN __medios := __medios + 1; END IF;
-  IF _tv THEN __medios := __medios + 1; END IF;
-  IF _amigos THEN __medios := __medios + 1; END IF;
-  IF __medios < 2 THEN
-    RAISE EXCEPTION 'DEBE SELECCIONAR AL MENOS DOS MEDIOS (WEB/TV/AMIGOS)';
+  IF _nombre IS NULL OR length(btrim(_nombre)) < 5 THEN
+    RAISE EXCEPTION 'NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)';
+  END IF;
+  IF _descripcion IS NULL OR length(btrim(_descripcion)) = 0 THEN
+    RAISE EXCEPTION 'DESCRIPCIÓN OBLIGATORIA';
+  END IF;
+  IF _tiempocarrera IS NULL OR _tiempocarrera::INT < 1 THEN
+    RAISE EXCEPTION 'TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)';
   END IF;
 
-  -- CHOQUE MISMO DÍA + MISMO HORARIO
-  SELECT COUNT(*)::INT INTO __tiene_choque
-    FROM trainingmmateluna.reserva r
-   WHERE r.fecha = _fecha
-     AND r.idhorario = _idhorario
-     AND (_idreserva = 0 OR r.idreserva <> _idreserva);
-  IF __tiene_choque > 0 THEN
-    RAISE EXCEPTION 'FECHA Y HORARIO OCUPADOS';
+  SELECT idcarrera INTO _id
+    FROM evaluacion.carrera
+   WHERE nombre = _nombre
+     AND descripcion = _descripcion
+     AND tiempocarrera = _tiempocarrera;
+
+  IF _id IS NOT NULL THEN
+    RETURN _id;
   END IF;
 
-  -- RUT CON OTRA RESERVA VIGENTE
-  SELECT COUNT(*)::INT INTO __dup_rut
-    FROM trainingmmateluna.reserva r
-   WHERE r.rut = _rut
-     AND r.fecha >= CURRENT_DATE
-     AND (_idreserva = 0 OR r.idreserva <> _idreserva);
-  IF __dup_rut > 0 THEN
-    RAISE EXCEPTION 'YA EXISTE UNA RESERVA VIGENTE PARA ESTE RUT';
+  INSERT INTO evaluacion.carrera(nombre, descripcion, tiempocarrera)
+  VALUES (_nombre, _descripcion, _tiempocarrera)
+  RETURNING idcarrera INTO _id;
+
+  RETURN _id;
+END;
+$$;
+
+-- 4.2) Insertar participación (recibe campos de carrera + atleta + avance)
+CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_i_full(
+  _idatleta       INTEGER,
+  _carrera_nombre VARCHAR,
+  _carrera_desc   VARCHAR,
+  _tiempocarrera  INTEGER,
+  _avance         INTEGER
+) RETURNS INTEGER
+LANGUAGE plpgsql AS
+$$
+DECLARE _id INTEGER; _idcarrera INTEGER;
+BEGIN
+  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
+  IF NOT FOUND THEN RAISE EXCEPTION 'ATLETA NO EXISTE'; END IF;
+
+  _idcarrera := evaluacion.fn_get_or_create_carrera(_carrera_nombre, _carrera_desc, _tiempocarrera);
+
+  PERFORM 1 FROM evaluacion.participacion WHERE idatleta = _idatleta AND idcarrera = _idcarrera;
+  IF FOUND THEN
+    RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
   END IF;
 
-  __es_insert := (_idreserva = 0);
+  IF _avance IS NULL THEN
+    RAISE EXCEPTION 'AVANCE OBLIGATORIO';
+  END IF;
+  IF _avance::INT < 0 OR _avance::INT > 100 THEN
+    RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
+  END IF;
 
-  IF __es_insert THEN
-    INSERT INTO trainingmmateluna.reserva(
-      rut, nombre, nombremascota, email,
-      idregion, idcomuna, fecha, idhorario,
-      recordatorio, web, tv, amigos
-    ) VALUES (
-      _rut, _nombre, _nombremascota, _email,
-      _idregion, _idcomuna, _fecha, _idhorario,
-      _recordatorio, _web, _tv, _amigos
-    )
-    RETURNING idreserva INTO idreserva;
+  INSERT INTO evaluacion.participacion(idatleta, idcarrera, avance)
+  VALUES (_idatleta, _idcarrera, _avance)
+  RETURNING idparticipacion INTO _id;
 
-    mensaje := 'INSERTADO';
-    RETURN NEXT; RETURN;
+  RETURN _id;
+END;
+$$;
 
-  ELSE
-    UPDATE trainingmmateluna.reserva
-       SET rut           = _rut,
-           nombre        = _nombre,
-           nombremascota = _nombremascota,
-           email         = _email,
-           idregion      = _idregion,
-           idcomuna      = _idcomuna,
-           fecha         = _fecha,
-           idhorario     = _idhorario,
-           recordatorio  = _recordatorio,
-           web           = _web,
-           tv            = _tv,
-           amigos        = _amigos
-     WHERE idreserva = _idreserva
-     RETURNING idreserva INTO idreserva;
+-- 4.3) Actualizar participación (permite cambiar carrera vía inputs)
+CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_u_full(
+  _idparticipacion INTEGER,
+  _idatleta        INTEGER,
+  _carrera_nombre  VARCHAR,
+  _carrera_desc    VARCHAR,
+  _tiempocarrera   INTEGER,
+  _avance          INTEGER
+) RETURNS VOID
+LANGUAGE plpgsql AS
+$$
+DECLARE _idcarrera INTEGER; _dup INTEGER;
+BEGIN
+  PERFORM 1 FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
+  IF NOT FOUND THEN RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE'; END IF;
 
-    IF idreserva IS NULL THEN
-      RAISE EXCEPTION 'NO SE ENCONTRÓ LA RESERVA A ACTUALIZAR';
-    END IF;
+  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
+  IF NOT FOUND THEN RAISE EXCEPTION 'ATLETA NO EXISTE'; END IF;
 
-    mensaje := 'ACTUALIZADO';
-    RETURN NEXT; RETURN;
+  _idcarrera := evaluacion.fn_get_or_create_carrera(_carrera_nombre, _carrera_desc, _tiempocarrera);
+
+  SELECT 1 INTO _dup
+    FROM evaluacion.participacion
+   WHERE idatleta = _idatleta
+     AND idcarrera = _idcarrera
+     AND idparticipacion <> _idparticipacion;
+  IF FOUND THEN
+    RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+  END IF;
+
+  IF _avance IS NULL THEN
+    RAISE EXCEPTION 'AVANCE OBLIGATORIO';
+  END IF;
+  IF _avance::INT < 0 OR _avance::INT > 100 THEN
+    RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
+  END IF;
+
+  UPDATE evaluacion.participacion
+     SET idatleta  = _idatleta,
+         idcarrera = _idcarrera,
+         avance    = _avance
+   WHERE idparticipacion = _idparticipacion;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
   END IF;
 END;
 $$;
 
+-- 4.4) Eliminar participación
+CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_d(
+  _idparticipacion INTEGER
+) RETURNS VOID
+LANGUAGE plpgsql AS
+$$
+BEGIN
+  IF _idparticipacion IS NULL THEN
+    RAISE EXCEPTION 'ID PARTICIPACIÓN OBLIGATORIO';
+  END IF;
 
--- ===========================================
--- VISTA: vw_reservas
--- Muestra la reserva con FECHA formateada y el TEXTO del horario.
--- ===========================================
-DROP VIEW IF EXISTS trainingmmateluna.vw_reservas;
+  DELETE FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
 
-CREATE VIEW trainingmmateluna.vw_reservas AS
-SELECT
-  r.idreserva,
-  r.nombre,
-  r.nombremascota,
-  r.recordatorio,
-  TO_CHAR(r.fecha, 'DD-MM-YYYY') AS fecha,
-  h.descripcion AS horario
-FROM trainingmmateluna.reserva r
-INNER JOIN trainingmmateluna.horario h
-  ON h.idhorario = r.idhorario
-ORDER BY r.idreserva DESC;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PARTICIPACIÓN NO ENCONTRADA';
+  END IF;
+END;
+$$;
 
--- =========================================================
--- VISTA: vw_porcentaje_reservas
--- TOP 3 horarios más usados, con porcentaje del total.
--- =========================================================
-DROP VIEW IF EXISTS trainingmmateluna.vw_porcentaje_reservas;
+-- 5) Semillas mínimas (opcional)
+INSERT INTO evaluacion.atleta (nombre) VALUES
+  ('ANA PÉREZ'), ('MARIO HUERTA'), ('SOFÍA ROJAS')
+ON CONFLICT DO NOTHING;
 
-CREATE VIEW trainingmmateluna.vw_porcentaje_reservas AS
-WITH tot AS (
-  SELECT COUNT(*)::NUMERIC AS total
-    FROM trainingmmateluna.reserva
-),
-acum AS (
-  SELECT
-    h.descripcion AS horario,
-    COUNT(*)::INT AS cantidad
-  FROM trainingmmateluna.reserva r
-  INNER JOIN trainingmmateluna.horario h
-    ON h.idhorario = r.idhorario
-  GROUP BY h.descripcion
-)
-SELECT
-  a.horario,
-  a.cantidad,
-  CASE
-    WHEN t.total = 0 THEN 0
-    ELSE ROUND((a.cantidad / t.total) * 100)
-  END::INT AS porcentaje
-FROM acum a
-CROSS JOIN tot t
-ORDER BY a.cantidad DESC, a.horario
-LIMIT 3;
+-- Pruebas rápidas:
+-- SELECT evaluacion.fn_participacion_i_full(1, 'MARATÓN SANTIAGO', 'Circuito urbano', 180, 25);
+-- SELECT * FROM evaluacion.vw_grilla_participaciones;
