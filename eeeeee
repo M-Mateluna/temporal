@@ -1,48 +1,170 @@
-/* ---- Contenedor más ancho por defecto ---- */
+/* ===== Reset básico ===== */
+* { box-sizing: border-box; }
+
+body{
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f2f4f8;
+  color: #1f2937;
+  font-size: 16px;
+}
+
+/* ===== Contenedor principal (más ancho + sombra marcada) ===== */
 .container{
-  max-width: 1180px;           /* antes ~980px */
+  max-width: 1180px;
   margin: 24px auto;
-  padding: 0 24px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.22),
+    0 8px 16px rgba(0,0,0,.18),
+    0 3px 6px  rgba(0,0,0,.16);
 }
 
-/* Asegurar que las tablas internas ocupen todo el ancho del contenedor */
-table[width="100%"][border="0"],
-#tblGrilla{
+/* ===== Formulario (tabla superior) ===== */
+table[width="100%"][border="0"]{
+  width: 100%;               /* ocupar todo el ancho del contenedor */
+  background: #fff;
+}
+
+table[width="100%"][border="0"] tr:first-child td{
+  background: #0b5ed7; /* barra azul del título */
+  color: #fff;
+  padding: 12px 16px;
+}
+
+table[width="100%"][border="0"] tr:first-child td h2{
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+table[width="100%"][border="0"] td{
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+label{
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #000000;
+}
+
+input[type="text"],
+select,
+textarea{
   width: 100%;
+  border: 1px solid #dfe3ea;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+  color: #1f2937;
 }
 
-/* Un poco más de altura/espacio en controles para apariencia limpia */
-td input[type="text"],
-td select{
-  height: 40px;                /* look moderno */
+input[type="text"]:focus,
+select:focus,
+textarea:focus{
+  border-color: #0b5ed7;
+  box-shadow: 0 0 0 3px rgba(11,94,215,.15);
 }
 
-/* =========================
-   Breakpoints de escritorio
-   ========================= */
+textarea{
+  min-height: 110px;
+  resize: vertical;
+}
 
-/* 1280 x 800 */
+/* Botón Guardar con color de la evaluación */
+#btnGuardar{
+  display: inline-block;
+  width: 320px;
+  height: 45px;
+  background: #0056b3;
+  border: 1px solid #0056b3;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+}
+#btnGuardar:hover{
+  background: #004a9a;
+  border-color: #004a9a;
+}
+#btnGuardar:active{ transform: translateY(1px); }
+
+/* ===== Grilla ===== */
+#tblGrilla{
+  width: 100%;               /* ocupar todo el ancho del contenedor */
+  margin: 6px auto 24px;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #dfe3ea;
+  text-align: center;
+  overflow: hidden;
+}
+
+#tblGrilla thead th{
+  background: #0b5ed7;
+  color: #fff;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+#tblGrilla tbody td{
+  padding: 12px;
+  border-bottom: 1px solid #eef1f6;
+  font-size: 14px;
+  text-align: center;
+}
+
+#tblGrilla tbody tr:nth-child(odd){ background: #f9fbff; }
+#tblGrilla tbody tr:hover{ background: #eef5ff; }
+
+/* Botones de acción */
+#tblGrilla tbody td:last-child button{
+  border-radius: 5px;
+  width: 116px;
+  height: 35px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: none;
+  background: #0056b3; /* Editar (azul) */
+  color: #ffffff;
+  font-size: 13.5px;
+}
+#tblGrilla tbody td:last-child button:hover{
+  background: #004a9a;
+}
+#tblGrilla tbody td:last-child button + button{
+  margin-left: 8px;
+  background: #c82332; /* Eliminar (rojo) */
+}
+#tblGrilla tbody td:last-child button + button:hover{
+  background: #c02418;
+}
+
+/* ===== Breakpoints de escritorio (ancho del contenedor y ligeros ajustes) ===== */
 @media (min-width: 1280px){
   .container{ max-width: 1200px; }
 }
-
-/* 1600 x 1200 */
 @media (min-width: 1600px){
   .container{ max-width: 1400px; }
   body{ font-size: 17px; }
   #tblGrilla thead th, #tblGrilla tbody td{ padding: 14px; }
   #btnGuardar{ min-width: 280px; }
 }
-
-/* 1900 x 1200 (≈1920) */
 @media (min-width: 1900px){
   .container{ max-width: 1600px; }
   body{ font-size: 18px; }
   #tblGrilla thead th, #tblGrilla tbody td{ padding: 16px; }
   td input[type="text"], td select, td textarea{ font-size: 16px; }
 }
-
-/* 2560 x 1600 */
 @media (min-width: 2560px){
   .container{ max-width: 1800px; }
   body{ font-size: 19px; }
