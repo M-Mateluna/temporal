@@ -1,126 +1,38 @@
--- =========================================================
--- EVALUACIÓN S1 — PostgreSQL
--- FK al estilo del ejemplo (FOREIGN KEY (...) REFERENCES ...).
--- Único <select>: ATLETA. Carrera se crea/reutiliza desde inputs.
--- =========================================================
-
--- 1) Esquema
-CREATE SCHEMA IF NOT EXISTS evaluacion;
-
--- 2) Tablas (FK con sintaxis separada, sin ON UPDATE/DELETE)
-CREATE TABLE IF NOT EXISTS evaluacion.atleta (
-  idatleta  SERIAL PRIMARY KEY,
-  nombre    VARCHAR NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS evaluacion.carrera (
-  idcarrera      SERIAL PRIMARY KEY,
-  nombre         VARCHAR  NOT NULL,
-  descripcion    VARCHAR  NOT NULL,
-  tiempocarrera  INTEGER  NOT NULL,
-  CONSTRAINT uq_carrera UNIQUE (nombre, descripcion, tiempocarrera)
-);
-
-CREATE TABLE IF NOT EXISTS evaluacion.participacion (
-  idparticipacion  SERIAL PRIMARY KEY,
-  idatleta         INTEGER NOT NULL,
-  idcarrera        INTEGER NOT NULL,
-  avance           INTEGER NOT NULL,
-  comienzo         TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT uq_atleta_carrera UNIQUE (idatleta, idcarrera),
-  FOREIGN KEY (idatleta) REFERENCES evaluacion.atleta(idatleta),
-  FOREIGN KEY (idcarrera) REFERENCES evaluacion.carrera(idcarrera)
-);
-
--- Índices útiles
-CREATE INDEX IF NOT EXISTS ix_participacion_carrera ON evaluacion.participacion(idcarrera);
-CREATE INDEX IF NOT EXISTS ix_participacion_atleta  ON evaluacion.participacion(idatleta);
-
--- 3) Vistas (únicas necesarias)
--- 3.1) LOV para el <select> de atletas
-CREATE OR REPLACE VIEW evaluacion.vw_lov_atletas AS
-SELECT idatleta AS id, nombre
-FROM evaluacion.atleta
-ORDER BY nombre;
-
--- 3.2) Grilla: Carrera, Tiempo, Atleta, Comienzo, Avance
-CREATE OR REPLACE VIEW evaluacion.vw_grilla_participaciones AS
-SELECT
-  p.idparticipacion AS id,
-  c.nombre          AS carrera,
-  c.tiempocarrera   AS tiempo,
-  a.nombre          AS atleta,
-  p.comienzo        AS comienzo,
-  p.avance          AS avance
-FROM evaluacion.participacion p
-JOIN evaluacion.carrera c ON c.idcarrera = p.idcarrera
-JOIN evaluacion.atleta  a ON a.idatleta = p.idatleta
-ORDER BY p.comienzo DESC, p.idparticipacion DESC;
-
--- 4) Funciones (validaciones pensadas para alert() en el front)
--- 4.1) Crear o reutilizar carrera desde los inputs
-CREATE OR REPLACE FUNCTION evaluacion.fn_get_or_create_carrera(
-  _nombre         VARCHAR,
-  _descripcion    VARCHAR,
-  _tiempocarrera  INTEGER
-) RETURNS INTEGER
+-- Función única: inserta o actualiza según _idparticipacion
+CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_g(
+  _idparticipacion INTEGER,   -- NULL => INSERT, NOT NULL => UPDATE
+  _idatleta        INTEGER,
+  _carrera_nombre  VARCHAR,
+  _carrera_desc    VARCHAR,
+  _tiempocarrera   INTEGER,
+  _avance          INTEGER
+) RETURNS INTEGER  -- devuelve idparticipacion (nuevo o editado)
 LANGUAGE plpgsql AS
 $$
-DECLARE _id INTEGER;
+DECLARE
+  _idcarrera INTEGER;
+  _id        INTEGER;
+  _dup       INTEGER;
 BEGIN
-  IF _nombre IS NULL OR length(btrim(_nombre)) < 5 THEN
+  -- Validaciones comunes
+  IF _idatleta IS NULL THEN
+    RAISE EXCEPTION 'ATLETA OBLIGATORIO';
+  END IF;
+  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'ATLETA NO EXISTE';
+  END IF;
+
+  IF _carrera_nombre IS NULL OR length(btrim(_carrera_nombre)) < 5 THEN
     RAISE EXCEPTION 'NOMBRE CARRERA OBLIGATORIO (≥ 5 CARACTERES)';
   END IF;
-  IF _descripcion IS NULL OR length(btrim(_descripcion)) = 0 THEN
+  IF _carrera_desc IS NULL OR length(btrim(_carrera_desc)) = 0 THEN
     RAISE EXCEPTION 'DESCRIPCIÓN OBLIGATORIA';
   END IF;
   IF _tiempocarrera IS NULL OR _tiempocarrera::INT < 1 THEN
     RAISE EXCEPTION 'TIEMPO DE CARRERA DEBE SER ENTERO POSITIVO (≥ 1)';
   END IF;
 
-  SELECT idcarrera INTO _id
-    FROM evaluacion.carrera
-   WHERE nombre = _nombre
-     AND descripcion = _descripcion
-     AND tiempocarrera = _tiempocarrera;
-
-  IF _id IS NOT NULL THEN
-    RETURN _id;
-  END IF;
-
-  INSERT INTO evaluacion.carrera(nombre, descripcion, tiempocarrera)
-  VALUES (_nombre, _descripcion, _tiempocarrera)
-  RETURNING idcarrera INTO _id;
-
-  RETURN _id;
-END;
-$$;
-
--- 4.2) Insertar participación (recibe atleta + datos de carrera + avance)
-CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_i_full(
-  _idatleta       INTEGER,
-  _carrera_nombre VARCHAR,
-  _carrera_desc   VARCHAR,
-  _tiempocarrera  INTEGER,
-  _avance         INTEGER
-) RETURNS INTEGER
-LANGUAGE plpgsql AS
-$$
-DECLARE _id INTEGER; _idcarrera INTEGER;
-BEGIN
-  -- existencia de atleta (por si borran a mano)
-  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
-  IF NOT FOUND THEN RAISE EXCEPTION 'ATLETA NO EXISTE'; END IF;
-
-  _idcarrera := evaluacion.fn_get_or_create_carrera(_carrera_nombre, _carrera_desc, _tiempocarrera);
-
-  -- unicidad atleta+carrera
-  PERFORM 1 FROM evaluacion.participacion WHERE idatleta = _idatleta AND idcarrera = _idcarrera;
-  IF FOUND THEN
-    RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-  END IF;
-
-  -- avance
   IF _avance IS NULL THEN
     RAISE EXCEPTION 'AVANCE OBLIGATORIO';
   END IF;
@@ -128,87 +40,52 @@ BEGIN
     RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
   END IF;
 
-  INSERT INTO evaluacion.participacion(idatleta, idcarrera, avance)
-  VALUES (_idatleta, _idcarrera, _avance)
-  RETURNING idparticipacion INTO _id;
-
-  RETURN _id;
-END;
-$$;
-
--- 4.3) Actualizar participación (puede cambiar carrera vía inputs)
-CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_u_full(
-  _idparticipacion INTEGER,
-  _idatleta        INTEGER,
-  _carrera_nombre  VARCHAR,
-  _carrera_desc    VARCHAR,
-  _tiempocarrera   INTEGER,
-  _avance          INTEGER
-) RETURNS VOID
-LANGUAGE plpgsql AS
-$$
-DECLARE _idcarrera INTEGER; _dup INTEGER;
-BEGIN
-  PERFORM 1 FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
-  IF NOT FOUND THEN RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE'; END IF;
-
-  PERFORM 1 FROM evaluacion.atleta WHERE idatleta = _idatleta;
-  IF NOT FOUND THEN RAISE EXCEPTION 'ATLETA NO EXISTE'; END IF;
-
+  -- Crear o reutilizar la carrera
   _idcarrera := evaluacion.fn_get_or_create_carrera(_carrera_nombre, _carrera_desc, _tiempocarrera);
 
-  SELECT 1 INTO _dup
-    FROM evaluacion.participacion
-   WHERE idatleta = _idatleta
-     AND idcarrera = _idcarrera
-     AND idparticipacion <> _idparticipacion;
-  IF FOUND THEN
-    RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
-  END IF;
-
-  IF _avance IS NULL THEN
-    RAISE EXCEPTION 'AVANCE OBLIGATORIO';
-  END IF;
-  IF _avance::INT < 0 OR _avance::INT > 100 THEN
-    RAISE EXCEPTION 'AVANCE DEBE ESTAR ENTRE 0 Y 100';
-  END IF;
-
-  UPDATE evaluacion.participacion
-     SET idatleta  = _idatleta,
-         idcarrera = _idcarrera,
-         avance    = _avance
-   WHERE idparticipacion = _idparticipacion;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
-  END IF;
-END;
-$$;
-
--- 4.4) Eliminar participación
-CREATE OR REPLACE FUNCTION evaluacion.fn_participacion_d(
-  _idparticipacion INTEGER
-) RETURNS VOID
-LANGUAGE plpgsql AS
-$$
-BEGIN
+  -- Flujo INSERT / UPDATE
   IF _idparticipacion IS NULL THEN
-    RAISE EXCEPTION 'ID PARTICIPACIÓN OBLIGATORIO';
-  END IF;
+    -- INSERT: validar unicidad atleta+carrera
+    SELECT 1 INTO _dup
+      FROM evaluacion.participacion
+     WHERE idatleta = _idatleta AND idcarrera = _idcarrera;
+    IF FOUND THEN
+      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+    END IF;
 
-  DELETE FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
+    INSERT INTO evaluacion.participacion(idatleta, idcarrera, avance)
+    VALUES (_idatleta, _idcarrera, _avance)
+    RETURNING idparticipacion INTO _id;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'PARTICIPACIÓN NO ENCONTRADA';
+    RETURN _id;
+  ELSE
+    -- UPDATE: debe existir el registro
+    PERFORM 1 FROM evaluacion.participacion WHERE idparticipacion = _idparticipacion;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
+    END IF;
+
+    -- Unicidad atleta+carrera excluyendo el propio registro
+    SELECT 1 INTO _dup
+      FROM evaluacion.participacion
+     WHERE idatleta = _idatleta
+       AND idcarrera = _idcarrera
+       AND idparticipacion <> _idparticipacion;
+    IF FOUND THEN
+      RAISE EXCEPTION 'EL ATLETA YA ESTÁ INSCRITO EN ESTA CARRERA';
+    END IF;
+
+    UPDATE evaluacion.participacion
+       SET idatleta  = _idatleta,
+           idcarrera = _idcarrera,
+           avance    = _avance
+     WHERE idparticipacion = _idparticipacion;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'PARTICIPACIÓN NO EXISTE';
+    END IF;
+
+    RETURN _idparticipacion;
   END IF;
 END;
 $$;
-
--- 5) Semillas mínimas (opcional)
-INSERT INTO evaluacion.atleta (nombre) VALUES
-  ('ANA PÉREZ'), ('MARIO HUERTA'), ('SOFÍA ROJAS')
-ON CONFLICT DO NOTHING;
-
--- Pruebas:
--- SELECT evaluacion.fn_participacion_i_full(1, 'MARATÓN SANTIAGO', 'Circuito urbano', 180, 25);
--- SELECT * FROM evaluacion.vw_grilla_participaciones;
