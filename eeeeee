@@ -1,12 +1,11 @@
 <?php
-// Subir a la raíz del sistema
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
 require($POSICION."formHeader.php");
 ?>
-<!doctype html>
-<html lang="es">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Personas (activo = true)</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -24,19 +23,16 @@ require($POSICION."formHeader.php");
           <th>Nombre</th>
           <th>Apellidos</th>
           <th>FechaHora</th>
-          <th>Acción</th>
+          <th>Acci&oacute;n</th>
         </tr>
       </thead>
       <tbody id="tbody-personas"></tbody>
     </table>
   </div>
 
-  <!-- Componentes del sistema -->
   <script>var posicion = "<?=$POSICION?>";</script>
   <script src="<?=$POSICION?>componente/database/class.php"></script>
   <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-
-  <!-- Controlador del ejercicio -->
   <script src="controlador.js"></script>
 </body>
 </html>
