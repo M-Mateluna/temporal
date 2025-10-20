@@ -1,63 +1,82 @@
-<body>
-  <div class="container">
-    <table border="0" cellspacing="0" cellpadding="10">
-      <thead>
-        <tr>
-          <th colspan="2">
-            <h2>MessageBox : Ejercicio Propuesto 1</h2>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Fila 1 -->
-        <tr>
-          <td align="center" width="50%">
-            <button id="btnSoloAceptar">Solo Aceptar</button>
-          </td>
-          <td align="center" width="50%">
-            <button id="btnAceptarCancelar">Aceptar / Cancelar</button>
-          </td>
-        </tr>
+/* ==========================
+   styles.css — MessageBox Ejercicio 1
+   ========================== */
 
-        <!-- Fila 2 -->
-        <tr>
-          <td align="center">
-            <button id="btnSiNo">Sí / No</button>
-          </td>
-          <td align="center">
-            <button id="btnSiNoCancelar">Sí / No / Cancelar</button>
-          </td>
-        </tr>
+body {
+  background-color: #f5f5f5;
+  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-        <!-- Fila 3 -->
-        <tr>
-          <td align="center">
-            <button id="btnImprimirCancelar">Imprimir / Cancelar</button>
-          </td>
-          <td align="center">
-            <button id="btnAceptarCancelarAnular">Aceptar / Cancelar / Anular</button>
-          </td>
-        </tr>
+/* Contenedor principal centrado */
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-        <!-- Fila 4 (Select de moneda) -->
-        <tr>
-          <td colspan="2" align="center">
-            <label for="selMoneda"><b>Moneda</b></label>
-            <select id="selMoneda">
-              <option value="">Seleccione...</option>
-              <option value="EURO">EURO</option>
-              <option value="DÓLAR">DÓLAR</option>
-              <option value="PESO">PESO</option>
-              <option value="SOLES">SOLES</option>
-            </select>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+/* Tabla principal */
+table {
+  background: white;
+  border-collapse: collapse;
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+}
 
-  <!-- Importar componente MessageBox -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-  <script>var posicion = "<?=$POSICION?>";</script>
-  <script type="text/javascript" src="controlador.js"></script>
-</body>
+th h2 {
+  color: #333;
+  font-size: 20px;
+  margin: 0;
+  padding: 10px 0;
+}
+
+/* Celdas */
+td {
+  padding: 10px 20px;
+  text-align: center;
+}
+
+/* Botones */
+button {
+  background-color: #0078d4;
+  color: #fff;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background-color: #005fa3;
+}
+
+/* Select */
+select {
+  margin-left: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  table {
+    width: 95%;
+  }
+  td {
+    display: block;
+    width: 100%;
+  }
+  button {
+    width: 90%;
+    margin: 5px 0;
+  }
+}
