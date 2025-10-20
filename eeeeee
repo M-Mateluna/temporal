@@ -1,39 +1,47 @@
-<?php
-while (!file_exists($POSICION.'conexion.php')) { $POSICION .= '../'; }
-require_once $POSICION.'conexion.php';
+let BD = new BASE();
+BD.commandFile = 'form/trainig/MessageBox/Ejercicio2/command.php';
 
-$cmd = $_REQUEST['cmd'] ?? '';
+let MSGBOX = {
+  ventana: undefined,
+  initialize: function(){ this.ventana = new IU_MSGBOX(); },
+  Abrir: function(conf){
+    this.ventana.titulo   = conf.titulo || 'Aviso';
+    let texto             = conf.texto || '';
+    this.ventana.texto    = '<center>' + texto + '</center>';
+    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'retGen';
+    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+    this.ventana.url       = posicion;
+    this.ventana.top       = '25%';
+    this.ventana.objeto    = conf.objeto || {};
+    this.ventana.Messagebox();
+    this.ventana.zzIndex   = 2;
+  }
+};
+MSGBOX.initialize();
 
-switch ($cmd) {
-  case 'listar': {
-    $query = "
-      SELECT
-        idpersona,
-        COALESCE(nombre, '') AS nombre,
-        -- Concatenamos ambos apellidos
-        TRIM(
-          COALESCE(apellidopaterno, '') || ' ' || COALESCE(apellidomaterno, '')
-        ) AS apellidos,
-        TO_CHAR(fechahora, 'YYYY-MM-DD HH24:MI') AS fechahora
-      FROM personal.persona
-      WHERE activo = true
-      ORDER BY idpersona DESC
-      LIMIT 50
-    ";
-  } break;
+function cargarTabla(){
+  let RS = BD.send('cmd=listar');
+  if (RS.error && RS.error.trim() !== '') { alert('Error: ' + RS.error); return; }
 
-  case 'eliminar': {
-    $id = isset($_REQUEST['idpersona']) ? (int) $_REQUEST['idpersona'] : 0;
-    if ($id <= 0) { die('Parametro invalido'); }
+  let tbody = document.getElementById('tbody-personas');
+  tbody.innerHTML = '';
 
-    $query = "
-      UPDATE personal.persona
-         SET activo = false
-       WHERE idpersona = {$id}
-       RETURNING idpersona
-    ";
-  } break;
+  let n = Number(RS.numrows || 0);
+  for (let i = 0; i < n; i++) {
+    let id        = BD.getField(RS, 'idpersona', i);
+    let nombre    = BD.getField(RS, 'nombre', i) || '';
+    let apellidos = BD.getField(RS, 'apellidos', i) || '';
+    let fechahora = BD.getField(RS, 'fechahora', i) || '';
 
-  default:
-    die('Comando no valido');
+    let tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + nombre + '</td>' +
+      '<td>' + apellidos + '</td>' +
+      '<td>' + fechahora + '</td>' +
+      '<td><button class="btn-danger" data-id="'+id+'" data-nombre="'+(nombre+' '+apellidos).trim()+'">Eliminar</button></td>';
+    tbody.appendChild(tr);
+  }
+  bindEliminar();
 }
