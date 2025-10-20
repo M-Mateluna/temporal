@@ -1,7 +1,5 @@
-// ===============================================
-// controlador.js — Ejercicio Propuesto 1 (MessageBox)
-// ===============================================
-// Convenciones Desis: uso de IU_MSGBOX, callbacks globales y let
+// controlador.js — MessageBox (IU_MSGBOX) + 6 botones + select de moneda
+// Requisitos del componente: <div id="MSGBOX_"></div> y <div id="MSGBOX_OL_"></div> en el HTML.
 
 let MSGBOX = {
   ventana: undefined,
@@ -11,140 +9,148 @@ let MSGBOX = {
   },
 
   Abrir: function (conf) {
+    // Título y texto
     this.ventana.titulo = conf.titulo || 'Aviso';
-
     let texto = conf.texto || '';
     this.ventana.texto = '<center>' + texto + '</center>';
 
-    this.ventana.botonera = conf.botonera || 1;
-    this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
-    this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+    // Botonera:
+    // 1: Aceptar
+    // 2: Aceptar/Cancelar
+    // 3: Sí/No
+    // 4: Sí/No/Cancelar
+    // 5: Imprimir/Cancelar
+    // 6: Aceptar/Cancelar/Anular
+    this.ventana.botonera = (conf.botonera != null) ? String(conf.botonera) : '1';
+
+    // Estilo del título
     this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+
+    // Comportamiento de cierre (X)
+    this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+
+    // Callback (nombre de función global que recibirá la letra de retorno)
+    this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+
+    // Objeto auxiliar para pasar datos entre llamadas
     this.ventana.objeto = conf.objeto || {};
-    this.ventana.url = '<?=$POSICION?>';
+
+    // Prefijo de URL (usa la global POSICION definida en el componente)
+    // El propio componente hará: this.url + 'componente/messagebox/messagebox.php?...'
+    this.ventana.url = (typeof POSICION !== 'undefined') ? POSICION : '';
+
+    // Mostrar
     this.ventana.Messagebox();
   },
 
+  // Callback por defecto (cierra)
   fnretorno: function (resp) {
-    // Cierra la ventana por defecto
     MSGBOX.ventana.HideInfo();
   }
 };
 
-// Inicializar instancia
 MSGBOX.initialize();
 
-// ==========================
-// Botones del ejercicio
-// ==========================
-let btnSoloAceptar = document.getElementById('btnSoloAceptar');
-let btnAceptarCancelar = document.getElementById('btnAceptarCancelar');
-let btnSiNo = document.getElementById('btnSiNo');
-let btnSiNoCancelar = document.getElementById('btnSiNoCancelar');
-let btnImprimirCancelar = document.getElementById('btnImprimirCancelar');
-let btnAceptarCancelarAnular = document.getElementById('btnAceptarCancelarAnular');
-let selMoneda = document.getElementById('selMoneda');
+// ====== Referencias a la UI ======
+let btnSoloAceptar            = document.getElementById('btnSoloAceptar');
+let btnAceptarCancelar        = document.getElementById('btnAceptarCancelar');
+let btnSiNo                   = document.getElementById('btnSiNo');
+let btnSiNoCancelar           = document.getElementById('btnSiNoCancelar');
+let btnImprimirCancelar       = document.getElementById('btnImprimirCancelar');
+let btnAceptarCancelarAnular  = document.getElementById('btnAceptarCancelarAnular');
+let selMoneda                 = document.getElementById('selMoneda');
 
-// --- 1) Solo Aceptar ---
+// ====== Botón 1: Solo Aceptar ======
 btnSoloAceptar.addEventListener('click', function () {
   MSGBOX.Abrir({
+    titulocss: 'titulorojomsgbox',
     titulo: 'Información',
     texto: 'Este MessageBox solo muestra el botón Aceptar.',
-    botonera: 1,
-    titulocss: 'titulorojomsgbox'
+    botonera: 1
   });
 });
 
-// --- 2) Aceptar / Cancelar ---
+// ====== Botón 2: Aceptar / Cancelar ======
 btnAceptarCancelar.addEventListener('click', function () {
   MSGBOX.Abrir({
+    titulocss: 'titulonaranjamsgbox',
     titulo: 'Confirmación',
     texto: '¿Desea continuar con la acción?',
-    botonera: 2,
-    titulocss: 'titulonaranjamsgbox'
+    botonera: 2
   });
 });
 
-// --- 3) Sí / No ---
+// ====== Botón 3: Sí / No ======
 btnSiNo.addEventListener('click', function () {
   MSGBOX.Abrir({
+    titulocss: 'titulorojomsgbox',
     titulo: 'Pregunta',
     texto: '¿Confirma su selección?',
-    botonera: 3,
-    titulocss: 'titulorojomsgbox'
+    botonera: 3
   });
 });
 
-// --- 4) Sí / No / Cancelar ---
+// ====== Botón 4: Sí / No / Cancelar ======
 btnSiNoCancelar.addEventListener('click', function () {
   MSGBOX.Abrir({
+    titulocss: 'titulonaranjamsgbox',
     titulo: 'Guardar cambios',
     texto: '¿Deseas guardar antes de salir?',
-    botonera: 4,
-    titulocss: 'titulonaranjamsgbox'
+    botonera: 4
   });
 });
 
-// --- 5) Imprimir / Cancelar ---
+// ====== Botón 5: Imprimir / Cancelar ======
 btnImprimirCancelar.addEventListener('click', function () {
   MSGBOX.Abrir({
+    titulocss: 'titulorojomsgbox',
     titulo: 'Impresión',
     texto: '¿Desea imprimir el documento actual?',
     botonera: 5,
-    titulocss: 'titulorojomsgbox',
     fnretorno: 'fnRetornoImprimir'
   });
 });
 
-// --- 6) Aceptar / Cancelar / Anular ---
+// ====== Botón 6: Aceptar / Cancelar / Anular ======
 btnAceptarCancelarAnular.addEventListener('click', function () {
   MSGBOX.Abrir({
+    titulocss: 'titulonaranjamsgbox',
     titulo: 'Estado de operación',
     texto: 'Selecciona el estado de la operación.',
-    botonera: 6,
-    titulocss: 'titulonaranjamsgbox'
+    botonera: 6
   });
 });
 
-// ==========================
-// Select de moneda
-// ==========================
+// ====== Select de moneda: flujo Sí/No -> Aceptar ======
 selMoneda.addEventListener('change', function () {
   let moneda = selMoneda.value;
-  if (moneda === '') return;
+  if (!moneda) return;
 
-  // Primer mensaje: confirmación Sí/No
+  // 1er MessageBox: confirmación
   MSGBOX.Abrir({
+    titulocss: 'titulorojomsgbox',
     titulo: 'Moneda',
     texto: '¿Desea mostrar el tipo de moneda escogido?',
-    botonera: 3,
-    titulocss: 'titulorojomsgbox',
+    botonera: 3, // Sí/No
     fnretorno: 'fnMonedaConfirm',
     objeto: { moneda: moneda }
   });
 });
 
-// ==========================
-// Funciones de retorno
-// ==========================
-
-// Retorno para Imprimir/Cancelar
+// ====== Callbacks globales requeridos por el componente ======
 function fnRetornoImprimir(resp) {
-  if (resp === 'I') {
-    window.print();
-  }
+  if (resp === 'I') { window.print(); }
   MSGBOX.ventana.HideInfo();
 }
 
-// Retorno para Moneda (Sí/No)
 function fnMonedaConfirm(resp) {
   if (resp === 'S') {
-    let moneda = MSGBOX.ventana.objeto.moneda;
+    let moneda = MSGBOX.ventana.objeto.moneda || '';
     MSGBOX.Abrir({
+      titulocss: 'titulonaranjamsgbox',
       titulo: 'Moneda',
       texto: 'La moneda escogida es ' + moneda,
-      botonera: 1,
-      titulocss: 'titulonaranjamsgbox'
+      botonera: 1 // Aceptar
     });
   }
   MSGBOX.ventana.HideInfo();
