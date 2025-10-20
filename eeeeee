@@ -1,172 +1,97 @@
-/* ===== Reset básico ===== */
-* { box-sizing: border-box; }
+<?php
+/**
+ * command.php — Estándar Desis
+ * -------------------------------------
+ * Recibe 'cmd' desde AJAX o componente Database.
+ * Ejecuta acciones según switch($cmd).
+ * Responde en formato XML (<ROOT><table>...).
+ * -------------------------------------
+ */
 
-body{
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f2f4f8;
-  color: #1f2937;
-  font-size: 16px;
-}
+header('Content-Type: text/xml; charset=UTF-8');
+require_once 'conexion.php'; // Conexión PostgreSQL estándar Desis
 
-/* ===== Contenedor principal (más ancho + sombra marcada) ===== */
-.container{
-  max-width: 1180px;
-  margin: 24px auto;
-  padding: 16px;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow:
-    0 12px 28px rgba(0,0,0,.22),
-    0 8px 16px rgba(0,0,0,.18),
-    0 3px 6px  rgba(0,0,0,.16);
+// Función de escape XML
+function xmlEsc($s){
+  return htmlspecialchars($s ?? '', ENT_XML1 | ENT_COMPAT, 'UTF-8');
 }
 
-/* ===== Formulario (tabla superior) ===== */
-table[width="100%"][border="0"]{
-  width: 100%;               /* ocupar todo el ancho del contenedor */
-  background: #fff;
+// Obtiene el comando
+$cmd = $_REQUEST['cmd'] ?? '';
+
+echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+echo "<ROOT>";
+
+if (!$conn) {
+  $err = xmlEsc('Error de conexión a la base de datos');
+  echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
+  echo "</ROOT>";
+  exit;
 }
 
-table[width="100%"][border="0"] tr:first-child td{
-  background: #0b5ed7; /* barra azul del título */
-  color: #fff;
-  padding: 12px 16px;
+try {
+  switch ($cmd) {
+
+    // ----------------------------------------------------------------------------------
+    // 🔹 Caso: Listar registros de public.clienteproveedor (máximo 100 filas)
+    // ----------------------------------------------------------------------------------
+    case 'listar':
+      $sql = "
+        SELECT
+          rut,
+          COALESCE(razon_social, '') AS razon_social,
+          COALESCE(cliente, FALSE)   AS cliente,
+          COALESCE(proveedor, FALSE) AS proveedor
+        FROM public.clienteproveedor
+        ORDER BY razon_social
+        LIMIT 100
+      ";
+
+      $rs = pg_query_params($conn, $sql, []);
+
+      if (!$rs) {
+        $err = xmlEsc(pg_last_error($conn));
+        echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
+        break;
+      }
+
+      $rows = [];
+      while ($r = pg_fetch_object($rs)) {
+        // Normaliza valores booleanos
+        $cli = ($r->cliente === true || $r->cliente === 't' || $r->cliente === '1' || $r->cliente == 1) ? 't' : 'f';
+        $pro = ($r->proveedor === true || $r->proveedor === 't' || $r->proveedor === '1' || $r->proveedor == 1) ? 't' : 'f';
+
+        $rows[] = [
+          'rut'          => $r->rut,
+          'razon_social' => $r->razon_social,
+          'cliente'      => $cli,
+          'proveedor'    => $pro
+        ];
+      }
+
+      echo '<table numfields="4" numrows="' . count($rows) . '" error="">';
+      foreach ($rows as $row) {
+        echo '<record>';
+        echo '<rut>' . xmlEsc($row['rut']) . '</rut>';
+        echo '<razon_social>' . xmlEsc($row['razon_social']) . '</razon_social>';
+        echo '<cliente>' . $row['cliente'] . '</cliente>';
+        echo '<proveedor>' . $row['proveedor'] . '</proveedor>';
+        echo '</record>';
+      }
+      echo '</table>';
+    break;
+
+    // ----------------------------------------------------------------------------------
+    // 🔹 Caso por defecto: comando no reconocido
+    // ----------------------------------------------------------------------------------
+    default:
+      echo '<table numfields="0" numrows="0" error="' . xmlEsc("cmd incorrecto") . '"></table>';
+    break;
+  }
+
+} catch (Throwable $e) {
+  $err = xmlEsc($e->getMessage());
+  echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
 }
 
-table[width="100%"][border="0"] tr:first-child td h2{
-  margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-table[width="100%"][border="0"] td{
-  padding: 10px 12px;
-  vertical-align: top;
-}
-
-label{
-  display: inline-block;
-  margin-bottom: 6px;
-  font-size: 14px;
-  color: #000000;
-}
-
-input[type="text"],
-select,
-textarea{
-  width: 100%;
-  border: 1px solid #dfe3ea;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-size: 14px;
-  outline: none;
-  background: #fff;
-  color: #1f2937;
-}
-
-input[type="text"]:focus,
-select:focus,
-textarea:focus{
-  border-color: #0b5ed7;
-  box-shadow: 0 0 0 3px rgba(11,94,215,.15);
-}
-
-textarea{
-  min-height: 110px;
-  resize: vertical;
-}
-
-/* Botón Guardar con color de la evaluación */
-#btnGuardar{
-  display: inline-block;
-  width: 320px;
-  height: 45px;
-  background: #0056b3;
-  border: 1px solid #0056b3;
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-}
-#btnGuardar:hover{
-  background: #004a9a;
-  border-color: #004a9a;
-}
-#btnGuardar:active{ transform: translateY(1px); }
-
-/* ===== Grilla ===== */
-#tblGrilla{
-  width: 100%;               /* ocupar todo el ancho del contenedor */
-  margin: 6px auto 24px;
-  border-collapse: collapse;
-  background: #fff;
-  border: 1px solid #dfe3ea;
-  text-align: center;
-  overflow: hidden;
-}
-
-#tblGrilla thead th{
-  background: #0b5ed7;
-  color: #fff;
-  text-align: left;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 10px 12px;
-}
-
-#tblGrilla tbody td{
-  padding: 12px;
-  border-bottom: 1px solid #eef1f6;
-  font-size: 14px;
-  text-align: center;
-}
-
-#tblGrilla tbody tr:nth-child(odd){ background: #f9fbff; }
-#tblGrilla tbody tr:hover{ background: #eef5ff; }
-
-/* Botones de acción */
-#tblGrilla tbody td:last-child button{
-  border-radius: 5px;
-  width: 116px;
-  height: 35px;
-  padding: 8px 12px;
-  cursor: pointer;
-  border: none;
-  background: #0056b3; /* Editar (azul) */
-  color: #ffffff;
-  font-size: 13.5px;
-}
-#tblGrilla tbody td:last-child button:hover{
-  background: #004a9a;
-}
-#tblGrilla tbody td:last-child button + button{
-  margin-left: 8px;
-  background: #c82332; /* Eliminar (rojo) */
-}
-#tblGrilla tbody td:last-child button + button:hover{
-  background: #c02418;
-}
-
-/* ===== Breakpoints de escritorio (ancho del contenedor y ligeros ajustes) ===== */
-@media (min-width: 1280px){
-  .container{ max-width: 1200px; }
-}
-@media (min-width: 1600px){
-  .container{ max-width: 1400px; }
-  body{ font-size: 17px; }
-  #tblGrilla thead th, #tblGrilla tbody td{ padding: 14px; }
-  #btnGuardar{ min-width: 280px; }
-}
-@media (min-width: 1900px){
-  .container{ max-width: 1600px; }
-  body{ font-size: 18px; }
-  #tblGrilla thead th, #tblGrilla tbody td{ padding: 16px; }
-  td input[type="text"], td select, td textarea{ font-size: 16px; }
-}
-@media (min-width: 2560px){
-  .container{ max-width: 1800px; }
-  body{ font-size: 19px; }
-  #btnGuardar{ min-width: 320px; }
-}
+echo "</ROOT>";
