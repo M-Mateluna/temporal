@@ -1,4 +1,6 @@
-// controlador.js — mínimo (un botón), usando $POSICION vía 'posicion' del index
+// controlador.js — MessageBox (Desis) completo
+// Requiere que index.php defina:  <script>var posicion = "<?=$POSICION?>";</script>
+// y cargue el componente:        <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
 let MSGBOX = {
   ventana: undefined,
@@ -8,23 +10,27 @@ let MSGBOX = {
   },
 
   Abrir: function (conf) {
+    // Título y texto centrado
     this.ventana.titulo = conf.titulo || 'Aviso';
     let texto = conf.texto || '';
     this.ventana.texto = '<center>' + texto + '</center>';
 
-    // 1 = Aceptar (para este primer botón)
+    // Botonera:
+    // 1: Aceptar | 2: Aceptar/Cancelar | 3: Sí/No | 4: Sí/No/Cancelar | 5: Imprimir/Cancelar | 6: Aceptar/Cancelar/Anular
     this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
 
-    // Igual al ejemplo
+    // Opcionales igual al patrón corporativo
     this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
     this.ventana.fnretorno = conf.fnretorno || 'retGenerico';
     if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
 
-    // 🔑 raíz absoluta que viene del index (usando $POSICION)
-    this.ventana.url = posicion;
+    // 🔑 Base del sistema (desde index.php)
+    this.ventana.url = (typeof posicion !== 'undefined') ? posicion : '';
 
     this.ventana.top    = conf.top || '25%';
     this.ventana.objeto = conf.objeto || {};
+
+    // Abrir
     this.ventana.Messagebox();
     this.ventana.zzIndex = 2;
   }
@@ -32,14 +38,24 @@ let MSGBOX = {
 
 MSGBOX.initialize();
 
-// --- Botón: “Solo Aceptar” ---
-let btnSoloAceptar = document.getElementById('btnSoloAceptar');
+/* =========================
+   Botones del ejercicio
+   ========================= */
+let btnSoloAceptar            = document.getElementById('btnSoloAceptar');
+let btnAceptarCancelar        = document.getElementById('btnAceptarCancelar');
+let btnSiNo                   = document.getElementById('btnSiNo');
+let btnSiNoCancelar           = document.getElementById('btnSiNoCancelar');
+let btnImprimirCancelar       = document.getElementById('btnImprimirCancelar');
+let btnAceptarCancelarAnular  = document.getElementById('btnAceptarCancelarAnular');
+let selMoneda                 = document.getElementById('selMoneda');
+
+// 1) Solo Aceptar
 if (btnSoloAceptar) {
   btnSoloAceptar.addEventListener('click', function () {
     MSGBOX.Abrir({
       titulo: 'Información',
       texto: 'Este MessageBox solo muestra el botón Aceptar.',
-      botonera: 1, // Aceptar
+      botonera: 1,
       titulocss: 'titulorojomsgbox',
       fnretorno: 'retGenerico',
       conCerrar: false
@@ -47,7 +63,122 @@ if (btnSoloAceptar) {
   });
 }
 
-// Callback genérico (cierra)
+// 2) Aceptar / Cancelar
+if (btnAceptarCancelar) {
+  btnAceptarCancelar.addEventListener('click', function () {
+    MSGBOX.Abrir({
+      titulo: 'Confirmación',
+      texto: '¿Desea continuar con la acción?',
+      botonera: 2,
+      titulocss: 'titulonaranjamsgbox',
+      fnretorno: 'retGenerico'
+    });
+  });
+}
+
+// 3) Sí / No
+if (btnSiNo) {
+  btnSiNo.addEventListener('click', function () {
+    MSGBOX.Abrir({
+      titulo: 'Pregunta',
+      texto: '¿Confirma su selección?',
+      botonera: 3,
+      titulocss: 'titulorojomsgbox',
+      fnretorno: 'retGenerico'
+    });
+  });
+}
+
+// 4) Sí / No / Cancelar
+if (btnSiNoCancelar) {
+  btnSiNoCancelar.addEventListener('click', function () {
+    MSGBOX.Abrir({
+      titulo: 'Guardar cambios',
+      texto: '¿Deseas guardar antes de salir?',
+      botonera: 4,
+      titulocss: 'titulonaranjamsgbox',
+      fnretorno: 'retGenerico'
+    });
+  });
+}
+
+// 5) Imprimir / Cancelar  (retorna 'I' o 'C')
+if (btnImprimirCancelar) {
+  btnImprimirCancelar.addEventListener('click', function () {
+    MSGBOX.Abrir({
+      titulo: 'Impresión',
+      texto: '¿Desea imprimir el documento actual?',
+      botonera: 5,
+      titulocss: 'titulorojomsgbox',
+      fnretorno: 'retImprimir'
+    });
+  });
+}
+
+// 6) Aceptar / Cancelar / Anular
+if (btnAceptarCancelarAnular) {
+  btnAceptarCancelarAnular.addEventListener('click', function () {
+    MSGBOX.Abrir({
+      titulo: 'Estado de operación',
+      texto: 'Selecciona el estado de la operación.',
+      botonera: 6,
+      titulocss: 'titulonaranjamsgbox',
+      fnretorno: 'retGenerico'
+    });
+  });
+}
+
+/* =========================
+   Select de moneda
+   ========================= */
+if (selMoneda) {
+  selMoneda.addEventListener('change', function () {
+    let moneda = selMoneda.value;
+    if (moneda === '') return;
+
+    // Primer cuadro: Sí/No
+    MSGBOX.Abrir({
+      titulocss: 'titulorojomsgbox',
+      titulo: 'Moneda',
+      texto: '&#191;Desea mostrar el tipo de moneda escogido?',
+      botonera: 3,                 // Sí/No
+      conCerrar: false,
+      fnretorno: 'retMonedaConfirm',
+      objeto: { moneda: moneda }
+    });
+  });
+}
+
+/* =========================
+   Callbacks globales
+   ========================= */
+
+// Genérico: cierra sin acciones adicionales
 function retGenerico(resp) {
+  // resp podría ser 'A','C','S','N','I','L' según la botonera
+  MSGBOX.ventana.HideInfo();
+}
+
+// Imprimir/Cancelar
+function retImprimir(resp) {
+  if (resp === 'I') {
+    window.print();
+  }
+  MSGBOX.ventana.HideInfo();
+}
+
+// Flujo de moneda: Sí => muestra moneda; No => solo cierra
+function retMonedaConfirm(resp) {
+  if (resp === 'S') {
+    let moneda = MSGBOX.ventana.objeto.moneda || '';
+    MSGBOX.Abrir({
+      titulocss: 'titulonaranjamsgbox',
+      titulo: 'Moneda',
+      texto: 'La moneda escogida es ' + moneda,
+      botonera: 1, // Aceptar
+      fnretorno: 'retGenerico',
+      conCerrar: true
+    });
+  }
   MSGBOX.ventana.HideInfo();
 }
