@@ -1,97 +1,61 @@
-<?php
-/**
- * command.php — Estándar Desis
- * -------------------------------------
- * Recibe 'cmd' desde AJAX o componente Database.
- * Ejecuta acciones según switch($cmd).
- * Responde en formato XML (<ROOT><table>...).
- * -------------------------------------
- */
+// controlador.js (Desis)
+// - Usa Database().send('listar', ...), getField(...) y pinta filas donde cliente && proveedor.
 
-header('Content-Type: text/xml; charset=UTF-8');
-require_once 'conexion.php'; // Conexión PostgreSQL estándar Desis
-
-// Función de escape XML
-function xmlEsc($s){
-  return htmlspecialchars($s ?? '', ENT_XML1 | ENT_COMPAT, 'UTF-8');
-}
-
-// Obtiene el comando
-$cmd = $_REQUEST['cmd'] ?? '';
-
-echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-echo "<ROOT>";
-
-if (!$conn) {
-  $err = xmlEsc('Error de conexión a la base de datos');
-  echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
-  echo "</ROOT>";
-  exit;
-}
-
-try {
-  switch ($cmd) {
-
-    // ----------------------------------------------------------------------------------
-    // 🔹 Caso: Listar registros de public.clienteproveedor (máximo 100 filas)
-    // ----------------------------------------------------------------------------------
-    case 'listar':
-      $sql = "
-        SELECT
-          rut,
-          COALESCE(razon_social, '') AS razon_social,
-          COALESCE(cliente, FALSE)   AS cliente,
-          COALESCE(proveedor, FALSE) AS proveedor
-        FROM public.clienteproveedor
-        ORDER BY razon_social
-        LIMIT 100
-      ";
-
-      $rs = pg_query_params($conn, $sql, []);
-
-      if (!$rs) {
-        $err = xmlEsc(pg_last_error($conn));
-        echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
-        break;
-      }
-
-      $rows = [];
-      while ($r = pg_fetch_object($rs)) {
-        // Normaliza valores booleanos
-        $cli = ($r->cliente === true || $r->cliente === 't' || $r->cliente === '1' || $r->cliente == 1) ? 't' : 'f';
-        $pro = ($r->proveedor === true || $r->proveedor === 't' || $r->proveedor === '1' || $r->proveedor == 1) ? 't' : 'f';
-
-        $rows[] = [
-          'rut'          => $r->rut,
-          'razon_social' => $r->razon_social,
-          'cliente'      => $cli,
-          'proveedor'    => $pro
-        ];
-      }
-
-      echo '<table numfields="4" numrows="' . count($rows) . '" error="">';
-      foreach ($rows as $row) {
-        echo '<record>';
-        echo '<rut>' . xmlEsc($row['rut']) . '</rut>';
-        echo '<razon_social>' . xmlEsc($row['razon_social']) . '</razon_social>';
-        echo '<cliente>' . $row['cliente'] . '</cliente>';
-        echo '<proveedor>' . $row['proveedor'] . '</proveedor>';
-        echo '</record>';
-      }
-      echo '</table>';
-    break;
-
-    // ----------------------------------------------------------------------------------
-    // 🔹 Caso por defecto: comando no reconocido
-    // ----------------------------------------------------------------------------------
-    default:
-      echo '<table numfields="0" numrows="0" error="' . xmlEsc("cmd incorrecto") . '"></table>';
-    break;
+(function(){
+  function asBool(v){
+    if (v === true) return true;
+    if (v === false) return false;
+    if (v == null) return false;
+    const s = String(v).trim().toLowerCase();
+    return (s === 't' || s === 'true' || s === '1' || s === 'si' || s === 'sí');
   }
 
-} catch (Throwable $e) {
-  $err = xmlEsc($e->getMessage());
-  echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
-}
+  function cargarTabla(){
+    var db = new Database();
+    // commandFile debe ser uno de: command.php, server.php, data.php, excel.php (memoria Desis)
+    db.commandFile = 'command.php';
 
-echo "</ROOT>";
+    // Envío estilo Desis: primer parámetro es el cmd
+    db.send('listar', {}, function(){
+      var tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+
+      // Manejo de error de negocio (atributo 'error' del XML)
+      if (db.error && String(db.error).trim() !== ''){
+        alert('Error: ' + db.error);
+        return;
+      }
+
+      var n = Number(db.numrows || 0);
+      for (var i = 0; i < n; i++){
+        var rut       = db.getField('rut', i) || '';
+        var razon     = db.getField('razon_social', i) || '';
+        var cliente   = db.getField('cliente', i);
+        var proveedor = db.getField('proveedor', i);
+
+        var tr = document.createElement('tr');
+        if (asBool(cliente) && asBool(proveedor)){
+          tr.style.background = '#73d7c7';
+        }
+
+        tr.innerHTML =
+          '<td>' + rut + '</td>' +
+          '<td>' + razon + '</td>' +
+          '<td style="text-align:center">' + (asBool(cliente) ? '✔' : '') + '</td>' +
+          '<td style="text-align:center">' + (asBool(proveedor) ? '✔' : '') + '</td>';
+
+        tbody.appendChild(tr);
+      }
+
+      if (n === 0){
+        // Mensaje simple; en proyectos Desis a veces se usa alert()
+        // pero aquí dejamos silencioso
+      }
+    }, function(errMsg){
+      alert('Error de red/servidor: ' + (errMsg || 'desconocido'));
+    });
+  }
+
+  if (document.readyState !== 'loading') cargarTabla();
+  else document.addEventListener('DOMContentLoaded', cargarTabla);
+})();
