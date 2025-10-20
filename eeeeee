@@ -1,35 +1,48 @@
-<?php
-while (!file_exists($POSICION.'conexion.php')) { $POSICION .= '../'; }
-require_once $POSICION.'conexion.php';
-
-$cmd = $_REQUEST['cmd'] ?? '';
-
-switch ($cmd) {
-  case 'listar': {
-    $query = "
-      SELECT
-        idpersona,
-        COALESCE(nombre,'')     AS nombre,
-        COALESCE(apellidos,'')  AS apellidos,
-        TO_CHAR(fechahora,'YYYY-MM-DD HH24:MI') AS fechahora
-      FROM personal.persona
-      WHERE activo = true
-      ORDER BY idpersona DESC
-      LIMIT 50
-    ";
-  } break;
-
-  case 'eliminar': {
-    $id = isset($_REQUEST['idpersona']) ? (int) $_REQUEST['idpersona'] : 0;
-    if ($id <= 0) { die('Parametro invalido'); }
-    $query = "
-      UPDATE personal.persona
-         SET activo = false
-       WHERE idpersona = {$id}
-       RETURNING idpersona
-    ";
-  } break;
-
-  default:
-    die('Comando no valido');
+body {
+  background: #f6f7fb;
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
 }
+
+.container-table {
+  max-width: 1080px;
+  margin: 20px auto;
+  padding: 0 12px;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 2px 14px rgba(0,0,0,.06);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.tabla thead th {
+  background: #f3f5f8;
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 700;
+  border-bottom: 1px solid #e6e9ef;
+}
+
+.tabla tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.tabla tbody tr:hover td {
+  background: #fafbfe;
+}
+
+.btn-danger {
+  background: #f4473a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn-danger:hover { background: #d93c30; }
