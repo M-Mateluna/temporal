@@ -1,56 +1,174 @@
-<?php
-// Subir a raíz y traer cabecera del sistema (carga libs como Prototype y helpers)
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
-?>
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <title>MessageBox — Ejercicio Propuesto 1</title>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f6f7fb;margin:0}
-  </style>
-</head>
-<body>
+// controlador.js — uso de IU_MSGBOX al estilo de los ejemplos
+// Nota: POSICION lo expone el entorno/formHeader; class.php usa esa global.
 
-  <main class="wrap">
-    <h1>MessageBox — Ejercicio Propuesto 1</h1>
+let MSGBOX = {
+  ventana: undefined,
 
-    <table class="ui-table" role="presentation">
-      <tbody>
-        <tr>
-          <td><button id="btnSoloAceptar"           class="btn">Solo Aceptar</button></td>
-          <td><button id="btnAceptarCancelar"       class="btn">Aceptar / Cancelar</button></td>
-        </tr>
-        <tr>
-          <td><button id="btnSiNo"                  class="btn">Sí / No</button></td>
-          <td><button id="btnSiNoCancelar"          class="btn">Sí / No / Cancelar</button></td>
-        </tr>
-        <tr>
-          <td><button id="btnImprimirCancelar"      class="btn">Imprimir / Cancelar</button></td>
-          <td><button id="btnAceptarCancelarAnular" class="btn">Aceptar / Cancelar / Anular</button></td>
-        </tr>
-        <tr>
-          <td colspan="2" class="moneda-row">
-            <label for="selMoneda" class="lbl">Moneda</label>
-            <select id="selMoneda" class="select">
-              <option value=""></option>
-              <option value="EURO">EURO</option>
-              <option value="DÓLAR">DÓLAR</option>
-              <option value="PESO">PESO</option>
-              <option value="SOLES">SOLES</option>
-            </select>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </main>
+  initialize: function () {
+    this.ventana = new IU_MSGBOX();
+  },
 
-  <!-- componente messagebox tal como en tus ejemplos -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-  <!-- controlador del ejercicio -->
-  <script src="controlador.js"></script>
-</body>
-</html>
+  Abrir: function (conf) {
+    this.ventana.titulo = conf.titulo || 'Aviso';
+
+    let texto = conf.texto || '';
+    this.ventana.texto = '<center>' + texto + '</center>';
+
+    // Botonera por defecto 1 (o 3 si prefieres el comportamiento exacto del focus-ejemplo)
+    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
+
+    // Igual que en tus ejemplos
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+
+    // fnretorno es nombre de función (string)
+    this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+
+    // URL base: usa la global POSICION (el componente luego concatena 'componente/messagebox/messagebox.php?...')
+    this.ventana.url = (typeof POSICION !== 'undefined') ? POSICION : '';
+
+    // Posición y payload extra
+    this.ventana.top    = conf.top || '25%';
+    this.ventana.objeto = conf.objeto || {};
+
+    // Estilo del título si se pasa
+    if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
+
+    // Mostrar y setear z-index como en el ejemplo
+    this.ventana.Messagebox();
+    this.ventana.zzIndex = 2;
+  },
+
+  // default
+  fnretorno: function (resp) {
+    MSGBOX.ventana.HideInfo();
+  }
+};
+
+MSGBOX.initialize();
+
+/* =========================
+   Botones del ejercicio
+   ========================= */
+
+let btnSoloAceptar           = document.getElementById('btnSoloAceptar');
+let btnAceptarCancelar       = document.getElementById('btnAceptarCancelar');
+let btnSiNo                  = document.getElementById('btnSiNo');
+let btnSiNoCancelar          = document.getElementById('btnSiNoCancelar');
+let btnImprimirCancelar      = document.getElementById('btnImprimirCancelar');
+let btnAceptarCancelarAnular = document.getElementById('btnAceptarCancelarAnular');
+let selMoneda                = document.getElementById('selMoneda');
+
+// 1) Solo Aceptar
+btnSoloAceptar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Información',
+    texto: 'Este MessageBox solo muestra el botón Aceptar.',
+    botonera: 1,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'retGenerico'
+  });
+});
+
+// 2) Aceptar / Cancelar
+btnAceptarCancelar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Confirmación',
+    texto: '¿Desea continuar con la acción?',
+    botonera: 2,
+    titulocss: 'titulonaranjamsgbox',
+    fnretorno: 'retGenerico'
+  });
+});
+
+// 3) Sí / No
+btnSiNo.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Pregunta',
+    texto: '¿Confirma su selección?',
+    botonera: 3,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'retGenerico'
+  });
+});
+
+// 4) Sí / No / Cancelar
+btnSiNoCancelar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Guardar cambios',
+    texto: '¿Deseas guardar antes de salir?',
+    botonera: 4,
+    titulocss: 'titulonaranjamsgbox',
+    fnretorno: 'retGenerico'
+  });
+});
+
+// 5) Imprimir / Cancelar (retorna 'I' o 'C')
+btnImprimirCancelar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Impresión',
+    texto: '¿Desea imprimir el documento actual?',
+    botonera: 5,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'retImprimir'
+  });
+});
+
+// 6) Aceptar / Cancelar / Anular
+btnAceptarCancelarAnular.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Estado de operación',
+    texto: 'Selecciona el estado de la operación.',
+    botonera: 6,
+    titulocss: 'titulonaranjamsgbox',
+    fnretorno: 'retGenerico'
+  });
+});
+
+/* =========================
+   Select de moneda
+   ========================= */
+
+selMoneda.addEventListener('change', function () {
+  let moneda = selMoneda.value;
+  if (moneda === '') return;
+
+  // 1er cuadro: Sí/No
+  MSGBOX.Abrir({
+    titulocss: 'titulorojomsgbox',
+    titulo: 'Moneda',
+    texto: '&#191;Desea mostrar el tipo de moneda escogido?',
+    botonera: 3,
+    conCerrar: false,
+    fnretorno: 'retMonedaConfirm',
+    objeto: { moneda: moneda }
+  });
+});
+
+/* =========================
+   Callbacks globales
+   ========================= */
+
+function retGenerico(resp) {
+  // resp: 'A','C','S','N','I','L'
+  MSGBOX.ventana.HideInfo();
+}
+
+function retImprimir(resp) {
+  if (resp === 'I') { window.print(); }
+  MSGBOX.ventana.HideInfo();
+}
+
+function retMonedaConfirm(resp) {
+  if (resp === 'S') {
+    let moneda = MSGBOX.ventana.objeto.moneda || '';
+    MSGBOX.Abrir({
+      titulocss: 'titulonaranjamsgbox',
+      titulo: 'Moneda',
+      texto: 'La moneda escogida es ' + moneda,
+      botonera: 1, // Aceptar
+      fnretorno: 'retGenerico',
+      conCerrar: true
+    });
+  }
+  MSGBOX.ventana.HideInfo();
+}
