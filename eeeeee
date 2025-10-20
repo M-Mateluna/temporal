@@ -1,38 +1,35 @@
 <?php
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Personas (activo = true)</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div class="container-table">
-    <table class="tabla">
-      <colgroup>
-        <col style="width:25%">
-        <col style="width:35%">
-        <col style="width:25%">
-        <col style="width:15%">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Apellidos</th>
-          <th>FechaHora</th>
-          <th>Acci&oacute;n</th>
-        </tr>
-      </thead>
-      <tbody id="tbody-personas"></tbody>
-    </table>
-  </div>
+while (!file_exists($POSICION.'conexion.php')) { $POSICION .= '../'; }
+require_once $POSICION.'conexion.php';
 
-  <script>var posicion = "<?=$POSICION?>";</script>
-  <script src="<?=$POSICION?>componente/database/class.php"></script>
-  <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-  <script src="controlador.js"></script>
-</body>
-</html>
+$cmd = $_REQUEST['cmd'] ?? '';
+
+switch ($cmd) {
+  case 'listar': {
+    $query = "
+      SELECT
+        idpersona,
+        COALESCE(nombre,'')     AS nombre,
+        COALESCE(apellidos,'')  AS apellidos,
+        TO_CHAR(fechahora,'YYYY-MM-DD HH24:MI') AS fechahora
+      FROM personal.persona
+      WHERE activo = true
+      ORDER BY idpersona DESC
+      LIMIT 50
+    ";
+  } break;
+
+  case 'eliminar': {
+    $id = isset($_REQUEST['idpersona']) ? (int) $_REQUEST['idpersona'] : 0;
+    if ($id <= 0) { die('Parametro invalido'); }
+    $query = "
+      UPDATE personal.persona
+         SET activo = false
+       WHERE idpersona = {$id}
+       RETURNING idpersona
+    ";
+  } break;
+
+  default:
+    die('Comando no valido');
+}
