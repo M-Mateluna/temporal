@@ -1,72 +1,70 @@
-// controlador.js — Dependencia entre selects con BASE (class.php)
+// controlador.js — Ejercicio 2: Dependencia entre Selects (Desis)
 
-(function () {
+let BD = new BASE();
+BD.commandFile = 'command.php'; // misma carpeta que index.php
 
-  // Ajusta la ruta si tu carpeta tiene espacios o está en otra ubicación.
-  // Si está en la MISMA carpeta que index.php, así está bien:
-  const BD = new BASE();
-  BD.commandFile = 'command.php';
+let selRegion = document.getElementById('selRegion');
+let selComuna = document.getElementById('selComuna');
 
-  const selRegion = document.getElementById('selRegion');
-  const selComuna = document.getElementById('selComuna');
+// Limpia el select y agrega opción vacía
+let clearAndAddEmpty = function(selectEl) {
+  selectEl.innerHTML = '';
+  let opt = document.createElement('option');
+  opt.value = '';
+  opt.textContent = ''; // opción por defecto vacía
+  selectEl.appendChild(opt);
+};
 
-  // Helpers
-  function clearAndAddEmpty(selectEl) {
-    selectEl.innerHTML = '';
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.textContent = '';              // opción vacía (por defecto)
-    selectEl.appendChild(opt);
+// Cargar regiones
+let cargarRegiones = function() {
+  clearAndAddEmpty(selRegion);
+  clearAndAddEmpty(selComuna);
+
+  let RS = BD.send('cmd=regiones');
+  if (RS.error && RS.error.trim() !== '') {
+    alert('Error: ' + RS.error);
+    return;
   }
 
-  function loadRegiones() {
-    clearAndAddEmpty(selRegion);
-    clearAndAddEmpty(selComuna);
+  for (let i = 0; i < Number(RS.numrows || 0); i++) {
+    let idregion = BD.getField(RS, 'idregion', i);
+    let nombre   = BD.getField(RS, 'nombre', i);
 
-    const RS = BD.send('cmd=regiones');
-    if (RS.error && RS.error.trim() !== '') {
-      alert('Error: ' + RS.error);
-      return;
-    }
+    let opt = document.createElement('option');
+    opt.value = idregion;
+    opt.textContent = nombre;
+    selRegion.appendChild(opt);
+  }
+};
 
-    for (let i = 0; i < Number(RS.numrows || 0); i++) {
-      let id    = BD.getField(RS, 'idregion', i);
-      let nombre = BD.getField(RS, 'nombre', i);
+// Cargar comunas según la región seleccionada
+let cargarComunas = function(idregion) {
+  clearAndAddEmpty(selComuna);
+  if (!idregion) return;
 
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = nombre;
-      selRegion.appendChild(opt);
-    }
+  let RS = BD.send('cmd=comunas&idregion=' + encodeURIComponent(idregion));
+  if (RS.error && RS.error.trim() !== '') {
+    alert('Error: ' + RS.error);
+    return;
   }
 
-  function loadComunasByRegion(idregion) {
-    clearAndAddEmpty(selComuna);
-    if (!idregion) return;
+  for (let i = 0; i < Number(RS.numrows || 0); i++) {
+    let idcomuna = BD.getField(RS, 'idcomuna', i);
+    let nombre   = BD.getField(RS, 'nombre', i);
 
-    const RS = BD.send('cmd=comunas&idregion=' + encodeURIComponent(idregion));
-    if (RS.error && RS.error.trim() !== '') {
-      alert('Error: ' + RS.error);
-      return;
-    }
-
-    for (let i = 0; i < Number(RS.numrows || 0); i++) {
-      let id    = BD.getField(RS, 'idcomuna', i);
-      let nombre = BD.getField(RS, 'nombre', i);
-
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = nombre;
-      selComuna.appendChild(opt);
-    }
+    let opt = document.createElement('option');
+    opt.value = idcomuna;
+    opt.textContent = nombre;
+    selComuna.appendChild(opt);
   }
+};
 
-  // Eventos
-  selRegion.addEventListener('change', () => {
-    loadComunasByRegion(selRegion.value);
-  });
+// Evento: al cambiar la región
+selRegion.addEventListener('change', function() {
+  cargarComunas(selRegion.value);
+});
 
-  // Init
-  if (document.readyState !== 'loading') loadRegiones();
-  else document.addEventListener('DOMContentLoaded', loadRegiones);
-})();
+// Inicializar al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+  cargarRegiones();
+});
