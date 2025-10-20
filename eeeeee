@@ -1,8 +1,13 @@
+<?php
+// Resolver posición para cargar el componente
+$POSICION = './';
+while (!file_exists($POSICION.'componente/messagebox/class.php')) { $POSICION .= '../'; }
+?>
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ejercicio — MessageBox</title>
+  <title>MessageBox — Ejercicio Propuesto 1</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,19 +17,19 @@
     <table class="ui-table" role="presentation">
       <tbody>
         <tr>
-          <td><button id="btnAceptar"          class="btn">Solo Aceptar</button></td>
-          <td><button id="btnAceptarCancelar"  class="btn">Aceptar / Cancelar</button></td>
+          <td><button id="btnSoloAceptar"          class="btn">Solo Aceptar</button></td>
+          <td><button id="btnAceptarCancelar"      class="btn">Aceptar / Cancelar</button></td>
         </tr>
         <tr>
-          <td><button id="btnSiNo"             class="btn">Sí / No</button></td>
-          <td><button id="btnSiNoCancelar"     class="btn">Sí / No / Cancelar</button></td>
+          <td><button id="btnSiNo"                 class="btn">Sí / No</button></td>
+          <td><button id="btnSiNoCancelar"         class="btn">Sí / No / Cancelar</button></td>
         </tr>
         <tr>
-          <td><button id="btnImprimirCancelar" class="btn">Imprimir / Cancelar</button></td>
-          <td><button id="btnAceptarAnular"    class="btn">Aceptar / Cancelar / Anular</button></td>
+          <td><button id="btnImprimirCancelar"     class="btn">Imprimir / Cancelar</button></td>
+          <td><button id="btnAceptarCancelarAnular" class="btn">Aceptar / Cancelar / Anular</button></td>
         </tr>
         <tr>
-          <td colspan="2">
+          <td colspan="2" class="moneda-row">
             <label for="selMoneda" class="lbl">Moneda</label>
             <select id="selMoneda" class="select">
               <option value=""></option>
@@ -39,6 +44,9 @@
     </table>
   </main>
 
-  <script src="controlador.js"></script>
+  <!-- Componente MessageBox del sistema -->
+  <script src="<?= $POSICION ?>componente/messagebox/class.php" defer></script>
+  <!-- Lógica del ejercicio -->
+  <script src="controlador.js" defer></script>
 </body>
 </html>
