@@ -1,79 +1,27 @@
-/* ==========================
-   styles.css — MessageBox Ejercicio 1
-   ========================== */
+<div class="container">
+  <h2>MessageBox : Ejercicio Propuesto 1</h2>
 
-/* General */
-body {
-  background-color: #f5f5f5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-}
+  <div class="group">
+    <button id="btnSoloAceptar">Solo Aceptar</button>
+    <button id="btnAceptarCancelar">Aceptar / Cancelar</button>
+  </div>
+  <div class="group">
+    <button id="btnSiNo">Sí / No</button>
+    <button id="btnSiNoCancelar">Sí / No / Cancelar</button>
+  </div>
+  <div class="group">
+    <button id="btnImprimirCancelar">Imprimir / Cancelar</button>
+    <button id="btnAceptarCancelarAnular">Aceptar / Cancelar / Anular</button>
+  </div>
 
-/* Contenedor principal */
-.container {
-  background: white;
-  padding: 30px 40px;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-  text-align: center;
-}
-
-/* Título */
-h2 {
-  color: #333;
-  margin-bottom: 25px;
-  font-size: 20px;
-}
-
-/* Botones */
-button {
-  margin: 5px;
-  padding: 10px 18px;
-  font-size: 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background-color: #0078d4;
-  color: white;
-  transition: background-color 0.2s ease;
-}
-
-button:hover {
-  background-color: #005fa3;
-}
-
-/* Select de moneda */
-select {
-  margin-top: 10px;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-/* Espaciado entre grupos */
-.group {
-  margin-bottom: 10px;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-  .container {
-    width: 90%;
-    padding: 20px;
-  }
-
-  button {
-    width: 100%;
-    margin-bottom: 8px;
-  }
-
-  select {
-    width: 100%;
-  }
-}
+  <div class="group">
+    <label for="selMoneda">Moneda</label>
+    <select id="selMoneda">
+      <option value="">Seleccione...</option>
+      <option value="EURO">EURO</option>
+      <option value="DÓLAR">DÓLAR</option>
+      <option value="PESO">PESO</option>
+      <option value="SOLES">SOLES</option>
+    </select>
+  </div>
+</div>
