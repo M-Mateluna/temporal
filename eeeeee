@@ -1,17 +1,6 @@
-// controlador.js — versión mínima (1 botón) con IU_MSGBOX
-// No modificamos el componente. Forzamos la base desde JS.
+// controlador.js — MessageBox (usa $POSICION entregado por index como 'posicion')
+// Solo LET. Sin autodetección de rutas. Sin tocar componentes.
 
-// 1) Detecta la raíz del sistema sin tocar componentes.
-//    Si en tu index defines:  var posicion = "/mmateluna202510/";  esto lo usará.
-//    Si no, intenta deducirla desde la URL actual.
-let ROOT = (typeof posicion !== 'undefined' && posicion)
-  ? posicion
-  : (function () {
-      let m = location.pathname.match(/^(\/mmateluna\d+\/)/);
-      return m ? m[1] : '/';
-    })();
-
-// 2) Wrapper igual al de tus ejemplos
 let MSGBOX = {
   ventana: undefined,
 
@@ -20,26 +9,24 @@ let MSGBOX = {
   },
 
   Abrir: function (conf) {
+    // Título y texto centrado
     this.ventana.titulo = conf.titulo || 'Aviso';
-
     let texto = conf.texto || '';
     this.ventana.texto = '<center>' + texto + '</center>';
 
-    // Botonera: 1=Aceptar (empezamos con el primer botón)
+    // Botonera (1 = Aceptar)
     this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
 
-    // Igual a tus ejemplos
+    // Comportamiento/estilos opcionales
     this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
     this.ventana.fnretorno = conf.fnretorno || 'retGenerico';
-
-    // *** clave: forzar base hacia la raíz real, sin tocar el componente ***
-    this.ventana.url = ROOT;                 // p. ej. "/mmateluna202510/"
-
-    // Opcionales
-    this.ventana.top    = conf.top || '25%';
-    this.ventana.objeto = conf.objeto || {};
     if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
 
+    // 🔑 Base URL del componente desde PHP ($POSICION)
+    this.ventana.url = (typeof posicion !== 'undefined') ? posicion : '';
+
+    this.ventana.top    = conf.top || '25%';
+    this.ventana.objeto = conf.objeto || {};
     this.ventana.Messagebox();
     this.ventana.zzIndex = 2;
   }
@@ -47,22 +34,22 @@ let MSGBOX = {
 
 MSGBOX.initialize();
 
-// === 3) Lógica del primer botón ===
+// --- Ejemplo: botón “Solo Aceptar” ---
 let btnSoloAceptar = document.getElementById('btnSoloAceptar');
 if (btnSoloAceptar) {
   btnSoloAceptar.addEventListener('click', function () {
     MSGBOX.Abrir({
       titulo: 'Información',
       texto: 'Este MessageBox solo muestra el botón Aceptar.',
-      botonera: 1,                          // Aceptar
+      botonera: 1,
       titulocss: 'titulorojomsgbox',
-      fnretorno: 'retGenerico'
+      fnretorno: 'retGenerico',
+      conCerrar: false
     });
   });
 }
 
-// 4) Callback genérico (cierra)
+// Retorno genérico (cierra)
 function retGenerico(resp) {
-  // resp puede ser 'A', 'C', 'S', 'N', 'I', 'L' según la botonera
   MSGBOX.ventana.HideInfo();
 }
