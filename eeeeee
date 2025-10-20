@@ -1,37 +1,72 @@
-(function () {
-  let BD = new BASE();
-  // Usa la ruta correcta para tu proyecto (si hay espacios, %20)
-  BD.commandFile = 'form/trainig/Database/Ejercicio1/command.php';
+// controlador.js — Dependencia entre selects con BASE (class.php)
 
-  function cargarTabla() {
-    let RS = BD.send('cmd=listar');
+(function () {
+
+  // Ajusta la ruta si tu carpeta tiene espacios o está en otra ubicación.
+  // Si está en la MISMA carpeta que index.php, así está bien:
+  const BD = new BASE();
+  BD.commandFile = 'command.php';
+
+  const selRegion = document.getElementById('selRegion');
+  const selComuna = document.getElementById('selComuna');
+
+  // Helpers
+  function clearAndAddEmpty(selectEl) {
+    selectEl.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '';              // opción vacía (por defecto)
+    selectEl.appendChild(opt);
+  }
+
+  function loadRegiones() {
+    clearAndAddEmpty(selRegion);
+    clearAndAddEmpty(selComuna);
+
+    const RS = BD.send('cmd=regiones');
     if (RS.error && RS.error.trim() !== '') {
       alert('Error: ' + RS.error);
       return;
     }
 
-    let tbody = document.getElementById('tbody');
-    tbody.innerHTML = '';
-
     for (let i = 0; i < Number(RS.numrows || 0); i++) {
-      let rut       = BD.getField(RS, 'rut', i);
-      let razon     = BD.getField(RS, 'razonsocial', i); // alias del SQL
-      let cliente   = BD.getField(RS, 'cliente', i);     // 't' | 'f'
-      let proveedor = BD.getField(RS, 'proveedor', i);   // 't' | 'f'
+      let id    = BD.getField(RS, 'idregion', i);
+      let nombre = BD.getField(RS, 'nombre', i);
 
-      let tr = document.createElement('tr');
-      if (cliente === 't' && proveedor === 't') tr.style.background = '#73d7c7';
-
-      tr.innerHTML =
-        `<td>${rut}</td>` +
-        `<td>${razon}</td>` +
-        `<td style="text-align:center"><input type="checkbox" ${cliente === 't' ? 'checked' : ''} disabled></td>` +
-        `<td style="text-align:center"><input type="checkbox" ${proveedor === 't' ? 'checked' : ''} disabled></td>`;
-
-      tbody.appendChild(tr);
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = nombre;
+      selRegion.appendChild(opt);
     }
   }
 
-  if (document.readyState !== 'loading') cargarTabla();
-  else document.addEventListener('DOMContentLoaded', cargarTabla);
+  function loadComunasByRegion(idregion) {
+    clearAndAddEmpty(selComuna);
+    if (!idregion) return;
+
+    const RS = BD.send('cmd=comunas&idregion=' + encodeURIComponent(idregion));
+    if (RS.error && RS.error.trim() !== '') {
+      alert('Error: ' + RS.error);
+      return;
+    }
+
+    for (let i = 0; i < Number(RS.numrows || 0); i++) {
+      let id    = BD.getField(RS, 'idcomuna', i);
+      let nombre = BD.getField(RS, 'nombre', i);
+
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = nombre;
+      selComuna.appendChild(opt);
+    }
+  }
+
+  // Eventos
+  selRegion.addEventListener('change', () => {
+    loadComunasByRegion(selRegion.value);
+  });
+
+  // Init
+  if (document.readyState !== 'loading') loadRegiones();
+  else document.addEventListener('DOMContentLoaded', loadRegiones);
 })();
