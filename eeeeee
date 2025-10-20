@@ -1,5 +1,7 @@
-// controlador.js — MessageBox (IU_MSGBOX) + 6 botones + select de moneda
-// Requisitos del componente: <div id="MSGBOX_"></div> y <div id="MSGBOX_OL_"></div> en el HTML.
+// controlador.js — Ejercicio MessageBox según tu ejemplo de uso
+
+// Requiere que el index tenga cargado: <?=$POSICION?>componente/messagebox/class.php
+// y contenedores #MSGBOX_ y #MSGBOX_OL_ en el DOM (los agrega el framework base).
 
 let MSGBOX = {
   ventana: undefined,
@@ -9,148 +11,163 @@ let MSGBOX = {
   },
 
   Abrir: function (conf) {
-    // Título y texto
+    // Título y texto centrado
     this.ventana.titulo = conf.titulo || 'Aviso';
     let texto = conf.texto || '';
     this.ventana.texto = '<center>' + texto + '</center>';
 
-    // Botonera:
-    // 1: Aceptar
-    // 2: Aceptar/Cancelar
-    // 3: Sí/No
-    // 4: Sí/No/Cancelar
-    // 5: Imprimir/Cancelar
-    // 6: Aceptar/Cancelar/Anular
-    this.ventana.botonera = (conf.botonera != null) ? String(conf.botonera) : '1';
+    // Botonera por defecto 3 (Sí/No) como en tu ejemplo
+    // 1: Aceptar | 2: Aceptar/Cancelar | 3: Sí/No | 4: Sí/No/Cancelar | 5: Imprimir/Cancelar | 6: Aceptar/Cancelar/Anular
+    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 3;
 
-    // Estilo del título
-    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+    // Mantén el mismo manejo de conCerrar que tu ejemplo
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
 
-    // Comportamiento de cierre (X)
-    this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    // Nombre de función global para el retorno
+    this.ventana.fnretorno = conf.fnretorno || 'opcion';
 
-    // Callback (nombre de función global que recibirá la letra de retorno)
-    this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
-
-    // Objeto auxiliar para pasar datos entre llamadas
-    this.ventana.objeto = conf.objeto || {};
-
-    // Prefijo de URL (usa la global POSICION definida en el componente)
-    // El propio componente hará: this.url + 'componente/messagebox/messagebox.php?...'
+    // La URL base del componente (como en tu ejemplo, pero sin PHP en el .js)
     this.ventana.url = (typeof POSICION !== 'undefined') ? POSICION : '';
 
-    // Mostrar
-    this.ventana.Messagebox();
-  },
+    // Ubicación y objeto auxiliar
+    this.ventana.top    = conf.top || '25%';
+    this.ventana.objeto = conf.objeto || {};
 
-  // Callback por defecto (cierra)
-  fnretorno: function (resp) {
-    MSGBOX.ventana.HideInfo();
+    // Estilo del título si te interesa colorearlo
+    if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
+
+    // Mostrar el messagebox y ajustar z-index tal cual tu ejemplo
+    this.ventana.Messagebox();
+    this.ventana.zzIndex = 2;
   }
 };
 
 MSGBOX.initialize();
 
-// ====== Referencias a la UI ======
-let btnSoloAceptar            = document.getElementById('btnSoloAceptar');
-let btnAceptarCancelar        = document.getElementById('btnAceptarCancelar');
-let btnSiNo                   = document.getElementById('btnSiNo');
-let btnSiNoCancelar           = document.getElementById('btnSiNoCancelar');
-let btnImprimirCancelar       = document.getElementById('btnImprimirCancelar');
-let btnAceptarCancelarAnular  = document.getElementById('btnAceptarCancelarAnular');
-let selMoneda                 = document.getElementById('selMoneda');
+/* ============================
+   BOTONES DEL EJERCICIO (6)
+   ============================ */
 
-// ====== Botón 1: Solo Aceptar ======
+// 1) Solo Aceptar (botonera 1)
+let btnSoloAceptar = document.getElementById('btnSoloAceptar');
 btnSoloAceptar.addEventListener('click', function () {
   MSGBOX.Abrir({
-    titulocss: 'titulorojomsgbox',
     titulo: 'Información',
     texto: 'Este MessageBox solo muestra el botón Aceptar.',
-    botonera: 1
+    botonera: 1,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'retGenerico'
   });
 });
 
-// ====== Botón 2: Aceptar / Cancelar ======
+// 2) Aceptar / Cancelar (botonera 2)
+let btnAceptarCancelar = document.getElementById('btnAceptarCancelar');
 btnAceptarCancelar.addEventListener('click', function () {
   MSGBOX.Abrir({
-    titulocss: 'titulonaranjamsgbox',
     titulo: 'Confirmación',
     texto: '¿Desea continuar con la acción?',
-    botonera: 2
+    botonera: 2,
+    titulocss: 'titulonaranjamsgbox',
+    fnretorno: 'retGenerico'
   });
 });
 
-// ====== Botón 3: Sí / No ======
+// 3) Sí / No (botonera 3)
+let btnSiNo = document.getElementById('btnSiNo');
 btnSiNo.addEventListener('click', function () {
   MSGBOX.Abrir({
-    titulocss: 'titulorojomsgbox',
     titulo: 'Pregunta',
     texto: '¿Confirma su selección?',
-    botonera: 3
+    botonera: 3,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'retGenerico'
   });
 });
 
-// ====== Botón 4: Sí / No / Cancelar ======
+// 4) Sí / No / Cancelar (botonera 4)
+let btnSiNoCancelar = document.getElementById('btnSiNoCancelar');
 btnSiNoCancelar.addEventListener('click', function () {
   MSGBOX.Abrir({
-    titulocss: 'titulonaranjamsgbox',
     titulo: 'Guardar cambios',
     texto: '¿Deseas guardar antes de salir?',
-    botonera: 4
+    botonera: 4,
+    titulocss: 'titulonaranjamsgbox',
+    fnretorno: 'retGenerico'
   });
 });
 
-// ====== Botón 5: Imprimir / Cancelar ======
+// 5) Imprimir / Cancelar (botonera 5)
+let btnImprimirCancelar = document.getElementById('btnImprimirCancelar');
 btnImprimirCancelar.addEventListener('click', function () {
   MSGBOX.Abrir({
-    titulocss: 'titulorojomsgbox',
     titulo: 'Impresión',
     texto: '¿Desea imprimir el documento actual?',
     botonera: 5,
-    fnretorno: 'fnRetornoImprimir'
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'retImprimir'
   });
 });
 
-// ====== Botón 6: Aceptar / Cancelar / Anular ======
+// 6) Aceptar / Cancelar / Anular (botonera 6)
+let btnAceptarCancelarAnular = document.getElementById('btnAceptarCancelarAnular');
 btnAceptarCancelarAnular.addEventListener('click', function () {
   MSGBOX.Abrir({
-    titulocss: 'titulonaranjamsgbox',
     titulo: 'Estado de operación',
     texto: 'Selecciona el estado de la operación.',
-    botonera: 6
+    botonera: 6,
+    titulocss: 'titulonaranjamsgbox',
+    fnretorno: 'retGenerico'
   });
 });
 
-// ====== Select de moneda: flujo Sí/No -> Aceptar ======
+/* ===================================
+   SELECT DE MONEDA (flujo según enunciado)
+   =================================== */
+
+let selMoneda = document.getElementById('selMoneda');
 selMoneda.addEventListener('change', function () {
   let moneda = selMoneda.value;
-  if (!moneda) return;
+  if (moneda === '') return;
 
-  // 1er MessageBox: confirmación
+  // Primer messagebox: confirmación Sí/No (botonera 3)
   MSGBOX.Abrir({
     titulocss: 'titulorojomsgbox',
     titulo: 'Moneda',
-    texto: '¿Desea mostrar el tipo de moneda escogido?',
-    botonera: 3, // Sí/No
-    fnretorno: 'fnMonedaConfirm',
+    texto: '&#191;Desea mostrar el tipo de moneda escogido?',
+    botonera: 3,
+    conCerrar: false,
+    fnretorno: 'retMonedaConfirm',
     objeto: { moneda: moneda }
   });
 });
 
-// ====== Callbacks globales requeridos por el componente ======
-function fnRetornoImprimir(resp) {
+/* ============================
+   FUNCIONES DE RETORNO (globales)
+   ============================ */
+
+// Genérico: cierra sin acción
+function retGenerico(resp) {
+  // resp puede ser: 'A','C','S','N','I','L'
+  MSGBOX.ventana.HideInfo();
+}
+
+// Imprimir/Cancelar (botonera 5: 'I' = Imprimir, 'C' = Cancelar)
+function retImprimir(resp) {
   if (resp === 'I') { window.print(); }
   MSGBOX.ventana.HideInfo();
 }
 
-function fnMonedaConfirm(resp) {
+// Moneda: si 'S', mostrar segundo messagebox con la moneda
+function retMonedaConfirm(resp) {
   if (resp === 'S') {
     let moneda = MSGBOX.ventana.objeto.moneda || '';
     MSGBOX.Abrir({
       titulocss: 'titulonaranjamsgbox',
       titulo: 'Moneda',
       texto: 'La moneda escogida es ' + moneda,
-      botonera: 1 // Aceptar
+      botonera: 1, // Aceptar
+      fnretorno: 'retGenerico',
+      conCerrar: true
     });
   }
   MSGBOX.ventana.HideInfo();
