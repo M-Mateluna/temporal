@@ -1,5 +1,4 @@
-// controlador.js — MessageBox (usa $POSICION entregado por index como 'posicion')
-// Solo LET. Sin autodetección de rutas. Sin tocar componentes.
+// controlador.js — mínimo (un botón), usando $POSICION vía 'posicion' del index
 
 let MSGBOX = {
   ventana: undefined,
@@ -9,21 +8,20 @@ let MSGBOX = {
   },
 
   Abrir: function (conf) {
-    // Título y texto centrado
     this.ventana.titulo = conf.titulo || 'Aviso';
     let texto = conf.texto || '';
     this.ventana.texto = '<center>' + texto + '</center>';
 
-    // Botonera (1 = Aceptar)
+    // 1 = Aceptar (para este primer botón)
     this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
 
-    // Comportamiento/estilos opcionales
+    // Igual al ejemplo
     this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
     this.ventana.fnretorno = conf.fnretorno || 'retGenerico';
     if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
 
-    // 🔑 Base URL del componente desde PHP ($POSICION)
-    this.ventana.url = (typeof posicion !== 'undefined') ? posicion : '';
+    // 🔑 raíz absoluta que viene del index (usando $POSICION)
+    this.ventana.url = posicion;
 
     this.ventana.top    = conf.top || '25%';
     this.ventana.objeto = conf.objeto || {};
@@ -34,14 +32,14 @@ let MSGBOX = {
 
 MSGBOX.initialize();
 
-// --- Ejemplo: botón “Solo Aceptar” ---
+// --- Botón: “Solo Aceptar” ---
 let btnSoloAceptar = document.getElementById('btnSoloAceptar');
 if (btnSoloAceptar) {
   btnSoloAceptar.addEventListener('click', function () {
     MSGBOX.Abrir({
       titulo: 'Información',
       texto: 'Este MessageBox solo muestra el botón Aceptar.',
-      botonera: 1,
+      botonera: 1, // Aceptar
       titulocss: 'titulorojomsgbox',
       fnretorno: 'retGenerico',
       conCerrar: false
@@ -49,7 +47,7 @@ if (btnSoloAceptar) {
   });
 }
 
-// Retorno genérico (cierra)
+// Callback genérico (cierra)
 function retGenerico(resp) {
   MSGBOX.ventana.HideInfo();
 }
