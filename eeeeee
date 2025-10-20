@@ -1,24 +1,57 @@
-<?php
-/**
- * conexion.php
- * Estándar Desis (facturacion.cl)
- * ----------------------------------------
- * Este archivo establece la conexión a la base de datos PostgreSQL.
- * Se incluye en los archivos como command.php, server.php, data.php, etc.
- * Debe definir la variable global $conn.
- * ----------------------------------------
- */
+// controlador.js — para BASE (class.php que mostraste)
 
-$conn = pg_connect("
-  host=192.168.1.11
-  port=5432
-  dbname=nombrebasedatos
-  user=externo
-  password=desis123
-");
+(function () {
+  function asBool(v){
+    if (v === true) return true;
+    if (v == null) return false;
+    const s = String(v).trim().toLowerCase();
+    return (s === 't' || s === 'true' || s === '1' || s === 'si' || s === 'sí');
+  }
 
-if (!$conn) {
-  // En Desis, normalmente se detiene la ejecución si no hay conexión
-  die("Error de conexión a la base de datos: " . pg_last_error());
-}
-?>
+  function cargarTabla(){
+    if (typeof BASE === 'undefined'){
+      alert('No se pudo cargar BASE (class.php)');
+      return;
+    }
+
+    var db = new BASE();
+    db.commandFile = 'command.php';   // tu backend
+
+    // BASE usa querystring y devuelve el resultado en db.result
+    db.send('cmd=listar');
+
+    var RS = db.result;               // <<--- AQUÍ vienen numrows, error y data
+
+    // error de negocio (atributo error en <table>)
+    if (RS && RS.error && String(RS.error).trim() !== ''){
+      alert('Error: ' + RS.error);
+      return;
+    }
+
+    var tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+
+    var n = Number(RS ? RS.numrows : 0);
+    for (var i = 0; i < n; i++){
+      var rut       = db.getField(RS, 'rut', i) || '';
+      var razon     = db.getField(RS, 'razon_social', i) || '';
+      var cliente   = db.getField(RS, 'cliente', i);
+      var proveedor = db.getField(RS, 'proveedor', i);
+
+      var tr = document.createElement('tr');
+      if (asBool(cliente) && asBool(proveedor)){
+        tr.style.background = '#73d7c7';
+      }
+
+      tr.innerHTML =
+        '<td>' + rut + '</td>' +
+        '<td>' + razon + '</td>' +
+        '<td style="text-align:center">' + (asBool(cliente) ? '✔' : '') + '</td>' +
+        '<td style="text-align:center">' + (asBool(proveedor) ? '✔' : '') + '</td>';
+      tbody.appendChild(tr);
+    }
+  }
+
+  if (document.readyState !== 'loading') cargarTabla();
+  else document.addEventListener('DOMContentLoaded', cargarTabla);
+})();
