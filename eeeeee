@@ -1,18 +1,42 @@
-/* Botones uniformes */
-button {
-  background-color: #0078d4;
-  color: #fff;
-  font-size: 14px;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 0;
-  cursor: pointer;
-  transition: background 0.3s ease;
-  width: 200px;           /* 🔹 ancho fijo */
-  height: 45px;           /* 🔹 altura uniforme */
-  display: inline-block;  /* asegura que respeten el tamaño */
-}
+<?php
+// Subir a la raíz del sistema
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Personas (activo = true)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container-table">
+    <table class="tabla">
+      <colgroup>
+        <col style="width:25%">
+        <col style="width:35%">
+        <col style="width:25%">
+        <col style="width:15%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Apellidos</th>
+          <th>FechaHora</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-personas"></tbody>
+    </table>
+  </div>
 
-button:hover {
-  background-color: #005fa3;
-}
+  <!-- Componentes del sistema -->
+  <script>var posicion = "<?=$POSICION?>";</script>
+  <script src="<?=$POSICION?>componente/database/class.php"></script>
+  <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+
+  <!-- Controlador del ejercicio -->
+  <script src="controlador.js"></script>
+</body>
+</html>
