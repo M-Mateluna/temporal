@@ -1,174 +1,56 @@
-// controlador.js — Ejercicio MessageBox según tu ejemplo de uso
+<?php
+// Subir a raíz y traer cabecera del sistema (carga libs como Prototype y helpers)
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>MessageBox — Ejercicio Propuesto 1</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f6f7fb;margin:0}
+  </style>
+</head>
+<body>
 
-// Requiere que el index tenga cargado: <?=$POSICION?>componente/messagebox/class.php
-// y contenedores #MSGBOX_ y #MSGBOX_OL_ en el DOM (los agrega el framework base).
+  <main class="wrap">
+    <h1>MessageBox — Ejercicio Propuesto 1</h1>
 
-let MSGBOX = {
-  ventana: undefined,
+    <table class="ui-table" role="presentation">
+      <tbody>
+        <tr>
+          <td><button id="btnSoloAceptar"           class="btn">Solo Aceptar</button></td>
+          <td><button id="btnAceptarCancelar"       class="btn">Aceptar / Cancelar</button></td>
+        </tr>
+        <tr>
+          <td><button id="btnSiNo"                  class="btn">Sí / No</button></td>
+          <td><button id="btnSiNoCancelar"          class="btn">Sí / No / Cancelar</button></td>
+        </tr>
+        <tr>
+          <td><button id="btnImprimirCancelar"      class="btn">Imprimir / Cancelar</button></td>
+          <td><button id="btnAceptarCancelarAnular" class="btn">Aceptar / Cancelar / Anular</button></td>
+        </tr>
+        <tr>
+          <td colspan="2" class="moneda-row">
+            <label for="selMoneda" class="lbl">Moneda</label>
+            <select id="selMoneda" class="select">
+              <option value=""></option>
+              <option value="EURO">EURO</option>
+              <option value="DÓLAR">DÓLAR</option>
+              <option value="PESO">PESO</option>
+              <option value="SOLES">SOLES</option>
+            </select>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </main>
 
-  initialize: function () {
-    this.ventana = new IU_MSGBOX();
-  },
-
-  Abrir: function (conf) {
-    // Título y texto centrado
-    this.ventana.titulo = conf.titulo || 'Aviso';
-    let texto = conf.texto || '';
-    this.ventana.texto = '<center>' + texto + '</center>';
-
-    // Botonera por defecto 3 (Sí/No) como en tu ejemplo
-    // 1: Aceptar | 2: Aceptar/Cancelar | 3: Sí/No | 4: Sí/No/Cancelar | 5: Imprimir/Cancelar | 6: Aceptar/Cancelar/Anular
-    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 3;
-
-    // Mantén el mismo manejo de conCerrar que tu ejemplo
-    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
-
-    // Nombre de función global para el retorno
-    this.ventana.fnretorno = conf.fnretorno || 'opcion';
-
-    // La URL base del componente (como en tu ejemplo, pero sin PHP en el .js)
-    this.ventana.url = (typeof POSICION !== 'undefined') ? POSICION : '';
-
-    // Ubicación y objeto auxiliar
-    this.ventana.top    = conf.top || '25%';
-    this.ventana.objeto = conf.objeto || {};
-
-    // Estilo del título si te interesa colorearlo
-    if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
-
-    // Mostrar el messagebox y ajustar z-index tal cual tu ejemplo
-    this.ventana.Messagebox();
-    this.ventana.zzIndex = 2;
-  }
-};
-
-MSGBOX.initialize();
-
-/* ============================
-   BOTONES DEL EJERCICIO (6)
-   ============================ */
-
-// 1) Solo Aceptar (botonera 1)
-let btnSoloAceptar = document.getElementById('btnSoloAceptar');
-btnSoloAceptar.addEventListener('click', function () {
-  MSGBOX.Abrir({
-    titulo: 'Información',
-    texto: 'Este MessageBox solo muestra el botón Aceptar.',
-    botonera: 1,
-    titulocss: 'titulorojomsgbox',
-    fnretorno: 'retGenerico'
-  });
-});
-
-// 2) Aceptar / Cancelar (botonera 2)
-let btnAceptarCancelar = document.getElementById('btnAceptarCancelar');
-btnAceptarCancelar.addEventListener('click', function () {
-  MSGBOX.Abrir({
-    titulo: 'Confirmación',
-    texto: '¿Desea continuar con la acción?',
-    botonera: 2,
-    titulocss: 'titulonaranjamsgbox',
-    fnretorno: 'retGenerico'
-  });
-});
-
-// 3) Sí / No (botonera 3)
-let btnSiNo = document.getElementById('btnSiNo');
-btnSiNo.addEventListener('click', function () {
-  MSGBOX.Abrir({
-    titulo: 'Pregunta',
-    texto: '¿Confirma su selección?',
-    botonera: 3,
-    titulocss: 'titulorojomsgbox',
-    fnretorno: 'retGenerico'
-  });
-});
-
-// 4) Sí / No / Cancelar (botonera 4)
-let btnSiNoCancelar = document.getElementById('btnSiNoCancelar');
-btnSiNoCancelar.addEventListener('click', function () {
-  MSGBOX.Abrir({
-    titulo: 'Guardar cambios',
-    texto: '¿Deseas guardar antes de salir?',
-    botonera: 4,
-    titulocss: 'titulonaranjamsgbox',
-    fnretorno: 'retGenerico'
-  });
-});
-
-// 5) Imprimir / Cancelar (botonera 5)
-let btnImprimirCancelar = document.getElementById('btnImprimirCancelar');
-btnImprimirCancelar.addEventListener('click', function () {
-  MSGBOX.Abrir({
-    titulo: 'Impresión',
-    texto: '¿Desea imprimir el documento actual?',
-    botonera: 5,
-    titulocss: 'titulorojomsgbox',
-    fnretorno: 'retImprimir'
-  });
-});
-
-// 6) Aceptar / Cancelar / Anular (botonera 6)
-let btnAceptarCancelarAnular = document.getElementById('btnAceptarCancelarAnular');
-btnAceptarCancelarAnular.addEventListener('click', function () {
-  MSGBOX.Abrir({
-    titulo: 'Estado de operación',
-    texto: 'Selecciona el estado de la operación.',
-    botonera: 6,
-    titulocss: 'titulonaranjamsgbox',
-    fnretorno: 'retGenerico'
-  });
-});
-
-/* ===================================
-   SELECT DE MONEDA (flujo según enunciado)
-   =================================== */
-
-let selMoneda = document.getElementById('selMoneda');
-selMoneda.addEventListener('change', function () {
-  let moneda = selMoneda.value;
-  if (moneda === '') return;
-
-  // Primer messagebox: confirmación Sí/No (botonera 3)
-  MSGBOX.Abrir({
-    titulocss: 'titulorojomsgbox',
-    titulo: 'Moneda',
-    texto: '&#191;Desea mostrar el tipo de moneda escogido?',
-    botonera: 3,
-    conCerrar: false,
-    fnretorno: 'retMonedaConfirm',
-    objeto: { moneda: moneda }
-  });
-});
-
-/* ============================
-   FUNCIONES DE RETORNO (globales)
-   ============================ */
-
-// Genérico: cierra sin acción
-function retGenerico(resp) {
-  // resp puede ser: 'A','C','S','N','I','L'
-  MSGBOX.ventana.HideInfo();
-}
-
-// Imprimir/Cancelar (botonera 5: 'I' = Imprimir, 'C' = Cancelar)
-function retImprimir(resp) {
-  if (resp === 'I') { window.print(); }
-  MSGBOX.ventana.HideInfo();
-}
-
-// Moneda: si 'S', mostrar segundo messagebox con la moneda
-function retMonedaConfirm(resp) {
-  if (resp === 'S') {
-    let moneda = MSGBOX.ventana.objeto.moneda || '';
-    MSGBOX.Abrir({
-      titulocss: 'titulonaranjamsgbox',
-      titulo: 'Moneda',
-      texto: 'La moneda escogida es ' + moneda,
-      botonera: 1, // Aceptar
-      fnretorno: 'retGenerico',
-      conCerrar: true
-    });
-  }
-  MSGBOX.ventana.HideInfo();
-}
+  <!-- componente messagebox tal como en tus ejemplos -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  <!-- controlador del ejercicio -->
+  <script src="controlador.js"></script>
+</body>
+</html>
