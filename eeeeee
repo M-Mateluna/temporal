@@ -1,57 +1,102 @@
-// controlador.js — para BASE (class.php que mostraste)
+<?php
+/**
+ * command.php — Estándar Desis (compatible BASE)
+ * - Carga conexion.php corporativo desde la raíz (mantiene sesión/empresa).
+ * - switch($cmd) con caso 'listar'.
+ * - Consulta con pg_query_params.
+ * - Responde XML: <ROOT><table numfields="4" numrows="N" error=""> ... </table></ROOT>
+ */
 
-(function () {
-  function asBool(v){
-    if (v === true) return true;
-    if (v == null) return false;
-    const s = String(v).trim().toLowerCase();
-    return (s === 't' || s === 'true' || s === '1' || s === 'si' || s === 'sí');
-  }
+header('Content-Type: text/xml; charset=UTF-8');
 
-  function cargarTabla(){
-    if (typeof BASE === 'undefined'){
-      alert('No se pudo cargar BASE (class.php)');
-      return;
-    }
+/* === Localiza la raíz del proyecto para usar el conexion.php corporativo === */
+$POSICION = './';
+while (!file_exists($POSICION . 'conexion.php')) { $POSICION .= '../'; }
+require_once $POSICION . 'conexion.php'; // Debe definir $conn (pg_connect...) y sesión
 
-    var db = new BASE();
-    db.commandFile = 'command.php';   // tu backend
+/* === Utilidad para escapar XML === */
+function xmlEsc($s){
+  return htmlspecialchars($s ?? '', ENT_XML1 | ENT_COMPAT, 'UTF-8');
+}
 
-    // BASE usa querystring y devuelve el resultado en db.result
-    db.send('cmd=listar');
+/* === Comando recibido === */
+$cmd = $_REQUEST['cmd'] ?? '';
 
-    var RS = db.result;               // <<--- AQUÍ vienen numrows, error y data
+/* === Cabecera XML === */
+echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+echo "<ROOT>";
 
-    // error de negocio (atributo error en <table>)
-    if (RS && RS.error && String(RS.error).trim() !== ''){
-      alert('Error: ' + RS.error);
-      return;
-    }
+/* === Verifica conexión === */
+if (!isset($conn) || !$conn) {
+  echo '<table numfields="0" numrows="0" error="Sin conexión a la base de datos"></table>';
+  echo '</ROOT>';
+  exit;
+}
 
-    var tbody = document.getElementById('tbody');
-    tbody.innerHTML = '';
+try {
 
-    var n = Number(RS ? RS.numrows : 0);
-    for (var i = 0; i < n; i++){
-      var rut       = db.getField(RS, 'rut', i) || '';
-      var razon     = db.getField(RS, 'razon_social', i) || '';
-      var cliente   = db.getField(RS, 'cliente', i);
-      var proveedor = db.getField(RS, 'proveedor', i);
+  switch ($cmd) {
 
-      var tr = document.createElement('tr');
-      if (asBool(cliente) && asBool(proveedor)){
-        tr.style.background = '#73d7c7';
+    /* ----------------------------------------------------------------------
+     * LISTAR (máx. 100 filas)
+     * --------------------------------------------------------------------*/
+    case 'listar': {
+
+      $sql = "
+        SELECT
+          rut,
+          COALESCE(razon_social, '')  AS razon_social,
+          COALESCE(cliente,   FALSE)  AS cliente,
+          COALESCE(proveedor, FALSE)  AS proveedor
+        FROM public.clienteproveedor
+        ORDER BY razon_social
+        LIMIT 100
+      ";
+
+      $rs = pg_query_params($conn, $sql, []);
+      if (!$rs){
+        $err = xmlEsc(pg_last_error($conn));
+        echo "<table numfields=\"0\" numrows=\"0\" error=\"{$err}\"></table>";
+        break;
       }
 
-      tr.innerHTML =
-        '<td>' + rut + '</td>' +
-        '<td>' + razon + '</td>' +
-        '<td style="text-align:center">' + (asBool(cliente) ? '✔' : '') + '</td>' +
-        '<td style="text-align:center">' + (asBool(proveedor) ? '✔' : '') + '</td>';
-      tbody.appendChild(tr);
-    }
+      // Construye filas y normaliza booleanos a 't'/'f' (lo que BASE espera)
+      $rows = [];
+      while ($o = pg_fetch_object($rs)) {
+        $cli = ($o->cliente   === true || $o->cliente   === 't' || $o->cliente   == 1 || $o->cliente   === '1') ? 't' : 'f';
+        $pro = ($o->proveedor === true || $o->proveedor === 't' || $o->proveedor == 1 || $o->proveedor === '1') ? 't' : 'f';
+
+        $rows[] = [
+          'rut'          => $o->rut,
+          'razon_social' => $o->razon_social,
+          'cliente'      => $cli,
+          'proveedor'    => $pro,
+        ];
+      }
+
+      echo '<table numfields="4" numrows="' . count($rows) . '" error="">';
+      foreach ($rows as $r){
+        echo '<record>';
+        echo '<rut>'           . xmlEsc($r['rut'])          . '</rut>';
+        echo '<razon_social>'  . xmlEsc($r['razon_social']) . '</razon_social>';
+        echo '<cliente>'       . $r['cliente']              . '</cliente>';
+        echo '<proveedor>'     . $r['proveedor']            . '</proveedor>';
+        echo '</record>';
+      }
+      echo '</table>';
+
+    } break;
+
+    /* ----------------------------------------------------------------------
+     * DEFAULT
+     * --------------------------------------------------------------------*/
+    default:
+      echo '<table numfields="0" numrows="0" error="cmd incorrecto"></table>';
+    break;
   }
 
-  if (document.readyState !== 'loading') cargarTabla();
-  else document.addEventListener('DOMContentLoaded', cargarTabla);
-})();
+} catch (Throwable $e) {
+  echo '<table numfields="0" numrows="0" error="' . xmlEsc($e->getMessage()) . '"></table>';
+}
+
+echo '</ROOT>';
