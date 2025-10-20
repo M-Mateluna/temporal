@@ -1,82 +1,18 @@
-/* ==========================
-   styles.css — MessageBox Ejercicio 1
-   ========================== */
-
-body {
-  background-color: #f5f5f5;
-  font-family: Arial, Helvetica, sans-serif;
-  margin: 0;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Contenedor principal centrado */
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Tabla principal */
-table {
-  background: white;
-  border-collapse: collapse;
-  border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-  padding: 20px;
-}
-
-th h2 {
-  color: #333;
-  font-size: 20px;
-  margin: 0;
-  padding: 10px 0;
-}
-
-/* Celdas */
-td {
-  padding: 10px 20px;
-  text-align: center;
-}
-
-/* Botones */
+/* Botones uniformes */
 button {
   background-color: #0078d4;
   color: #fff;
   font-size: 14px;
   border: none;
   border-radius: 6px;
-  padding: 10px 20px;
+  padding: 10px 0;
   cursor: pointer;
   transition: background 0.3s ease;
+  width: 200px;           /* 🔹 ancho fijo */
+  height: 45px;           /* 🔹 altura uniforme */
+  display: inline-block;  /* asegura que respeten el tamaño */
 }
 
 button:hover {
   background-color: #005fa3;
-}
-
-/* Select */
-select {
-  margin-left: 10px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-  table {
-    width: 95%;
-  }
-  td {
-    display: block;
-    width: 100%;
-  }
-  button {
-    width: 90%;
-    margin: 5px 0;
-  }
 }
