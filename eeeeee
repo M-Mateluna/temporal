@@ -1,27 +1,63 @@
-<div class="container">
-  <h2>MessageBox : Ejercicio Propuesto 1</h2>
+<body>
+  <div class="container">
+    <table border="0" cellspacing="0" cellpadding="10">
+      <thead>
+        <tr>
+          <th colspan="2">
+            <h2>MessageBox : Ejercicio Propuesto 1</h2>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Fila 1 -->
+        <tr>
+          <td align="center" width="50%">
+            <button id="btnSoloAceptar">Solo Aceptar</button>
+          </td>
+          <td align="center" width="50%">
+            <button id="btnAceptarCancelar">Aceptar / Cancelar</button>
+          </td>
+        </tr>
 
-  <div class="group">
-    <button id="btnSoloAceptar">Solo Aceptar</button>
-    <button id="btnAceptarCancelar">Aceptar / Cancelar</button>
-  </div>
-  <div class="group">
-    <button id="btnSiNo">Sí / No</button>
-    <button id="btnSiNoCancelar">Sí / No / Cancelar</button>
-  </div>
-  <div class="group">
-    <button id="btnImprimirCancelar">Imprimir / Cancelar</button>
-    <button id="btnAceptarCancelarAnular">Aceptar / Cancelar / Anular</button>
+        <!-- Fila 2 -->
+        <tr>
+          <td align="center">
+            <button id="btnSiNo">Sí / No</button>
+          </td>
+          <td align="center">
+            <button id="btnSiNoCancelar">Sí / No / Cancelar</button>
+          </td>
+        </tr>
+
+        <!-- Fila 3 -->
+        <tr>
+          <td align="center">
+            <button id="btnImprimirCancelar">Imprimir / Cancelar</button>
+          </td>
+          <td align="center">
+            <button id="btnAceptarCancelarAnular">Aceptar / Cancelar / Anular</button>
+          </td>
+        </tr>
+
+        <!-- Fila 4 (Select de moneda) -->
+        <tr>
+          <td colspan="2" align="center">
+            <label for="selMoneda"><b>Moneda</b></label>
+            <select id="selMoneda">
+              <option value="">Seleccione...</option>
+              <option value="EURO">EURO</option>
+              <option value="DÓLAR">DÓLAR</option>
+              <option value="PESO">PESO</option>
+              <option value="SOLES">SOLES</option>
+            </select>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <div class="group">
-    <label for="selMoneda">Moneda</label>
-    <select id="selMoneda">
-      <option value="">Seleccione...</option>
-      <option value="EURO">EURO</option>
-      <option value="DÓLAR">DÓLAR</option>
-      <option value="PESO">PESO</option>
-      <option value="SOLES">SOLES</option>
-    </select>
-  </div>
-</div>
+  <!-- Importar componente MessageBox -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  <script>var posicion = "<?=$POSICION?>";</script>
+  <script type="text/javascript" src="controlador.js"></script>
+</body>
