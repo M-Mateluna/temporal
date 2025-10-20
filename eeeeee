@@ -1,54 +1,151 @@
-<?php
-// === Resolver posición de la raíz del proyecto ===
-// (sin inicializar $POSICION, Desis ya lo maneja correctamente)
-while (!file_exists($POSICION . "conexion.php")) {
-    $POSICION .= "../";
+// ===============================================
+// controlador.js — Ejercicio Propuesto 1 (MessageBox)
+// ===============================================
+// Convenciones Desis: uso de IU_MSGBOX, callbacks globales y let
+
+let MSGBOX = {
+  ventana: undefined,
+
+  initialize: function () {
+    this.ventana = new IU_MSGBOX();
+  },
+
+  Abrir: function (conf) {
+    this.ventana.titulo = conf.titulo || 'Aviso';
+
+    let texto = conf.texto || '';
+    this.ventana.texto = '<center>' + texto + '</center>';
+
+    this.ventana.botonera = conf.botonera || 1;
+    this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+    this.ventana.objeto = conf.objeto || {};
+    this.ventana.url = '<?=$POSICION?>';
+    this.ventana.Messagebox();
+  },
+
+  fnretorno: function (resp) {
+    // Cierra la ventana por defecto
+    MSGBOX.ventana.HideInfo();
+  }
+};
+
+// Inicializar instancia
+MSGBOX.initialize();
+
+// ==========================
+// Botones del ejercicio
+// ==========================
+let btnSoloAceptar = document.getElementById('btnSoloAceptar');
+let btnAceptarCancelar = document.getElementById('btnAceptarCancelar');
+let btnSiNo = document.getElementById('btnSiNo');
+let btnSiNoCancelar = document.getElementById('btnSiNoCancelar');
+let btnImprimirCancelar = document.getElementById('btnImprimirCancelar');
+let btnAceptarCancelarAnular = document.getElementById('btnAceptarCancelarAnular');
+let selMoneda = document.getElementById('selMoneda');
+
+// --- 1) Solo Aceptar ---
+btnSoloAceptar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Información',
+    texto: 'Este MessageBox solo muestra el botón Aceptar.',
+    botonera: 1,
+    titulocss: 'titulorojomsgbox'
+  });
+});
+
+// --- 2) Aceptar / Cancelar ---
+btnAceptarCancelar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Confirmación',
+    texto: '¿Desea continuar con la acción?',
+    botonera: 2,
+    titulocss: 'titulonaranjamsgbox'
+  });
+});
+
+// --- 3) Sí / No ---
+btnSiNo.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Pregunta',
+    texto: '¿Confirma su selección?',
+    botonera: 3,
+    titulocss: 'titulorojomsgbox'
+  });
+});
+
+// --- 4) Sí / No / Cancelar ---
+btnSiNoCancelar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Guardar cambios',
+    texto: '¿Deseas guardar antes de salir?',
+    botonera: 4,
+    titulocss: 'titulonaranjamsgbox'
+  });
+});
+
+// --- 5) Imprimir / Cancelar ---
+btnImprimirCancelar.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Impresión',
+    texto: '¿Desea imprimir el documento actual?',
+    botonera: 5,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'fnRetornoImprimir'
+  });
+});
+
+// --- 6) Aceptar / Cancelar / Anular ---
+btnAceptarCancelarAnular.addEventListener('click', function () {
+  MSGBOX.Abrir({
+    titulo: 'Estado de operación',
+    texto: 'Selecciona el estado de la operación.',
+    botonera: 6,
+    titulocss: 'titulonaranjamsgbox'
+  });
+});
+
+// ==========================
+// Select de moneda
+// ==========================
+selMoneda.addEventListener('change', function () {
+  let moneda = selMoneda.value;
+  if (moneda === '') return;
+
+  // Primer mensaje: confirmación Sí/No
+  MSGBOX.Abrir({
+    titulo: 'Moneda',
+    texto: '¿Desea mostrar el tipo de moneda escogido?',
+    botonera: 3,
+    titulocss: 'titulorojomsgbox',
+    fnretorno: 'fnMonedaConfirm',
+    objeto: { moneda: moneda }
+  });
+});
+
+// ==========================
+// Funciones de retorno
+// ==========================
+
+// Retorno para Imprimir/Cancelar
+function fnRetornoImprimir(resp) {
+  if (resp === 'I') {
+    window.print();
+  }
+  MSGBOX.ventana.HideInfo();
 }
-?>
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <title>MessageBox — Ejercicio Propuesto 1</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <main class="wrap">
-    <h1>MessageBox — Ejercicio Propuesto 1</h1>
 
-    <table class="ui-table" role="presentation">
-      <tbody>
-        <tr>
-          <td><button id="btnSoloAceptar"          class="btn">Solo Aceptar</button></td>
-          <td><button id="btnAceptarCancelar"      class="btn">Aceptar / Cancelar</button></td>
-        </tr>
-        <tr>
-          <td><button id="btnSiNo"                 class="btn">Sí / No</button></td>
-          <td><button id="btnSiNoCancelar"         class="btn">Sí / No / Cancelar</button></td>
-        </tr>
-        <tr>
-          <td><button id="btnImprimirCancelar"     class="btn">Imprimir / Cancelar</button></td>
-          <td><button id="btnAceptarCancelarAnular" class="btn">Aceptar / Cancelar / Anular</button></td>
-        </tr>
-        <tr>
-          <td colspan="2" class="moneda-row">
-            <label for="selMoneda" class="lbl">Moneda</label>
-            <select id="selMoneda" class="select">
-              <option value=""></option>
-              <option value="EURO">EURO</option>
-              <option value="DÓLAR">DÓLAR</option>
-              <option value="PESO">PESO</option>
-              <option value="SOLES">SOLES</option>
-            </select>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </main>
-
-  <!-- ===== CARGA DE COMPONENTES DEL SISTEMA ===== -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-  <!-- Controlador del ejercicio -->
-  <script type="text/javascript" src="controlador.js"></script>
-</body>
-</html>
+// Retorno para Moneda (Sí/No)
+function fnMonedaConfirm(resp) {
+  if (resp === 'S') {
+    let moneda = MSGBOX.ventana.objeto.moneda;
+    MSGBOX.Abrir({
+      titulo: 'Moneda',
+      texto: 'La moneda escogida es ' + moneda,
+      botonera: 1,
+      titulocss: 'titulonaranjamsgbox'
+    });
+  }
+  MSGBOX.ventana.HideInfo();
+}
