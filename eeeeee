@@ -1,57 +1,37 @@
-<?php
-header('Content-Type: text/xml; charset=ISO-8859-1;'); // el comp. usa ISO-8859-1 en requests
+(function () {
+  let BD = new BASE();
+  // Usa la ruta correcta para tu proyecto (si hay espacios, %20)
+  BD.commandFile = 'form/trainig/Database/Ejercicio1/command.php';
 
-// Localiza el conexion.php corporativo (sesión requerida por el comp.)
-$POSICION = './';
-while (!file_exists($POSICION.'conexion.php')) { $POSICION .= '../'; }
-require_once $POSICION.'conexion.php';
-
-function xmlEsc($v){ return htmlspecialchars($v ?? '', ENT_XML1 | ENT_COMPAT, 'ISO-8859-1'); }
-
-$cmd = $_REQUEST['cmd'] ?? '';
-
-echo "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<ROOT>";
-
-if (!$conn){
-  echo '<table numfields="0" numrows="0" error="Sin conexión a la base de datos"></table></ROOT>';
-  exit;
-}
-
-switch ($cmd) {
-  case 'listar': {
-    $sql = "
-      SELECT
-        rut,
-        COALESCE(razon_social,'')  AS razon_social,
-        COALESCE(cliente,false)    AS cliente,
-        COALESCE(proveedor,false)  AS proveedor
-      FROM public.clienteproveedor
-      ORDER BY razon_social
-      LIMIT 100
-    ";
-    $rs = pg_query_params($conn, $sql, []);
-    if (!$rs){
-      echo '<table numfields="0" numrows="0" error="'.xmlEsc(pg_last_error($conn)).'"></table>';
-      break;
+  function cargarTabla() {
+    let RS = BD.send('cmd=listar');
+    if (RS.error && RS.error.trim() !== '') {
+      alert('Error: ' + RS.error);
+      return;
     }
 
-    $rows = [];
-    while ($o = pg_fetch_object($rs)){
-      $cli = ($o->cliente   === true || $o->cliente   === 't' || $o->cliente   == 1) ? 't' : 'f';
-      $pro = ($o->proveedor === true || $o->proveedor === 't' || $o->proveedor == 1) ? 't' : 'f';
-      $rows[] = [$o->rut, $o->razon_social, $cli, $pro];
+    let tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+
+    for (let i = 0; i < Number(RS.numrows || 0); i++) {
+      let rut       = BD.getField(RS, 'rut', i);
+      let razon     = BD.getField(RS, 'razonsocial', i); // alias del SQL
+      let cliente   = BD.getField(RS, 'cliente', i);     // 't' | 'f'
+      let proveedor = BD.getField(RS, 'proveedor', i);   // 't' | 'f'
+
+      let tr = document.createElement('tr');
+      if (cliente === 't' && proveedor === 't') tr.style.background = '#73d7c7';
+
+      tr.innerHTML =
+        `<td>${rut}</td>` +
+        `<td>${razon}</td>` +
+        `<td style="text-align:center"><input type="checkbox" ${cliente === 't' ? 'checked' : ''} disabled></td>` +
+        `<td style="text-align:center"><input type="checkbox" ${proveedor === 't' ? 'checked' : ''} disabled></td>`;
+
+      tbody.appendChild(tr);
     }
+  }
 
-    echo '<table numfields="4" numrows="'.count($rows).'" error="">';
-    foreach ($rows as $r){
-      echo '<record><rut>'.xmlEsc($r[0]).'</rut><razon_social>'.xmlEsc($r[1]).'</razon_social><cliente>'.$r[2].'</cliente><proveedor>'.$r[3].'</proveedor></record>';
-    }
-    echo '</table>';
-  } break;
-
-  default:
-    echo '<table numfields="0" numrows="0" error="Comando no válido o no definido"></table>';
-  break;
-}
-
-echo '</ROOT>';
+  if (document.readyState !== 'loading') cargarTabla();
+  else document.addEventListener('DOMContentLoaded', cargarTabla);
+})();
