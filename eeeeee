@@ -1,61 +1,24 @@
-// controlador.js (Desis)
-// - Usa Database().send('listar', ...), getField(...) y pinta filas donde cliente && proveedor.
+<?php
+/**
+ * conexion.php
+ * Estándar Desis (facturacion.cl)
+ * ----------------------------------------
+ * Este archivo establece la conexión a la base de datos PostgreSQL.
+ * Se incluye en los archivos como command.php, server.php, data.php, etc.
+ * Debe definir la variable global $conn.
+ * ----------------------------------------
+ */
 
-(function(){
-  function asBool(v){
-    if (v === true) return true;
-    if (v === false) return false;
-    if (v == null) return false;
-    const s = String(v).trim().toLowerCase();
-    return (s === 't' || s === 'true' || s === '1' || s === 'si' || s === 'sí');
-  }
+$conn = pg_connect("
+  host=192.168.1.11
+  port=5432
+  dbname=nombrebasedatos
+  user=externo
+  password=desis123
+");
 
-  function cargarTabla(){
-    var db = new Database();
-    // commandFile debe ser uno de: command.php, server.php, data.php, excel.php (memoria Desis)
-    db.commandFile = 'command.php';
-
-    // Envío estilo Desis: primer parámetro es el cmd
-    db.send('listar', {}, function(){
-      var tbody = document.getElementById('tbody');
-      tbody.innerHTML = '';
-
-      // Manejo de error de negocio (atributo 'error' del XML)
-      if (db.error && String(db.error).trim() !== ''){
-        alert('Error: ' + db.error);
-        return;
-      }
-
-      var n = Number(db.numrows || 0);
-      for (var i = 0; i < n; i++){
-        var rut       = db.getField('rut', i) || '';
-        var razon     = db.getField('razon_social', i) || '';
-        var cliente   = db.getField('cliente', i);
-        var proveedor = db.getField('proveedor', i);
-
-        var tr = document.createElement('tr');
-        if (asBool(cliente) && asBool(proveedor)){
-          tr.style.background = '#73d7c7';
-        }
-
-        tr.innerHTML =
-          '<td>' + rut + '</td>' +
-          '<td>' + razon + '</td>' +
-          '<td style="text-align:center">' + (asBool(cliente) ? '✔' : '') + '</td>' +
-          '<td style="text-align:center">' + (asBool(proveedor) ? '✔' : '') + '</td>';
-
-        tbody.appendChild(tr);
-      }
-
-      if (n === 0){
-        // Mensaje simple; en proyectos Desis a veces se usa alert()
-        // pero aquí dejamos silencioso
-      }
-    }, function(errMsg){
-      alert('Error de red/servidor: ' + (errMsg || 'desconocido'));
-    });
-  }
-
-  if (document.readyState !== 'loading') cargarTabla();
-  else document.addEventListener('DOMContentLoaded', cargarTabla);
-})();
+if (!$conn) {
+  // En Desis, normalmente se detiene la ejecución si no hay conexión
+  die("Error de conexión a la base de datos: " . pg_last_error());
+}
+?>
