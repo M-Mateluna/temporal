@@ -1,7 +1,9 @@
 <?php
-// Resolver posición para cargar el componente
-$POSICION = './';
-while (!file_exists($POSICION.'componente/messagebox/class.php')) { $POSICION .= '../'; }
+// === Resolver posición de la raíz del proyecto ===
+// (sin inicializar $POSICION, Desis ya lo maneja correctamente)
+while (!file_exists($POSICION . "conexion.php")) {
+    $POSICION .= "../";
+}
 ?>
 <!doctype html>
 <html lang="es">
@@ -44,9 +46,9 @@ while (!file_exists($POSICION.'componente/messagebox/class.php')) { $POSICION .=
     </table>
   </main>
 
-  <!-- Componente MessageBox del sistema -->
-  <script src="<?= $POSICION ?>componente/messagebox/class.php" defer></script>
-  <!-- Lógica del ejercicio -->
-  <script src="controlador.js" defer></script>
+  <!-- ===== CARGA DE COMPONENTES DEL SISTEMA ===== -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  <!-- Controlador del ejercicio -->
+  <script type="text/javascript" src="controlador.js"></script>
 </body>
 </html>
