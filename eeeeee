@@ -1,73 +1,52 @@
-<?php
-// Ubicar raíz
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require_once($POSICION."formHeader.php");  // <-- Carga Prototype, estilos y base del sistema (ISO-8859-1)
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Listado de Bancos</title>
-</head>
-<body>
+<script type="text/javascript">
+  // === Wrapper para el componente IU_MSGBOX (estándar Desis) ===
+  var MSGBOX = {
+    ventana: typeof IU_MSGBOX,
+    initialize: function () {
+      this.ventana = new IU_MSGBOX();
+    },
+    Abrir: function (conf) {
+      this.ventana.titulo    = conf.titulo || 'Aviso';
+      var texto              = conf.texto  || '';
+      this.ventana.texto     = '<center>' + texto + '</center>';
+      this.ventana.botonera  = conf.botonera || 1;          // 1 = Solo Aceptar
+      this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+      this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+      this.ventana.titulocss = conf.titulocss || this.ventana.titulocss;
 
-  <h3>Listado de Bancos</h3>
-  <div>
-    <select id="selBanco">
-      <option value="">Seleccione...</option>
-    </select>
-    <button id="btnGo" type="button">Ir a página Web</button>
-  </div>
+      // Ruta base del sistema y ajustes de stacking sobre el lightbox
+      this.ventana.url    = '<?=$POSICION?>';
+      this.ventana.top    = conf.top || '25%';
+      this.ventana.zzIndex = 9999;   // asegurar que quede sobre el lightbox
 
-  <!-- Lightbox para abrir el segundo LB desde este iframe -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+      this.ventana.Messagebox();
+    },
+    fnretorno: function () {
+      // Cierra el messagebox al presionar Aceptar
+      MSGBOX.ventana.HideInfo();
+    }
+  };
+  MSGBOX.initialize();
 
-  <!-- Database (define BASE) -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand();?>"></script>
+  // === Modifica tu handler para usar MSGBOX cuando no haya selección ===
+  function irAPagina(){
+    let sel = document.getElementById("selBanco");
+    let txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : "";
 
-  <script type="text/javascript">
-    // Asegura que el overlay/lightbox del iframe exista (lightbox-iframe ya lo hace onload,
-    // pero no estorba llamarlo explícitamente)
-    try { if (typeof addLightboxMarkup === 'function') addLightboxMarkup(); } catch(e){}
-
-    // Carga de bancos
-    let BD = new BASE();
-    BD.commandFile = "command.php";
-
-    function cargarBancos(){
-      let RS = BD.send("cmd=listar");
-      if (RS.error && RS.error.trim() !== "") {
-        alert("Error DB:\n" + RS.error);
-        return;
-      }
-      let sel = document.getElementById("selBanco");
-      let n = Number(RS.numrows || 0);
-      for (let i = 0; i < n; i++) {
-        let id  = BD.getField(RS, "idbanco", i);
-        let nom = BD.getField(RS, "nombre",  i);
-        if (!nom) continue;
-        let op = document.createElement("option");
-        op.value = id;
-        op.text  = nom;
-        sel.appendChild(op);
-      }
+    if (!txt) {
+      MSGBOX.Abrir({
+        titulocss: 'titulorojomsgbox',                  // estilo existente en tu proyecto
+        titulo   : 'Advertencia',
+        texto    : 'Debe seleccionar un banco, para abrir el lightbox.',
+        botonera : 1,                                    // Solo Aceptar
+        conCerrar: false
+      });
+      return;
     }
 
-    function irAPagina(){
-      let sel = document.getElementById("selBanco");
-      let txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : "";
-      if (!txt) { alert("Debe seleccionar un banco."); return; }
-
-      // segundo lightbox (muestra el nombre seleccionado)
-      let L = new IU();
-      L.ShowInfoWidget("lb_detalle.php?nombre="+encodeURIComponent(txt), 380, 720, "cerrarLBInterno");
-      window.cerrarLBInterno = function(){ L.HideInfo(); };
-    }
-
-    // init
-    cargarBancos();
-    document.getElementById("btnGo").onclick = irAPagina;
-  </script>
-</body>
-</html>
+    // Si hay selección, abrir el segundo lightbox con el nombre del banco
+    let L = new IU();
+    L.ShowInfoWidget("lb_detalle.php?nombre="+encodeURIComponent(txt), 380, 720, "cerrarLBInterno");
+    window.cerrarLBInterno = function(){ L.HideInfo(); };
+  }
+</script>
