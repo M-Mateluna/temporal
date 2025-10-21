@@ -1,65 +1,106 @@
-// 1) Asegura el markup del Lightbox antes de abrirlo
-if (typeof addLightboxMarkup === 'function') {
-  addLightboxMarkup();
+<?php /* Ejercicio Propuesto — ClienteProveedor2 (Desis) */ ?>
+<?php
+// Inicializa $POSICION para resolver rutas relativas a /css y /componente
+$POSICION = "";
+while (!file_exists($POSICION."conexion.php")) {
+  $POSICION .= "../";
 }
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Clientes / Proveedores</title>
 
-// 2) Configura el componente
-clienteproveedor = new ClienteProveedor2();
-clienteproveedor.ubicacion = document.getElementById("divBuscador");
-clienteproveedor.elementoBuscador = "rut";
-clienteproveedor.elementos = {
-  rut: document.getElementById("rut"),
-  idclienteproveedor: document.getElementById("cliente2"),
-  giro: document.getElementById("giro"),
-  idusuario: document.getElementById("idusuario"),
-  fechahora: document.getElementById("fechahora")
-};
+  <!-- Nuevo estilo CSS estándar -->
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css">
 
-clienteproveedor.creaBotonBuscar = true;
-clienteproveedor.creaBotonBorrar = true;
-clienteproveedor.creaBotonCrear  = true;
-clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
-clienteproveedor.filtro = "cliente|vigente"; // (sin 'factura' si tu build no lo soporta)
+  <!-- Componentes base (sin modificar) -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
 
-// 3) Fuerza Lightbox y tamaño ANTES de New()
-clienteproveedor.islightbox    = true;
-// por compatibilidad con variantes del componente (no hace daño si no existen):
-clienteproveedor.isLightbox      = true;
-clienteproveedor.usarLightbox    = true;
-clienteproveedor.abrirEnLightbox = true;
+  <!-- Lightbox (IU + iframe) -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
 
-clienteproveedor.altoLightbox  = 500;
-clienteproveedor.anchoLightbox = 800;
+  <!-- MessageBox -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
-// 4) Define afterEvent y crea el componente
-clienteproveedor.afterEvent = function () {
-  let fh = document.getElementById('fechahora');
-  if (fh && !fh.value) {
-    let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    fh.value = d.toISOString().slice(0,16);
-  }
+  <!-- ClienteProveedor2 -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
 
-  if (_ultimoMetodo === "keypress") {
-    document.getElementById('idusuario').disabled = true;
-    document.getElementById('giro').disabled = true;
+  <!-- Controlador local -->
+  <script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
 
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-      botonera: 1
-    });
-  } else {
-    document.getElementById('rut').disabled = true;
-    document.getElementById('giro').disabled = true;
-    document.getElementById('idusuario').disabled = true;
+  <style type="text/css">
+    /* Ajustes mínimos de maqueta (no reemplazan nuevoestilo.css) */
+    .contenedor { max-width: 860px; margin: 12px auto; }
+    .grid{ width:100%; border-collapse:collapse; }
+    .grid td{ width:50%; vertical-align:top; padding:8px 12px; }
+    .stack label{ display:block; margin:0 0 4px 2px; }
+    .stack input{ width:95%; box-sizing:border-box; }
+    .inline{ display:flex; align-items:center; gap:6px; }
+    .inline > span{ display:inline-flex; align-items:center; }
+  </style>
+</head>
+<body>
 
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-      botonera: 1
-    });
-  }
-  _ultimoMetodo = "";
-};
+<div class="FORMULARIONECSS contenedor">
+  <form id="frmCP" method="post" onsubmit="return false" autocomplete="off">
+    <fieldset>
+      <legend class="legends">Información del Registro</legend>
 
-clienteproveedor.New();
+      <table class="grid">
+        <tr>
+          <!-- Columna Izquierda -->
+          <td>
+            <table width="100%">
+              <tr>
+                <td class="stack">
+                  <label for="rut">RUT</label>
+                  <div class="inline">
+                    <input type="text" name="rut" id="rut" placeholder="12.345.678-9" maxlength="20">
+                    <span id="divBuscador"></span><!-- Aquí se dibuja lupa/crear/borrar -->
+                  </div>
+                  <input type="hidden" name="cliente2" id="cliente2"><!-- id cliente/proveedor -->
+                </td>
+              </tr>
+              <tr>
+                <td class="stack">
+                  <label for="idusuario">ID Usuario</label>
+                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
+                </td>
+              </tr>
+            </table>
+          </td>
+
+          <!-- Columna Derecha -->
+          <td>
+            <table width="100%">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120">
+                </td>
+              </tr>
+              <tr>
+                <td class="stack">
+                  <label for="fechahora">Fecha/Hora</label>
+                  <input type="datetime-local" name="fechahora" id="fechahora">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <div style="text-align:center; padding:10px 0;">
+        <button type="submit" id="btnGuardar" class="textazul">Guardar</button>
+        <button type="reset"  class="textazul">Limpiar</button>
+      </div>
+    </fieldset>
+  </form>
+</div>
+
+</body>
+</html>
