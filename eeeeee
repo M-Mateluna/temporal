@@ -1,21 +1,59 @@
-<?php
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$nombre = isset($_GET['nombre']) ? $_GET['nombre'] : '';
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Bancos</title>
-  <link rel="stylesheet" href="lb.css">
-</head>
-<body>
-  <div class="wrap-lb">
-    <div class="titulo">Bancos</div>
-    <div class="contenido">
-      <div class="sub">Usted ha Seleccionado el Banco:</div>
-      <div class="txt"><?php echo htmlspecialchars($nombre, ENT_QUOTES, 'ISO-8859-1'); ?></div>
-    </div>
-  </div>
-</body>
-</html>
+// Lightbox principal (selector) y secundario (detalle)
+var LB  = null;
+var LB2 = null;
+
+// Wrapper de MessageBox (estándar Desis)
+var MSGBOX = {
+  ventana: undefined,
+  initialize: function(){
+    this.ventana = new IU_MSGBOX();
+  },
+  Abrir: function(conf){
+    this.ventana.titulo    = conf.titulo || 'Aviso';
+    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
+    this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
+    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'retMsgOnlyClose';
+    this.ventana.url       = posicion; // base real del sistema
+    this.ventana.top       = '25%';
+    this.ventana.objeto    = conf.objeto || {};
+    this.ventana.Messagebox();
+    this.ventana.zzIndex   = 2;
+  }
+};
+MSGBOX.initialize();
+
+function retMsgOnlyClose(){ MSGBOX.ventana.HideInfo(); }
+
+// Abre el selector (primer lightbox)
+function abrirSelectorBancos(){
+  LB = new IU_LIGHTBOX();
+  LB.titulo = 'Listado de Bancos';
+  LB.url    = 'lb_bancos.php';
+  LB.ancho  = 900;
+  LB.alto   = 480;
+  LB.Show();
+}
+
+// Abre el detalle (segundo lightbox) mostrando solo el nombre
+function abrirLightboxBanco(nombreBanco){
+  try { if (LB && LB.Hide) LB.Hide(); } catch(e) {}
+
+  LB2 = new IU_LIGHTBOX();
+  LB2.titulo = 'Bancos';
+  LB2.url    = 'lb_detalle.php?nombre=' + encodeURIComponent(nombreBanco);
+  LB2.ancho  = 900;
+  LB2.alto   = 480;
+  LB2.Show();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  var b = document.getElementById('btnAbrirLB');
+  if (b) b.onclick = abrirSelectorBancos;
+});
+
+// Exponer funciones para que el iframe pueda llamarlas
+window.abrirLightboxBanco = abrirLightboxBanco;
+window.MSGBOX = MSGBOX;
+window.retMsgOnlyClose = retMsgOnlyClose;
