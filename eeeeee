@@ -1,47 +1,33 @@
-function mostrarMsgAdvertencia() {
-  // 1) Intentar usar el messagebox del padre (queda encima del overlay)
-  if (window.parent && window.parent.MSGBOX && typeof window.parent.MSGBOX.Abrir === "function") {
-    window.parent.MSGBOX.Abrir({
-      titulocss: 'titulorojomsgbox',
-      titulo   : 'Advertencia',
-      texto    : 'Debe seleccionar un banco, para abrir el lightbox.',
-      botonera : 1,
-      conCerrar: false
-    });
-    return;
-  }
+<?php
+// Ubica la raíz del proyecto
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
+  <title>Ejercicio lightbox</title>
+</head>
+<body class="bg_formulario">
 
-  // 2) Fallback local: IU_MSGBOX directo, creando un 'MSGBOX' básico para el [X]
-  if (typeof IU_MSGBOX === "function") {
-    var _mb = new IU_MSGBOX();
-    _mb.titulo    = 'Advertencia';
-    _mb.texto     = '<center>Debe seleccionar un banco, para abrir el lightbox.</center>';
-    _mb.botonera  = 1; // Aceptar
-    _mb.titulocss = 'titulorojomsgbox';
-    _mb.url       = '<?=$POSICION?>';
-    _mb.top       = '25%';
-    _mb.zzIndex   = 99999;
+  <!-- Overlay/Lightbox los crea lightbox-iframe.js -->
+  <button onclick="abrirSelectorBancos()" style="margin:20px">Abrir lightbox</button>
 
-    // Definimos una función de retorno real (al presionar Aceptar)
-    _mb.fnretorno = 'MSGBOX_fnRetLocal';
+  <!-- Componentes (NO se modifican) -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=<?=rand();?>"></script>
 
-    // Proveer un objeto MSGBOX mínimo para que el [X] funcione:
-    // (IU_MSGBOX usa por defecto cerrar = "MSGBOX.ventana.HideInfo")
-    window.MSGBOX = window.MSGBOX || {};
-    window.MSGBOX.ventana   = _mb;
-    window.MSGBOX.Abrir     = window.MSGBOX.Abrir || function(){};
-    window.MSGBOX.fnretorno = window.MSGBOX.fnretorno || function(){};
-    window.MSGBOXaccion     = window.MSGBOXaccion     || function(){};
+  <script>
+    // IU global ÚNICO para que no se “reseteen” estilos/z-index
+    window.Ajuste = window.Ajuste || {};
+    Ajuste.ventana = Ajuste.ventana || new IU();
 
-    // Handler invocado por la botonera (A/S/N...). Aquí solo cerramos.
-    window.MSGBOX_fnRetLocal = function(resp){
-      try { if (window.MSGBOX && window.MSGBOX.ventana) window.MSGBOX.ventana.HideInfo(); } catch(e){}
-    };
-
-    _mb.Messagebox();
-    return;
-  }
-
-  // 3) Último recurso
-  alert('Debe seleccionar un banco, para abrir el lightbox.');
-}
+    // Abre el PRIMER lightbox (selector)
+    function abrirSelectorBancos() {
+      // Se muestra el selector dentro del primer lightbox
+      OpenLightbox(900, 380, '<?=$POSICION?>form/training/Lightbox/Ejercicio1/lb_bancos.php');
+    }
+  </script>
+</body>
+</html>
