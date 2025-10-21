@@ -1,23 +1,20 @@
-/* ====== CONFIG ====== */
-let COMMAND_PATH = 'form/trainig/MessageBox/Ejercicio2/command.php'; // ajusta si tu carpeta difiere
-
 let BD = new BASE();
-BD.commandFile = COMMAND_PATH;
+BD.commandFile = 'command.php';
 
-/* ====== MSGBOX WRAPPER ====== */
 let MSGBOX = {
   ventana: undefined,
-  initialize: function(){ this.ventana = new IU_MSGBOX(); },
-  Abrir: function(conf){
+  initialize: function() {
+    this.ventana = new IU_MSGBOX();
+  },
+  Abrir: function(conf) {
     this.ventana.titulo    = conf.titulo || 'Aviso';
-    let texto              = conf.texto || '';
-    this.ventana.texto     = '<center>' + texto + '</center>';
-    this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
-    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
-    this.ventana.fnretorno = conf.fnretorno || 'retGen';
+    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
+    this.ventana.botonera  = conf.botonera || 1;
     this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
-    this.ventana.url       = posicion;      // base absoluta (inyectada en index.php)
-    this.ventana.top       = '25%';
+    this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : true;
+    this.ventana.fnretorno = conf.fnretorno || 'retornoMSGBOX';
+    this.ventana.url       = posicion;
+    this.ventana.top       = conf.top || '25%';
     this.ventana.objeto    = conf.objeto || {};
     this.ventana.Messagebox();
     this.ventana.zzIndex   = 2;
@@ -25,148 +22,86 @@ let MSGBOX = {
 };
 MSGBOX.initialize();
 
-/* ====== HELPERS ====== */
-function textOf(node) {
-  try { return unescape(node.firstChild.nodeValue); } catch(e) { return ''; }
-}
-
-function getTag(rec, tag) {
-  try {
-    let n = rec.getElementsByTagName(tag)[0];
-    return n ? textOf(n) : '';
-  } catch (e) { return ''; }
-}
-
-function getByIndex(rec, idx) {
-  try {
-    // childNodes incluye text nodes a veces; filtramos por nodeType 1 (element)
-    let els = [];
-    for (let k = 0; k < rec.childNodes.length; k++) {
-      if (rec.childNodes[k].nodeType === 1) els.push(rec.childNodes[k]);
-    }
-    return els[idx] ? textOf(els[idx]) : '';
-  } catch(e) { return ''; }
-}
-
-/* ====== LISTAR ====== */
+/* ============= CARGAR TABLA ============= */
 function cargarTabla() {
   let RS = BD.send('cmd=listar');
-
-  // Diagnóstico
-  if (!RS || !RS.data) {
-    alert('No llegó XML desde database/class.php.\nRevisa BD.commandFile:\n' + BD.commandFile);
-    console.log('RS:', RS);
-    return;
-  }
-  if (RS.error && RS.error.trim() !== '') {
-    alert('Error: ' + RS.error);
-    console.log('RS.error:', RS.error, 'RS:', RS);
+  if (!RS || RS.error) {
+    alert('Error al obtener los registros');
     return;
   }
 
   let tbody = document.getElementById('tbody-personas');
   tbody.innerHTML = '';
 
-  // Usamos el XML directamente para ser más robustos con nombres de tags
-  let tableNode = RS.data; // <table ...>
-  let records   = tableNode.getElementsByTagName('record');
-  let n         = records.length;
+  for (let i = 0; i < RS.numrows; i++) {
+    let id        = BD.getField(RS, 'idpersona', i);
+    let nombre    = BD.getField(RS, 'nombre', i);
+    let paterno   = BD.getField(RS, 'apellidopaterno', i);
+    let materno   = BD.getField(RS, 'apellidomaterno', i);
+    let fechahora = BD.getField(RS, 'fechahora', i);
+    let apellidos = (paterno + ' ' + materno).trim();
 
-  if (n === 0) {
-    let tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="4" style="text-align:center;color:#666;padding:14px">Sin registros</td>';
-    tbody.appendChild(tr);
-    return;
+    let fila = `
+      <tr>
+        <td>${nombre}</td>
+        <td>${apellidos}</td>
+        <td>${fechahora}</td>
+        <td><button class="btn-eliminar" data-id="${id}" data-nombre="${nombre} ${apellidos}">Eliminar</button></td>
+      </tr>
+    `;
+    tbody.insertAdjacentHTML('beforeend', fila);
   }
 
-  for (let i = 0; i < n; i++) {
-    let rec = records[i];
-
-    // Leemos por alias esperados…
-    let id        = getTag(rec, 'idpersona');
-    let nombre    = getTag(rec, 'nombre');
-    let apellidos = getTag(rec, 'apellidos');
-    let fechahora = getTag(rec, 'fechahora');
-
-    // …y si no vienen con esos nombres, hacemos fallback por índice (0:id, 1:nombre, 2:apellidos, 3:fechahora)
-    if (nombre === '' && apellidos === '' && fechahora === '') {
-      // Ajusta los índices si tu SELECT cambia de orden
-      id        = id || getByIndex(rec, 0);
-      nombre    = nombre || getByIndex(rec, 1);
-      apellidos = apellidos || getByIndex(rec, 2);
-      fechahora = fechahora || getByIndex(rec, 3);
-    }
-
-    let tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td>' + nombre + '</td>' +
-      '<td>' + apellidos + '</td>' +
-      '<td>' + fechahora + '</td>' +
-      '<td><button class="btn-danger" data-id="'+id+'" data-nombre="'+(nombre+' '+apellidos).trim()+'">Eliminar</button></td>';
-    tbody.appendChild(tr);
-  }
-
-  bindEliminar();
+  asignarEventos();
 }
 
-function bindEliminar() {
-  let botones = document.querySelectorAll('button.btn-danger[data-id]');
-  for (let i = 0; i < botones.length; i++) {
-    botones[i].onclick = function() {
-      let id  = this.getAttribute('data-id');
-      let nom = this.getAttribute('data-nombre') || '';
+/* ============= EVENTO ELIMINAR ============= */
+function asignarEventos() {
+  let botones = document.querySelectorAll('.btn-eliminar');
+  botones.forEach(boton => {
+    boton.addEventListener('click', function() {
+      let id = this.getAttribute('data-id');
+      let nombre = this.getAttribute('data-nombre');
+
       MSGBOX.Abrir({
-        titulocss: 'tituloazulmsgbox',
         titulo: 'Eliminar Registro',
-        texto: '&#191;Est&aacute; seguro de eliminar el registro seleccionado?<br><b>'+nom+'</b>',
-        botonera: 3,            // Sí / No
+        texto: `¿Está seguro de eliminar el registro seleccionado?<br><b>${nombre}</b>`,
+        botonera: 3, // Sí / No
         conCerrar: false,
-        fnretorno: 'retEliminar',
+        fnretorno: 'confirmarEliminacion',
         objeto: { idpersona: id }
       });
-    };
-  }
+    });
+  });
 }
 
-/* ====== ELIMINAR ====== */
-function retEliminar(resp) {
+/* ============= CONFIRMAR ELIMINACIÓN ============= */
+function confirmarEliminacion(resp) {
   if (resp === 'S') {
     let id = MSGBOX.ventana.objeto.idpersona;
     MSGBOX.ventana.HideInfo();
 
-    let RS = BD.send('cmd=eliminar&idpersona=' + encodeURIComponent(id));
-    if (!RS || !RS.data) {
-      alert('No llegó respuesta del UPDATE.\nRevisa BD.commandFile:\n' + BD.commandFile);
-      console.log('RS eliminar:', RS);
-      return;
-    }
+    let RS = BD.send(`cmd=eliminar&idpersona=${id}`);
     if (RS.error && RS.error.trim() !== '') {
-      alert('Error: ' + RS.error);
-      console.log('RS.error eliminar:', RS.error, 'RS:', RS);
+      alert('Error al eliminar el registro');
       return;
     }
 
     MSGBOX.Abrir({
-      titulocss: 'tituloazulmsgbox',
-      titulo: 'Informaci&oacute;n',
+      titulo: 'Información',
       texto: 'Registro eliminado correctamente',
       botonera: 1,
-      fnretorno: 'retInfoOk'
+      fnretorno: 'cerrarInfo'
     });
   } else {
-    MSGBOX.ventana.HideInfo(); // No
+    MSGBOX.ventana.HideInfo();
   }
 }
 
-function retInfoOk(resp) {
+function cerrarInfo(resp) {
   MSGBOX.ventana.HideInfo();
   cargarTabla();
 }
 
-function retGen(resp) {
-  MSGBOX.ventana.HideInfo();
-}
-
-/* ====== INIT ====== */
-if (document.readyState !== 'loading') cargarTabla();
-else document.addEventListener('DOMContentLoaded', cargarTabla);
+/* ============= INICIO ============= */
+document.addEventListener('DOMContentLoaded', cargarTabla);
