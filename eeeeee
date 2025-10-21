@@ -1,26 +1,29 @@
-function cargarTabla() {
-  let RS = BD.send('cmd=listar');
-  if (!RS || RS.error) { alert('Error al obtener los registros'); return; }
+.btn-eliminar {
+  background-color: #ff4d4d;        /* Rojo principal */
+  border: none;                     /* Sin borde */
+  color: white;                     /* Texto blanco */
+  padding: 6px 14px;                /* Tamaño cómodo */
+  border-radius: 6px;               /* Bordes suaves */
+  cursor: pointer;                  /* Indicador de clic */
+  font-size: 14px;
+  font-weight: bold;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
 
-  let tbody = document.getElementById('tbody-personas');
-  tbody.innerHTML = '';
+/* Efecto hover */
+.btn-eliminar:hover {
+  background-color: #e43f3f;        /* Rojo más oscuro */
+  transform: scale(1.03);           /* Pequeño aumento */
+}
 
-  for (let i = 0; i < RS.numrows; i++) {
-    let id        = BD.getField(RS, 'idpersona', i);
-    let nombre    = BD.getField(RS, 'nombre', i);
-    let apellidos = BD.getField(RS, 'apellidos', i);   // <-- aquí el cambio
-    let fechahora = BD.getField(RS, 'fechahora', i);
+/* Efecto al hacer clic */
+.btn-eliminar:active {
+  background-color: #c93030;        /* Rojo más profundo */
+  transform: scale(0.98);
+}
 
-    let fila = `
-      <tr>
-        <td>${nombre}</td>
-        <td>${apellidos}</td>
-        <td>${fechahora}</td>
-        <td><button class="btn-eliminar" data-id="${id}" data-nombre="${nombre} ${apellidos}">Eliminar</button></td>
-      </tr>
-    `;
-    tbody.insertAdjacentHTML('beforeend', fila);
-  }
-
-  asignarEventos();
+/* Alinear el botón dentro de la celda */
+td:last-child {
+  text-align: center;
+  vertical-align: middle;
 }
