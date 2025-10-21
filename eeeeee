@@ -1,57 +1,17 @@
-// controlador.js
-(function () {
-  // --- Wrapper de MessageBox (respetando ISO-8859-1) ---
-  let MSGBOX = {
-    ventana: undefined,
-    initialize() {
-      this.ventana = new IU_MSGBOX();
-    },
-    Abrir(conf) {
-      this.ventana.titulo    = conf.titulo || 'Aviso';
-      this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
-      this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
-      this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
-      this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
-      this.ventana.fnretorno = conf.fnretorno || 'retMsgOnlyClose';
-      // Base del sistema (inyectada desde PHP: var posicion = "<?=$POSICION?>";)
-      this.ventana.url       = typeof posicion !== 'undefined' ? posicion : '/';
-      this.ventana.top       = '25%';
-      this.ventana.objeto    = conf.objeto || {};
-      // Asegura que el MSGBOX quede por encima del overlay del lightbox
-      this.ventana.zzIndex   = conf.zzIndex || 5000;
-      this.ventana.Messagebox();
-    }
-  };
-  MSGBOX.initialize();
-
-  // Cierre simple para messagebox de 1 botón
-  function retMsgOnlyClose() {
-    try { MSGBOX.ventana.HideInfo(); } catch (e) {}
-  }
-
-  // --- Lightbox principal (selector de bancos) ---
-  let UI = null;
-
-  // Invocada por el [X] del componente
-  function CerrarLB() {
-    if (UI) UI.HideInfo();
-  }
-
-  // Abre el primer lightbox con el selector
-  function abrirSelectorBancos() {
-    if (!UI) UI = new IU();
-    // (iframe, alto, ancho, funcionCerrar, offsetTop)
-    UI.ShowInfoWidget('lb_bancos.php', 480, 900, 'CerrarLB', 120);
-  }
-
-  // Bind del botón principal
-  document.addEventListener('DOMContentLoaded', () => {
-    let btn = document.getElementById('btnAbrirLB');
-    if (btn) btn.onclick = abrirSelectorBancos;
-  });
-
-  // Exponer para que el iframe pueda usar el MSGBOX del padre y el cierre
-  window.MSGBOX = MSGBOX;
-  window.retMsgOnlyClose = retMsgOnlyClose;
-  window.CerrarLB = CerrarLB;
-})();
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php"); // ← trae prototype.js, general.js, etc.
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Listado de Bancos</title>
+  <link rel="stylesheet" href="lb.css">
+  <!-- máscara para lightbox dentro del iframe -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="lb_bancos.js?v=<?=rand();?>"></script>
+</head>
+<body>…</body>
+</html>
