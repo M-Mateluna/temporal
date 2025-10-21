@@ -1,68 +1,24 @@
-(function () {
-  // Corre dentro del iframe (selector)
-  let BD = new BASE();
-  BD.commandFile = 'command.php'; // estándar Desis
-
-  function cargarBancos() {
-    const RS = BD.send('cmd=listar');
-    if (!RS) { alert('No llegó RS desde database/class.php'); return; }
-    if (RS.error && String(RS.error).trim() !== '') { alert('Error DB:\n' + RS.error); return; }
-
-    const n  = parseInt(RS.numrows, 10) || 0;
-    const sel = document.getElementById('selBanco');
-    sel.innerHTML = '';
-
-    let opt0 = document.createElement('option');
-    opt0.value = '';
-    opt0.text  = 'Seleccione...';
-    sel.appendChild(opt0);
-
-    for (let i = 0; i < n; i++) {
-      let id  = BD.getField(RS, 'idbanco', i);
-      let nom = BD.getField(RS, 'nombre',  i) || '';
-      if (!nom) continue;
-      let op = document.createElement('option');
-      op.value = id;
-      op.text  = nom;
-      sel.appendChild(op);
-    }
-  }
-
-  // Abre el segundo lightbox (solo muestra el nombre del banco)
-  function abrirLBDetalle(nombre) {
-    const L = new IU();
-    L.ShowInfoWidget('lb_detalle.php?nombre=' + encodeURIComponent(nombre), 420, 700, 'CerrarLBInterno', 80);
-    // expone cierre para el [X] del componente
-    window.CerrarLBInterno = function(){ L.HideInfo(); };
-  }
-
-  function irAPagina() {
-    const sel = document.getElementById('selBanco');
-    const id  = sel.value;
-    const nom = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
-
-    if (String(id).trim() === '') {
-      // mostrar sobre el overlay del lightbox
-      try {
-        top.MSGBOX.Abrir({
-          titulocss: 'titulorojomsgbox',
-          titulo: 'Advertencia',
-          texto: 'Debe seleccionar un banco, para abrir el lightbox.',
-          botonera: 1,
-          fnretorno: 'top.retMsgOnlyClose',
-          conCerrar: true,
-          zzIndex: 9000
-        });
-      } catch (e) { alert('Debe seleccionar un banco.'); }
-      return;
-    }
-
-    abrirLBDetalle(nom);
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    cargarBancos();
-    const btn = document.getElementById('btnGo');
-    if (btn) btn.onclick = irAPagina;
-  });
-})();
+<?php
+// buscar raíz
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$nombre = isset($_GET['nombre']) ? $_GET['nombre'] : '';
+// sanitiza para ISO-8859-1
+$nombre = htmlspecialchars($nombre, ENT_QUOTES, 'ISO-8859-1');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Bancos</title>
+  <link rel="stylesheet" href="lb.css">
+</head>
+<body>
+  <div class="titulo">Bancos</div>
+  <div class="wrap-lb">
+    <div class="contenido">
+      <div class="sub">Usted ha Seleccionado el Banco:</div>
+      <div class="txt"><?= $nombre ?></div>
+    </div>
+  </div>
+</body>
+</html>
