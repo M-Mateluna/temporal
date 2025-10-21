@@ -1,29 +1,21 @@
 <?php
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$nombre = isset($_GET['nombre']) ? $_GET['nombre'] : '';
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Listado de Bancos</title>
+  <title>Bancos</title>
   <link rel="stylesheet" href="lb.css">
 </head>
 <body>
-  <div class="titulo">Listado de Bancos</div>
-  <div class="box">
-    <div class="inner">
-      <select id="selBanco">
-        <option value="">Seleccione...</option>
-      </select>
-      <button class="btn-go" id="btnGo">Ir a p&aacute;gina Web</button>
+  <div class="wrap-lb">
+    <div class="titulo">Bancos</div>
+    <div class="contenido">
+      <div class="sub">Usted ha Seleccionado el Banco:</div>
+      <div class="txt"><?php echo htmlspecialchars($nombre, ENT_QUOTES, 'ISO-8859-1'); ?></div>
     </div>
   </div>
-
-  <!-- Componentes necesarios dentro del iframe -->
-  <script>var posicion = "<?=$POSICION?>";</script>
-  <script src="<?=$POSICION?>componente/database/class.php"></script>
-
-  <!-- Lógica del iframe (sin código embebido) -->
-  <script src="lb_bancos.js"></script>
 </body>
 </html>
