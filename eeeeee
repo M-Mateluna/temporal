@@ -1,35 +1,87 @@
-// --- z-index alto para que el MSGBOX siempre quede sobre el overlay del lightbox
-let MSGBOX = {
-  ventana: undefined,
-  initialize() { this.ventana = new IU_MSGBOX(); },
-  Abrir(conf) {
-    this.ventana.titulo    = conf.titulo || 'Aviso';
-    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
-    this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
-    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
-    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
-    this.ventana.fnretorno = conf.fnretorno || 'retMsgOnlyClose';
-    this.ventana.url       = posicion;
-    this.ventana.top       = '25%';
-    this.ventana.objeto    = conf.objeto || {};
-    // 👇 poner ANTES del Messagebox el z-index bien alto
-    this.ventana.zzIndex   = conf.zzIndex || 5000;
-    this.ventana.Messagebox();
+(function () {
+  // Corre dentro del iframe
+  let BD = new BASE();
+  BD.commandFile = 'command.php'; // no rutas, estándar Desis
+
+  // Mapa simple de URLs (si un banco no está, se abre una búsqueda)
+  const BANK_URLS = {
+    'BANCO DE CHILE': 'https://www.bancochile.cl',
+    'BANCOESTADO':   'https://www.bancoestado.cl',
+    'BANCO ESTADO':  'https://www.bancoestado.cl',
+    'BANCO SANTANDER': 'https://www.santander.cl',
+    'BCI':           'https://www.bci.cl',
+    'SCOTIABANK':    'https://www.scotiabankchile.cl',
+    'ITAU':          'https://www.itau.cl',
+    'BANCO ITAU':    'https://www.itau.cl',
+    'CORPBANCA':     'https://www.itaubank.cl', // ejemplo histórico
+  };
+
+  function urlBanco(nombre) {
+    const k = String(nombre || '').replace(/\s+/g,' ').trim().toUpperCase();
+    if (BANK_URLS[k]) return BANK_URLS[k];
+    // fallback a búsqueda
+    return 'https://www.google.com/search?q=' + encodeURIComponent(nombre + ' sitio oficial');
   }
-};
-MSGBOX.initialize();
 
-// Primer lightbox: sin “tarjeta”, centrado y limpio
-let UI = null;
-function CerrarLB(){ if (UI) UI.HideInfo(); }
+  function cargarBancos() {
+    const RS = BD.send('cmd=listar');
+    if (!RS) { alert('No llegó RS desde database/class.php'); return; }
+    if (RS.error && String(RS.error).trim() !== '') { alert('Error DB:\n' + RS.error); return; }
 
-function abrirSelectorBancos(){
-  if (!UI) UI = new IU();
-  // ShowInfoWidget(iframe, alto, ancho, funcion_cerrar, top_offset)
-  UI.ShowInfoWidget('lb_bancos.php', 480, 900, 'CerrarLB', 120);
-}
+    const n = parseInt(RS.numrows, 10) || 0;
+    const sel = document.getElementById('selBanco');
+    sel.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.text  = 'Seleccione...';
+    sel.appendChild(opt0);
 
-document.addEventListener('DOMContentLoaded', () => {
-  const b = document.getElementById('btnAbrirLB');
-  if (b) b.onclick = abrirSelectorBancos;
-});
+    for (let i = 0; i < n; i++) {
+      const id  = BD.getField(RS, 'idbanco', i);
+      const nom = BD.getField(RS, 'nombre',  i) || '';
+      if (!nom) continue;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.text  = nom;
+      sel.appendChild(opt);
+    }
+  }
+
+  // Abre segundo lightbox DENTRO del iframe (como en la maqueta)
+  function abrirLBWebBanco(nombre) {
+    const IUlb = new IU();
+    IUlb.ShowInfoWidget(urlBanco(nombre), 420, 700, 'CerrarLBInterno', 80);
+    // expone cierre para el link [X] del componente
+    window.CerrarLBInterno = function(){ IUlb.HideInfo(); };
+  }
+
+  function irAPagina() {
+    const sel = document.getElementById('selBanco');
+    const id  = sel.value;
+    const nom = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+
+    if (String(id).trim() === '') {
+      // Mostrar MSGBOX en el padre y por encima del overlay
+      try {
+        top.MSGBOX.Abrir({
+          titulocss: 'titulorojomsgbox',
+          titulo: 'Advertencia',
+          texto: 'Debe seleccionar un banco, para abrir el lightbox.',
+          botonera: 1,
+          fnretorno: 'top.retMsgOnlyClose',
+          conCerrar: true,
+          zzIndex: 9000 // 👈 asegura que quede sobre el overlay
+        });
+      } catch (e) { alert('Debe seleccionar un banco.'); }
+      return;
+    }
+
+    abrirLBWebBanco(nom);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    cargarBancos();
+    const btn = document.getElementById('btnGo');
+    if (btn) btn.onclick = irAPagina;
+  });
+})();
