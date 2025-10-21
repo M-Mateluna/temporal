@@ -1,117 +1,36 @@
-/*  Selector de bancos dentro del IFRAME del primer lightbox
-    Requiere que en el padre ya estén cargados:
-      - componente/mascara/lightbox-iframe.js
-      - componente/messagebox/class.php
-*/
+<?php
+/* POSICIÓN DESDE RAÍZ */
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+header('Content-Type: text/html; charset=iso-8859-1');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+  <title>Ejercicio lightbox</title>
 
-(function () {
-  // helpers DOM
-  function $(id) { return document.getElementById(id); }
+  <!-- Scripts corporativos necesarios EN EL PADRE -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=1"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=1"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php?v=1"></script>
 
-  // referencia al padre (donde vive el overlay principal)
-  const TOP = window.top || window.parent;
-
-  // ruta base (misma que usaste en el index del ejercicio)
-  // si ya expones `posicion` en el padre, la tomamos de allí:
-  const posicion = (TOP.posicion || '../../../');
-
-  // Asegura que el select exista
-  const sel = $('selBanco');
-  const btn = $('btnIr');
-
-  // --- Carga de bancos (vía BASE en el padre) --------------------
-  // Usamos el componente Database del padre (BASE vive ahí)
-  const BD = new TOP.BASE();
-  BD.commandFile = posicion + 'form/training/Lightbox/Ejercicio1/command.php';
-
-  // llena el combo
-  function cargarBancos() {
-    const RS = BD.send('cmd=listar_bancos', {});
-    if (RS.error && String(RS.error).trim() !== '') {
-      alert('Error DB:\n' + RS.error);
-      return;
+  <script type="text/javascript">
+    // expongo 'posicion' para que el iframe la utilice
+    let posicion = "<?=$POSICION?>";
+    function abrirSelectorBancos() {
+      // Abre el PRIMER lightbox (selector)
+      OpenLightbox(800, 260, "<?=$POSICION?>form/training/Lightbox/Ejercicio1/lb_bancos.php");
     }
+  </script>
+</head>
+<body class="bg_formulario">
+  <div id="overlay" style="display:none"></div>
+  <div id="lightbox" style="display:none"></div>
 
-    sel.innerHTML = '';
-    const opt0 = document.createElement('option');
-    opt0.value = '';
-    opt0.text = 'Seleccione...';
-    sel.appendChild(opt0);
-
-    const n = Number(RS.numrows || 0);
-    for (let i = 0; i < n; i++) {
-      const id  = BD.getField(RS, 'idbanco', i);
-      const nom = BD.getField(RS, 'nombre', i);
-      if (!nom) continue;
-      const op = document.createElement('option');
-      op.value = id;
-      op.text  = nom;
-      sel.appendChild(op);
-    }
-  }
-
-  // --- Abrir detalle (segundo lightbox) sobre el primero ----------
-  function abrirBancoSobreSelector(nombreBanco) {
-    // Subimos un peldaño los z-index (no agresivo)
-    try {
-      TOP.document.getElementById('overlay').style.zIndex  = 100001;
-      TOP.document.getElementById('lightbox').style.zIndex = 100002;
-    } catch (_) {}
-
-    // Abrimos el lightbox del PADRE (no dentro del iframe)
-    const url = posicion + 'form/training/Lightbox/Ejercicio1/banco.php?nombre=' +
-                encodeURIComponent(nombreBanco);
-
-    // Reutilizamos la función ya disponible en el padre
-    // para que respete el estilo corporativo
-    TOP.OpenLightbox(900, 420, url);
-  }
-
-  // --- MessageBox (en el padre) ----------------------------------
-  function msgAdvertencia() {
-    // Prepara (si no existiera) un contenedor MSGBOX en el padre
-    if (!TOP.MSGBOX || !TOP.MSGBOX.ventana) {
-      TOP.MSGBOX = {
-        ventana: new TOP.IU_MSGBOX(),
-        Abrir: function (conf) {
-          this.ventana.titulo   = conf.titulo || 'Aviso';
-          this.ventana.texto    = '<center>' + (conf.texto || '') + '</center>';
-          this.ventana.botonera = conf.botonera || 1;
-          this.ventana.conCerrar = (conf.conCerrar !== false);
-          this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
-          this.ventana.url = posicion;
-          this.ventana.top = conf.top || '25%';
-          this.ventana.objeto = conf.objeto || {};
-          this.ventana.Messagebox();
-          this.ventana.zzIndex = 100004; // por encima del lightbox
-        }
-      };
-    }
-
-    TOP.MSGBOX.Abrir({
-      titulocss: 'titulonaranjamsgbox',
-      titulo: 'Advertencia',
-      texto: 'Debe seleccionar un banco, para abrir el lightbox.',
-      botonera: 1,             // Aceptar
-      conCerrar: true
-    });
-  }
-
-  // --- Click en “Ir a página Web” --------------------------------
-  function irAPagina() {
-    const idSel = sel.value;
-    const nombre = sel.options[sel.selectedIndex]?.text || '';
-
-    if (!idSel) {
-      msgAdvertencia();
-      return;
-    }
-    abrirBancoSobreSelector(nombre);
-  }
-
-  // listeners
-  if (btn) btn.addEventListener('click', irAPagina);
-
-  // init
-  cargarBancos();
-})();
+  <div style="padding:20px">
+    <h1>Ejercicio lightbox</h1>
+    <button onclick="abrirSelectorBancos()">Abrir lightbox</button>
+  </div>
+</body>
+</html>
