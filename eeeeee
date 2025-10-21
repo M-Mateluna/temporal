@@ -1,32 +1,20 @@
 <?php
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$nombre = isset($_GET['nombre']) ? $_GET['nombre'] : '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
-  <title>Listado de Bancos</title>
+  <title>Bancos</title>
 </head>
-<body style="background:#efefef;padding:18px">
-
-  <div style="max-width:760px;margin:0 auto;border:1px solid #ccc;background:#fff">
-    <div style="background:#1e5f86;color:#fff;padding:10px 14px;border-radius:6px 6px 0 0;font-weight:bold">
-      Listado de Bancos
-    </div>
-    <div style="padding:16px">
-      <select id="selBanco" style="min-width:320px;height:32px"></select>
-      <button id="btnIr" style="height:32px;margin-left:10px">Ir a página Web</button>
+<body style="background:#fdfae8;padding:18px">
+  <div style="max-width:760px;margin:0 auto;border:1px solid #999;background:#fefefe">
+    <div style="background:#0c4b6e;color:#fff;padding:8px 12px;font-weight:bold">Bancos</div>
+    <div style="padding:18px">
+      <div style="margin-bottom:10px">Usted ha Seleccionado el Banco:</div>
+      <div style="font-size:42px;font-weight:bold;letter-spacing:1px"><?=htmlspecialchars($nombre, ENT_QUOTES, 'ISO-8859-1');?></div>
     </div>
   </div>
-
-  <!-- Componentes necesarios en este iframe -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=<?=rand();?>"></script>
-
-  <script>
-    // POSICIÓN de raíz, para armar rutas absolutas hacia command y detalle
-    var posicion = '<?=$POSICION?>';
-  </script>
-  <script src="lb_bancos.js?v=<?=rand()?>"></script>
 </body>
 </html>
