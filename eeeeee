@@ -1,29 +1,31 @@
-.btn-eliminar {
-  background-color: #ff4d4d;        /* Rojo principal */
-  border: none;                     /* Sin borde */
-  color: white;                     /* Texto blanco */
-  padding: 6px 14px;                /* Tamaño cómodo */
-  border-radius: 6px;               /* Bordes suaves */
-  cursor: pointer;                  /* Indicador de clic */
-  font-size: 14px;
-  font-weight: bold;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-}
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Lightbox - Ejercicio 1</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg_formulario">
+  <!-- Overlays del MessageBox (los crea el componente) -->
+  <div id="MSGBOX_OL_" style="display:none;position:absolute;"></div>
+  <div id="MSGBOX_"    style="display:none;position:absolute;"></div>
 
-/* Efecto hover */
-.btn-eliminar:hover {
-  background-color: #e43f3f;        /* Rojo más oscuro */
-  transform: scale(1.03);           /* Pequeño aumento */
-}
+  <div class="wrap">
+    <h2>Listado de Bancos</h2>
+    <button id="btnAbrirLB" class="btn-primary">Abrir selector</button>
+  </div>
 
-/* Efecto al hacer clic */
-.btn-eliminar:active {
-  background-color: #c93030;        /* Rojo más profundo */
-  transform: scale(0.98);
-}
+  <!-- Componentes del sistema -->
+  <script>var posicion = "<?=$POSICION?>";</script>
+  <script src="<?=$POSICION?>componente/lightbox/class.php"></script>
+  <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  <script src="<?=$POSICION?>componente/database/class.php"></script>
 
-/* Alinear el botón dentro de la celda */
-td:last-child {
-  text-align: center;
-  vertical-align: middle;
-}
+  <!-- Controlador -->
+  <script src="controlador.js"></script>
+</body>
+</html>
