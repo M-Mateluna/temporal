@@ -1,41 +1,35 @@
 <?php
-// localizar raíz
+// Ubicar raíz del proyecto
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require_once($POSICION."formHeader.php"); // encabezado estándar (ISO-8859-1)
+require_once($POSICION."formHeader.php"); // ISO-8859-1 + dependencias globales
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Lightbox – Ejercicio Bancos</title>
+  <title>Lightbox – Bancos</title>
 </head>
 <body>
 
   <div style="padding:24px;text-align:center">
-    <button onclick="abrirLB()" style="padding:10px 16px;border:0;border-radius:6px;background:#1f5e87;color:#fff;cursor:pointer;">
-      Abrir listado de bancos
-    </button>
+    <button onclick="abrirLB()">Abrir listado de bancos</button>
   </div>
 
-  <!-- Importaciones Lightbox (según doc) -->
+  <!-- Lightbox (componentes del proyecto) -->
   <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
   <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
 
   <script type="text/javascript">
-    // Crea los nodos overlay/lightbox una sola vez (ver doc)
-    addLightboxMarkup(); // :contentReference[oaicite:1]{index=1}
+    // Crea overlay/lightbox del documento (según componente)
+    addLightboxMarkup();
 
-    // Objeto estándar para manejar la ventana (ver doc)
-    let Ajuste = {
-      ventana: typeof IU,
-      initialize: function(){ this.ventana = new IU(); }
-    };
+    // Handler estándar
+    let Ajuste = { ventana: typeof IU, initialize(){ this.ventana = new IU(); } };
     Ajuste.initialize();
 
-    // Abre el primer lightbox (selector de bancos)
     function abrirLB(){
-      // ShowInfoWidget(iframe, alto, ancho, fnCerrar)  (ver doc)
-      Ajuste.ventana.ShowInfoWidget("lb_bancos.php", 520, 820, "cerrarLBPrincipal"); // :contentReference[oaicite:2]{index=2}
+      // (iframe, alto, ancho, fnCerrar)
+      Ajuste.ventana.ShowInfoWidget("lb_bancos.php", 520, 820, "cerrarLBPrincipal");
     }
     function cerrarLBPrincipal(){ Ajuste.ventana.HideInfo(); }
   </script>
