@@ -1,36 +1,89 @@
-<?php
-/* POSICIÓN DESDE RAÍZ */
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-header('Content-Type: text/html; charset=iso-8859-1');
-?>
+<?php /* index.php - Ejercicio Propuesto - Uso de nuevos estilos (Desis) */ ?>
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
-  <title>Ejercicio lightbox</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Gestión de Clientes / Proveedores</title>
 
-  <!-- Scripts corporativos necesarios EN EL PADRE -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=1"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=1"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php?v=1"></script>
+  <!-- Nuevo estilo CSS estándar Desis -->
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
-  <script type="text/javascript">
-    // expongo 'posicion' para que el iframe la utilice
-    let posicion = "<?=$POSICION?>";
-    function abrirSelectorBancos() {
-      // Abre el PRIMER lightbox (selector)
-      OpenLightbox(800, 260, "<?=$POSICION?>form/training/Lightbox/Ejercicio1/lb_bancos.php");
-    }
-  </script>
+  <style type="text/css">
+    /* Ajustes mínimos para la maqueta (no reemplaza el nuevoestilo.css) */
+    .contenedor { max-width: 980px; margin: 12px auto; }
+    .grid-2col { width: 100%; border-collapse: collapse; }
+    .grid-2col td { width: 50%; vertical-align: top; padding: 8px 14px; }
+    .stack label { display: block; margin-bottom: 4px; }
+    .stack input { width: 100%; box-sizing: border-box; }
+  </style>
 </head>
-<body class="bg_formulario">
-  <div id="overlay" style="display:none"></div>
-  <div id="lightbox" style="display:none"></div>
+<body>
 
-  <div style="padding:20px">
-    <h1>Ejercicio lightbox</h1>
-    <button onclick="abrirSelectorBancos()">Abrir lightbox</button>
-  </div>
+<div class="FORMULARIONECSS contenedor">
+  <fieldset>
+    <legend class="legends">Gestión de Clientes y Proveedores</legend>
+
+    <form id="frmPersonas" method="post" autocomplete="off" onsubmit="return false;">
+      <table class="grid-2col">
+        <tr>
+          <td>
+            <!-- Columna izquierda: RUT / ID Usuario -->
+            <table style="width:100%;">
+              <tr>
+                <td class="stack">
+                  <label for="rut">RUT</label>
+                  <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                </td>
+              </tr>
+              <tr>
+                <td class="stack">
+                  <label for="idusuario">ID Usuario</label>
+                  <input type="text" name="idusuario" id="idusuario" maxlength="10" placeholder="">
+                </td>
+              </tr>
+            </table>
+          </td>
+
+          <td>
+            <!-- Columna derecha: Giro / Fecha-Hora -->
+            <table style="width:100%;">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120" placeholder="">
+                </td>
+              </tr>
+              <tr>
+                <td class="stack">
+                  <label for="fechahora">Fecha/Hora</label>
+                  <input type="datetime-local" name="fechahora" id="fechahora">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Botonera opcional de ejemplo (mismo estilo) -->
+      <div style="padding:10px 14px;">
+        <button type="submit" class="textazul">Guardar</button>
+        <button type="reset"  class="textazul">Limpiar</button>
+      </div>
+    </form>
+  </fieldset>
+</div>
+
+<script type="text/javascript">
+/* Pre-cargar Fecha/Hora con el momento actual en formato compatible */
+(function () {
+  var fh = document.getElementById('fechahora');
+  if (fh && !fh.value) {
+    var d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    fh.value = d.toISOString().slice(0,16); // YYYY-MM-DDTHH:MM
+  }
+})();
+</script>
+
 </body>
 </html>
