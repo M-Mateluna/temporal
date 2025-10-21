@@ -1,35 +1,29 @@
 <?php
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Lightbox - Ejercicio 1</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Listado de Bancos</title>
+  <link rel="stylesheet" href="lb.css">
 </head>
-<body class="bg_formulario">
-  <!-- Overlays del MessageBox -->
-  <div id="MSGBOX_OL_" style="display:none;position:absolute;"></div>
-  <div id="MSGBOX_"    style="display:none;position:absolute;"></div>
-
-  <div class="wrap">
-    <h2>Listado de Bancos</h2>
-    <button id="btnAbrirLB" class="btn-primary">Abrir selector</button>
+<body>
+  <div class="titulo">Listado de Bancos</div>
+  <div class="box">
+    <div class="inner">
+      <select id="selBanco">
+        <option value="">Seleccione...</option>
+      </select>
+      <button class="btn-go" id="btnGo">Ir a p&aacute;gina Web</button>
+    </div>
   </div>
 
-  <!-- Componentes del sistema -->
+  <!-- Componentes necesarios dentro del iframe -->
   <script>var posicion = "<?=$POSICION?>";</script>
-  <!-- Lightbox (máscara) -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
-  <!-- MessageBox -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-  <!-- Database -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php"></script>
+  <script src="<?=$POSICION?>componente/database/class.php"></script>
 
-  <!-- Controlador principal -->
-  <script src="controlador.js"></script>
+  <!-- Lógica del iframe (sin código embebido) -->
+  <script src="lb_bancos.js"></script>
 </body>
 </html>
