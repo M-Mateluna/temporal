@@ -1,93 +1,76 @@
-<?php /* index.php — Ejercicio Propuesto: ClienteProveedor2 (Desis) */ ?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Clientes / Proveedores</title>
+/* controlador.js — Ejercicio Propuesto: ClienteProveedor2 (Desis) */
+let clienteproveedor;
+let _ultimoMetodo = ""; // 'keypress' o 'click'
 
-  <!-- Nuevo estilo CSS estándar -->
-  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css">
+window.onload = function() {
+  // === Precargar fecha/hora ===
+  let fh = document.getElementById('fechahora');
+  if (fh && !fh.value) {
+    let d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    fh.value = d.toISOString().slice(0,16);
+  }
 
-  <!-- Componentes estándar (no modificar los base) -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  // === Configurar componente ClienteProveedor2 ===
+  clienteproveedor = new ClienteProveedor2();
 
-  <!-- Script local -->
-  <script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
+  clienteproveedor.ubicacion = document.getElementById("divBuscador");
+  clienteproveedor.elementoBuscador = "rut";
+  clienteproveedor.elementos = {
+    rut: document.getElementById("rut"),
+    idclienteproveedor: document.getElementById("cliente2"),
+    giro: document.getElementById("giro"),
+    idusuario: document.getElementById("idusuario"),
+    fechahora: document.getElementById("fechahora")
+  };
 
-  <style type="text/css">
-    /* Ajustes mínimos, sin reemplazar el nuevoestilo.css */
-    .contenedor { max-width: 860px; margin: 12px auto; }
-    .grid      { width: 100%; border-collapse: collapse; }
-    .grid td   { width: 50%; vertical-align: top; padding: 8px 12px; }
-    .stack label { display:block; margin: 0 0 4px 2px; }
-    .stack input { width: 95%; box-sizing: border-box; }
-    .inline { display:flex; align-items:center; gap:6px; }
-    .inline > span { display:inline-flex; align-items:center; }
-  </style>
-</head>
-<body>
+  clienteproveedor.creaBotonBuscar = true;
+  clienteproveedor.creaBotonBorrar = true;
+  clienteproveedor.creaBotonCrear  = true;
+  clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
+  clienteproveedor.filtro = "cliente|vigente"; // opcional: |factura
+  clienteproveedor.islightbox = true;
+  clienteproveedor.altoLightbox = 500;
+  clienteproveedor.anchoLightbox = 800;
 
-<div class="FORMULARIONECSS contenedor">
-  <form id="frmCP" method="post" onsubmit="return false" autocomplete="off">
-    <fieldset>
-      <legend class="legends">Información del Registro</legend>
+  // === Eventos ===
+  document.getElementById('rut').addEventListener('keypress', function () {
+    _ultimoMetodo = "keypress";
+  });
 
-      <table class="grid">
-        <tr>
-          <!-- Columna Izquierda -->
-          <td>
-            <table width="100%">
-              <tr>
-                <td class="stack">
-                  <label for="rut">RUT</label>
-                  <div class="inline">
-                    <input type="text" name="rut" id="rut" placeholder="12.345.678-9" maxlength="20">
-                    <span id="divBuscador"></span>
-                  </div>
-                  <input type="hidden" name="cliente2" id="cliente2">
-                </td>
-              </tr>
-              <tr>
-                <td class="stack">
-                  <label for="idusuario">ID Usuario</label>
-                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
-                </td>
-              </tr>
-            </table>
-          </td>
+  clienteproveedor.afterEvent = function () {
+    // Autocompletar fecha si no existe
+    let fh = document.getElementById('fechahora');
+    if (fh && !fh.value) {
+      let d = new Date();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      fh.value = d.toISOString().slice(0,16);
+    }
 
-          <!-- Columna Derecha -->
-          <td>
-            <table width="100%">
-              <tr>
-                <td class="stack">
-                  <label for="giro">Giro</label>
-                  <input type="text" name="giro" id="giro" maxlength="120">
-                </td>
-              </tr>
-              <tr>
-                <td class="stack">
-                  <label for="fechahora">Fecha/Hora</label>
-                  <input type="datetime-local" name="fechahora" id="fechahora">
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+    if (_ultimoMetodo === "keypress") {
+      document.getElementById('idusuario').disabled = true;
+      document.getElementById('giro').disabled = true;
 
-      <div style="text-align:center; padding:10px 0;">
-        <button type="submit" id="btnGuardar" class="textazul">Guardar</button>
-        <button type="reset"  class="textazul">Limpiar</button>
-      </div>
-    </fieldset>
-  </form>
-</div>
+      MSGBOX.Abrir({
+        titulo: 'AfterEvent',
+        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
+        botonera: 1
+      });
+    } else {
+      document.getElementById('rut').disabled = true;
+      document.getElementById('giro').disabled = true;
+      document.getElementById('idusuario').disabled = true;
 
-</body>
-</html>
+      MSGBOX.Abrir({
+        titulo: 'AfterEvent',
+        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
+        botonera: 1
+      });
+    }
+
+    _ultimoMetodo = ""; // reset
+  };
+
+  // Inicializar componente
+  clienteproveedor.New();
+};
