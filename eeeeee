@@ -1,31 +1,81 @@
 <?php
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Lightbox - Ejercicio 1</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Listado de Bancos</title>
+  <link rel="stylesheet" href="<?=$POSICION?>css/lightbox.css">
+  <style>
+    body { background:#f3f4f6; font-family: Arial, Helvetica, sans-serif; }
+    .inner { margin: 28px auto; width: 520px; text-align: center; }
+    select { padding: 6px 10px; border:1px solid #ccc; border-radius:6px; }
+    .btn-go { background:#1f8a3a; color:#fff; border:none; border-radius:6px; padding:7px 14px; margin-left:8px; cursor:pointer; }
+    .btn-go:hover { background:#17712f; }
+    .titulo { background:#1f5d8a; color:#fff; padding:8px; border-radius:6px 6px 0 0; width:520px; margin:20px auto 0; font-weight:bold; }
+    .box { width:520px; margin:0 auto; padding:16px 0 26px; background:#fff; border:1px solid #999; border-top:0; }
+  </style>
 </head>
-<body class="bg_formulario">
-  <!-- Overlays del MessageBox (los crea el componente) -->
-  <div id="MSGBOX_OL_" style="display:none;position:absolute;"></div>
-  <div id="MSGBOX_"    style="display:none;position:absolute;"></div>
-
-  <div class="wrap">
-    <h2>Listado de Bancos</h2>
-    <button id="btnAbrirLB" class="btn-primary">Abrir selector</button>
+<body>
+  <div class="titulo">Listado de Bancos</div>
+  <div class="box">
+    <div class="inner">
+      <select id="selBanco">
+        <option value="">Seleccione...</option>
+      </select>
+      <button class="btn-go" id="btnGo">Ir a p&aacute;gina Web</button>
+    </div>
   </div>
 
-  <!-- Componentes del sistema -->
+  <!-- Componentes necesarios dentro del iframe -->
   <script>var posicion = "<?=$POSICION?>";</script>
-  <script src="<?=$POSICION?>componente/lightbox/class.php"></script>
-  <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
   <script src="<?=$POSICION?>componente/database/class.php"></script>
 
-  <!-- Controlador -->
-  <script src="controlador.js"></script>
+  <script type="text/javascript">
+  // Cargar bancos desde command.php de ESTA carpeta
+  (function(){
+    var BD = new BASE();
+    BD.commandFile = 'command.php';
+    var RS = BD.send('cmd=listar');
+
+    if (!RS || (RS.error && RS.error.trim() !== '')) { return; }
+
+    var n = Number(RS.numrows || 0);
+    var sel = document.getElementById('selBanco');
+    for (var i=0;i<n;i++){
+      var id   = BD.getField(RS,'idbanco', i);
+      var nom  = BD.getField(RS,'nombre', i) || '';
+      var url  = BD.getField(RS,'urlweb', i) || '';
+      var opt  = document.createElement('option');
+      opt.value = url;
+      opt.text  = nom;
+      sel.appendChild(opt);
+    }
+
+    document.getElementById('btnGo').onclick = function(){
+      var s = sel.value;
+      var t = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+      if (String(s).trim() === '') {
+        // Llamamos al MSGBOX del padre
+        try {
+          top.MSGBOX.Abrir({
+            titulocss: 'titulorojomsgbox',
+            titulo: 'Advertencia',
+            texto: 'Debe seleccionar un banco, para abrir el lightbox.',
+            botonera: 1,
+            fnretorno: 'top.retMsgOnlyClose',
+            conCerrar: true
+          });
+        } catch(e) { alert('Debe seleccionar un banco.'); }
+        return;
+      }
+      // Abrimos segundo lightbox en el padre
+      try {
+        top.abrirLightboxBanco(s, t);
+      } catch(e) {}
+    };
+  })();
+  </script>
 </body>
 </html>
