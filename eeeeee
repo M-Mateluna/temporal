@@ -1,99 +1,35 @@
-(function () {
-  // Este JS corre dentro del iframe lb_bancos.php
-  let BD;
-
-  function alerta(m) {
-    try { console.log(m); } catch (e) {}
-    try { alert(m); } catch (e) {}
+// --- z-index alto para que el MSGBOX siempre quede sobre el overlay del lightbox
+let MSGBOX = {
+  ventana: undefined,
+  initialize() { this.ventana = new IU_MSGBOX(); },
+  Abrir(conf) {
+    this.ventana.titulo    = conf.titulo || 'Aviso';
+    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
+    this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
+    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'retMsgOnlyClose';
+    this.ventana.url       = posicion;
+    this.ventana.top       = '25%';
+    this.ventana.objeto    = conf.objeto || {};
+    // 👇 poner ANTES del Messagebox el z-index bien alto
+    this.ventana.zzIndex   = conf.zzIndex || 5000;
+    this.ventana.Messagebox();
   }
+};
+MSGBOX.initialize();
 
-  function cargarBancos() {
-    BD = new BASE();
-    // Forzamos a no cachear por si acaso
-    BD.commandFile = 'command.php?ts=' + Date.now();
+// Primer lightbox: sin “tarjeta”, centrado y limpio
+let UI = null;
+function CerrarLB(){ if (UI) UI.HideInfo(); }
 
-    let RS = BD.send('cmd=listar');
+function abrirSelectorBancos(){
+  if (!UI) UI = new IU();
+  // ShowInfoWidget(iframe, alto, ancho, funcion_cerrar, top_offset)
+  UI.ShowInfoWidget('lb_bancos.php', 480, 900, 'CerrarLB', 120);
+}
 
-    // Validaciones defensivas
-    if (!RS) {
-      alerta('No llegó RS (resultado nulo) desde database/class.php.');
-      return;
-    }
-
-    // Si RS.error trae algo (texto), lo mostramos
-    if (RS.error && String(RS.error).trim() !== '') {
-      alerta('Error DB:\n' + RS.error);
-      return;
-    }
-
-    // numrows
-    let n = parseInt(RS.numrows, 10) || 0;
-    // console de apoyo
-    try { console.log('Bancos recibidos:', n); } catch (e) {}
-
-    let sel = document.getElementById('selBanco');
-    if (!sel) {
-      alerta('No se encontró el select con id="selBanco" en el iframe.');
-      return;
-    }
-
-    // Limpia y agrega opción en blanco única
-    sel.innerHTML = '';
-    let opt0 = document.createElement('option');
-    opt0.value = '';
-    opt0.text = 'Seleccione...';
-    sel.appendChild(opt0);
-
-    // Poblar filas
-    for (let i = 0; i < n; i++) {
-      let id  = BD.getField(RS, 'idbanco', i);
-      let nom = BD.getField(RS, 'nombre',  i) || '';
-
-      // Si por alguna razón no hay nombre, saltamos
-      if (nom === null || nom === undefined || String(nom).trim() === '') {
-        continue;
-      }
-
-      let opt = document.createElement('option');
-      opt.value = id;
-      opt.text  = nom;
-      sel.appendChild(opt);
-    }
-
-    // Si no llegó nada, lo indicamos (útil para descartar silencios)
-    if (n === 0) {
-      try { console.warn('Listado de bancos vacío (0 filas).'); } catch (e) {}
-    }
-  }
-
-  function irAPagina() {
-    let sel = document.getElementById('selBanco');
-    let id  = sel.value;
-    let nom = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
-
-    if (String(id).trim() === '') {
-      // Mensaje en el padre
-      try {
-        top.MSGBOX.Abrir({
-          titulocss: 'titulorojomsgbox',
-          titulo: 'Advertencia',
-          texto: 'Debe seleccionar un banco, para abrir el lightbox.',
-          botonera: 1,
-          fnretorno: 'top.retMsgOnlyClose',
-          conCerrar: true
-        });
-      } catch (e) { alert('Debe seleccionar un banco.'); }
-      return;
-    }
-
-    try { top.abrirLightboxBanco(nom); } catch (e) {
-      alerta('No fue posible abrir el segundo lightbox.\n' + e.message);
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    cargarBancos();
-    let btn = document.getElementById('btnGo');
-    if (btn) btn.onclick = irAPagina;
-  });
-})();
+document.addEventListener('DOMContentLoaded', () => {
+  const b = document.getElementById('btnAbrirLB');
+  if (b) b.onclick = abrirSelectorBancos;
+});
