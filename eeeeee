@@ -1,55 +1,29 @@
-var LB  = null;  // selector
-var LB2 = null;  // detalle
-
-var MSGBOX = {
-  ventana: undefined,
-  initialize: function(){
-    this.ventana = new IU_MSGBOX();
-  },
-  Abrir: function(conf){
-    this.ventana.titulo    = conf.titulo || 'Aviso';
-    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
-    this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
-    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
-    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
-    this.ventana.fnretorno = conf.fnretorno || 'retMsgOnlyClose';
-    this.ventana.url       = posicion;
-    this.ventana.top       = '25%';
-    this.ventana.objeto    = conf.objeto || {};
-    this.ventana.Messagebox();
-    this.ventana.zzIndex   = 2;
-  }
-};
-MSGBOX.initialize();
-
-function retMsgOnlyClose(){ MSGBOX.ventana.HideInfo(); }
-
-function abrirSelectorBancos(){
-  LB = new IU_LIGHTBOX();
-  LB.titulo = 'Listado de Bancos';
-  LB.url    = 'lb_bancos.php';
-  LB.ancho  = 900;
-  LB.alto   = 480;
-  LB.Show();
+body.bg_formulario {
+  background: #f6f7fb;
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-function abrirLightboxBanco(nombreBanco){
-  try { if (LB && LB.Hide) LB.Hide(); } catch(e) {}
-
-  LB2 = new IU_LIGHTBOX();
-  LB2.titulo = 'Bancos';
-  LB2.url    = 'lb_detalle.php?nombre=' + encodeURIComponent(nombreBanco);
-  LB2.ancho  = 900;
-  LB2.alto   = 480;
-  LB2.Show();
+.wrap {
+  max-width: 980px;
+  margin: 30px auto;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 14px rgba(0,0,0,.08);
+  padding: 22px 26px 30px;
+  text-align: center;
 }
 
-document.addEventListener('DOMContentLoaded', function(){
-  var b = document.getElementById('btnAbrirLB');
-  if (b) b.onclick = abrirSelectorBancos;
-});
+h2 { margin: 0 0 16px; color: #333; }
 
-// Exponer a iframes
-window.abrirLightboxBanco = abrirLightboxBanco;
-window.MSGBOX = MSGBOX;
-window.retMsgOnlyClose = retMsgOnlyClose;
+.btn-primary {
+  background-color: #0078d4;
+  color: #fff;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: background .2s ease;
+}
+.btn-primary:hover { background-color: #005fa3; }
