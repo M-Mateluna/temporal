@@ -1,62 +1,60 @@
-<?php /* index.php - Ejercicio Propuesto - Uso de nuevos estilos (Desis) */ ?>
+<?php /* index.php — Ejercicio Propuesto: Uso de nuevos estilos (Desis) */ ?>
+<?php
+// Resolver $POSICION como en el ejemplo del documento
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Gestión de Clientes / Proveedores</title>
+  <title>Gestión de Clientes y Proveedores</title>
 
-  <!-- Nuevo estilo CSS estándar Desis -->
+  <!-- Import según el documento -->
   <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
-
-  <style type="text/css">
-    /* Ajustes mínimos para la maqueta (no reemplaza el nuevoestilo.css) */
-    .contenedor { max-width: 980px; margin: 12px auto; }
-    .grid-2col { width: 100%; border-collapse: collapse; }
-    .grid-2col td { width: 50%; vertical-align: top; padding: 8px 14px; }
-    .stack label { display: block; margin-bottom: 4px; }
-    .stack input { width: 100%; box-sizing: border-box; }
-  </style>
 </head>
 <body>
 
-<div class="FORMULARIONECSS contenedor">
-  <fieldset>
-    <legend class="legends">Gestión de Clientes y Proveedores</legend>
+<div class="FORMULARIONECSS" style="max-width:980px;margin:12px auto;">
+  <form name="frmCP" action="void(0)" method="post" autocomplete="off" onsubmit="return false;">
+    <fieldset>
+      <legend class="legends">Información del Registro</legend>
 
-    <form id="frmPersonas" method="post" autocomplete="off" onsubmit="return false;">
-      <table class="grid-2col">
+      <!-- Maquetación con tablas como en el ejemplo -->
+      <table width="100%" cellspacing="3" cellpadding="3">
         <tr>
-          <td>
-            <!-- Columna izquierda: RUT / ID Usuario -->
-            <table style="width:100%;">
+          <!-- Columna Izquierda -->
+          <td width="50%" valign="top">
+            <table width="100%" cellspacing="3" cellpadding="3">
+              <tr><td><label for="rut">RUT</label></td></tr>
               <tr>
-                <td class="stack">
-                  <label for="rut">RUT</label>
-                  <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                <td>
+                  <input type="text" name="rut" id="rut" style="width:95%;" placeholder="12.345.678-9">
                 </td>
               </tr>
+
+              <tr><td><label for="idusuario">ID Usuario</label></td></tr>
               <tr>
-                <td class="stack">
-                  <label for="idusuario">ID Usuario</label>
-                  <input type="text" name="idusuario" id="idusuario" maxlength="10" placeholder="">
+                <td>
+                  <input type="text" name="idusuario" id="idusuario" style="width:95%;">
                 </td>
               </tr>
             </table>
           </td>
 
-          <td>
-            <!-- Columna derecha: Giro / Fecha-Hora -->
-            <table style="width:100%;">
+          <!-- Columna Derecha -->
+          <td width="50%" valign="top">
+            <table width="100%" cellspacing="3" cellpadding="3">
+              <tr><td><label for="giro">Giro</label></td></tr>
               <tr>
-                <td class="stack">
-                  <label for="giro">Giro</label>
-                  <input type="text" name="giro" id="giro" maxlength="120" placeholder="">
+                <td>
+                  <input type="text" name="giro" id="giro" style="width:95%;">
                 </td>
               </tr>
+
+              <tr><td><label for="fechahora">Fecha/Hora</label></td></tr>
               <tr>
-                <td class="stack">
-                  <label for="fechahora">Fecha/Hora</label>
-                  <input type="datetime-local" name="fechahora" id="fechahora">
+                <td>
+                  <input type="datetime-local" name="fechahora" id="fechahora" style="width:95%;">
                 </td>
               </tr>
             </table>
@@ -64,23 +62,22 @@
         </tr>
       </table>
 
-      <!-- Botonera opcional de ejemplo (mismo estilo) -->
-      <div style="padding:10px 14px;">
+      <!-- Botonera de ejemplo usando el mismo estilo -->
+      <div style="padding:8px 3px;">
         <button type="submit" class="textazul">Guardar</button>
         <button type="reset"  class="textazul">Limpiar</button>
       </div>
-    </form>
-  </fieldset>
+    </fieldset>
+  </form>
 </div>
 
 <script type="text/javascript">
-/* Pre-cargar Fecha/Hora con el momento actual en formato compatible */
-(function () {
+// Precargar Fecha/Hora (formato compatible con datetime-local)
+(function(){
   var fh = document.getElementById('fechahora');
   if (fh && !fh.value) {
-    var d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    fh.value = d.toISOString().slice(0,16); // YYYY-MM-DDTHH:MM
+    var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    fh.value = d.toISOString().slice(0,16);
   }
 })();
 </script>
