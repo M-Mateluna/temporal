@@ -1,40 +1,43 @@
 <?php
-// Ubica la raíz del proyecto para poder referenciar los componentes
-while (!file_exists($POSICION . "conexion.php")) {
-    $POSICION .= "../";
-}
+// localizar raíz
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require_once($POSICION."formHeader.php"); // encabezado estándar (ISO-8859-1)
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Listado de Bancos</title>
-
-  <!-- Estilos específicos del iframe -->
-  <link rel="stylesheet" href="lb.css">
-
-  <!-- Dependencias necesarias dentro del IFRAME -->
-  <!-- Prototype es requerido por iu.js y lightbox-iframe.js -->
-  <script type="text/javascript" src="<?=$POSICION?>js/prototype.js?v=1"></script>
-  <!-- Máscara (lightbox interno) -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand();?>"></script>
-  <!-- Componente Database: define BASE para usar new BASE() en el iframe -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand();?>"></script>
-
-  <!-- Lógica del selector de bancos dentro del iframe -->
-  <script type="text/javascript" src="lb_bancos.js?v=<?=rand();?>"></script>
+  <title>Lightbox – Ejercicio Bancos</title>
 </head>
 <body>
-  <div class="titulo">Listado de Bancos</div>
 
-  <div class="box">
-    <div class="inner">
-      <select id="selBanco">
-        <option value="">Seleccione...</option>
-      </select>
-      <button type="button" id="btnGo" class="btn-go">Ir a página Web</button>
-    </div>
+  <div style="padding:24px;text-align:center">
+    <button onclick="abrirLB()" style="padding:10px 16px;border:0;border-radius:6px;background:#1f5e87;color:#fff;cursor:pointer;">
+      Abrir listado de bancos
+    </button>
   </div>
+
+  <!-- Importaciones Lightbox (según doc) -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+
+  <script type="text/javascript">
+    // Crea los nodos overlay/lightbox una sola vez (ver doc)
+    addLightboxMarkup(); // :contentReference[oaicite:1]{index=1}
+
+    // Objeto estándar para manejar la ventana (ver doc)
+    let Ajuste = {
+      ventana: typeof IU,
+      initialize: function(){ this.ventana = new IU(); }
+    };
+    Ajuste.initialize();
+
+    // Abre el primer lightbox (selector de bancos)
+    function abrirLB(){
+      // ShowInfoWidget(iframe, alto, ancho, fnCerrar)  (ver doc)
+      Ajuste.ventana.ShowInfoWidget("lb_bancos.php", 520, 820, "cerrarLBPrincipal"); // :contentReference[oaicite:2]{index=2}
+    }
+    function cerrarLBPrincipal(){ Ajuste.ventana.HideInfo(); }
+  </script>
 </body>
 </html>
