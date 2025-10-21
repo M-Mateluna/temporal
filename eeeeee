@@ -1,9 +1,65 @@
-<link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css">
+// 1) Asegura el markup del Lightbox antes de abrirlo
+if (typeof addLightboxMarkup === 'function') {
+  addLightboxMarkup();
+}
 
-<script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
-<script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
-<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
+// 2) Configura el componente
+clienteproveedor = new ClienteProveedor2();
+clienteproveedor.ubicacion = document.getElementById("divBuscador");
+clienteproveedor.elementoBuscador = "rut";
+clienteproveedor.elementos = {
+  rut: document.getElementById("rut"),
+  idclienteproveedor: document.getElementById("cliente2"),
+  giro: document.getElementById("giro"),
+  idusuario: document.getElementById("idusuario"),
+  fechahora: document.getElementById("fechahora")
+};
+
+clienteproveedor.creaBotonBuscar = true;
+clienteproveedor.creaBotonBorrar = true;
+clienteproveedor.creaBotonCrear  = true;
+clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
+clienteproveedor.filtro = "cliente|vigente"; // (sin 'factura' si tu build no lo soporta)
+
+// 3) Fuerza Lightbox y tamaño ANTES de New()
+clienteproveedor.islightbox    = true;
+// por compatibilidad con variantes del componente (no hace daño si no existen):
+clienteproveedor.isLightbox      = true;
+clienteproveedor.usarLightbox    = true;
+clienteproveedor.abrirEnLightbox = true;
+
+clienteproveedor.altoLightbox  = 500;
+clienteproveedor.anchoLightbox = 800;
+
+// 4) Define afterEvent y crea el componente
+clienteproveedor.afterEvent = function () {
+  let fh = document.getElementById('fechahora');
+  if (fh && !fh.value) {
+    let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    fh.value = d.toISOString().slice(0,16);
+  }
+
+  if (_ultimoMetodo === "keypress") {
+    document.getElementById('idusuario').disabled = true;
+    document.getElementById('giro').disabled = true;
+
+    MSGBOX.Abrir({
+      titulo: 'AfterEvent',
+      texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
+      botonera: 1
+    });
+  } else {
+    document.getElementById('rut').disabled = true;
+    document.getElementById('giro').disabled = true;
+    document.getElementById('idusuario').disabled = true;
+
+    MSGBOX.Abrir({
+      titulo: 'AfterEvent',
+      texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
+      botonera: 1
+    });
+  }
+  _ultimoMetodo = "";
+};
+
+clienteproveedor.New();
