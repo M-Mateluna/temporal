@@ -1,133 +1,47 @@
-<?php
-// Ubicar la raíz del proyecto
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require_once($POSICION."formHeader.php"); // ISO-8859-1, Prototype, estilos base
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Listado de Bancos</title>
-</head>
-<body>
+function mostrarMsgAdvertencia() {
+  // 1) Intentar usar el messagebox del padre (queda encima del overlay)
+  if (window.parent && window.parent.MSGBOX && typeof window.parent.MSGBOX.Abrir === "function") {
+    window.parent.MSGBOX.Abrir({
+      titulocss: 'titulorojomsgbox',
+      titulo   : 'Advertencia',
+      texto    : 'Debe seleccionar un banco, para abrir el lightbox.',
+      botonera : 1,
+      conCerrar: false
+    });
+    return;
+  }
 
-  <!-- Contenido del selector -->
-  <h3>Listado de Bancos</h3>
-  <div>
-    <select id="selBanco">
-      <option value="">Seleccione...</option>
-    </select>
-    <button id="btnGo" type="button">Ir a p&aacute;gina Web</button>
-  </div>
+  // 2) Fallback local: IU_MSGBOX directo, creando un 'MSGBOX' básico para el [X]
+  if (typeof IU_MSGBOX === "function") {
+    var _mb = new IU_MSGBOX();
+    _mb.titulo    = 'Advertencia';
+    _mb.texto     = '<center>Debe seleccionar un banco, para abrir el lightbox.</center>';
+    _mb.botonera  = 1; // Aceptar
+    _mb.titulocss = 'titulorojomsgbox';
+    _mb.url       = '<?=$POSICION?>';
+    _mb.top       = '25%';
+    _mb.zzIndex   = 99999;
 
-  <!-- Database (BASE) -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand();?>"></script>
+    // Definimos una función de retorno real (al presionar Aceptar)
+    _mb.fnretorno = 'MSGBOX_fnRetLocal';
 
-  <!-- Messagebox local como respaldo (solo si el padre no lo tiene) -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=<?=rand();?>"></script>
+    // Proveer un objeto MSGBOX mínimo para que el [X] funcione:
+    // (IU_MSGBOX usa por defecto cerrar = "MSGBOX.ventana.HideInfo")
+    window.MSGBOX = window.MSGBOX || {};
+    window.MSGBOX.ventana   = _mb;
+    window.MSGBOX.Abrir     = window.MSGBOX.Abrir || function(){};
+    window.MSGBOX.fnretorno = window.MSGBOX.fnretorno || function(){};
+    window.MSGBOXaccion     = window.MSGBOXaccion     || function(){};
 
-  <script type="text/javascript">
-    // -------------------- Carga de bancos (Database/BASE) --------------------
-    let BD = new BASE();
-    BD.commandFile = "command.php";
+    // Handler invocado por la botonera (A/S/N...). Aquí solo cerramos.
+    window.MSGBOX_fnRetLocal = function(resp){
+      try { if (window.MSGBOX && window.MSGBOX.ventana) window.MSGBOX.ventana.HideInfo(); } catch(e){}
+    };
 
-    function cargarBancos() {
-      var RS = BD.send("cmd=listar");
-      if (RS.error && RS.error.trim() !== "") {
-        alert("Error DB:\n" + RS.error);
-        return;
-      }
-      var sel = document.getElementById("selBanco");
-      var n = Number(RS.numrows || 0);
-      for (let i = 0; i < n; i++) {
-        let id  = BD.getField(RS, "idbanco", i);
-        let nom = BD.getField(RS, "nombre",  i);
-        if (!nom) continue;
-        let op = document.createElement("option");
-        op.value = id;
-        op.text  = nom;
-        sel.appendChild(op);
-      }
-    }
+    _mb.Messagebox();
+    return;
+  }
 
-    // -------------------- Helpers: abrir LB/MSGBOX en el padre --------------------
-    function abrirLBDetalle(nombre) {
-      var url = "lb_detalle.php?nombre=" + encodeURIComponent(nombre);
-
-      // 1) Preferir el helper del padre si existe
-      if (window.parent && typeof window.parent.OpenLightbox === "function") {
-        window.parent.OpenLightbox(720, 380, url);
-        return;
-      }
-
-      // 2) Usar IU del padre (mismas hojas de estilo del sistema)
-      if (window.parent && typeof window.parent.IU === "function") {
-        var L = new window.parent.IU();
-        window.parent.cerrarLBInterno = function(){ L.HideInfo(); };
-        L.ShowInfoWidget(url, 380, 720, "cerrarLBInterno");
-        return;
-      }
-
-      // 3) Fallback local (solo para pruebas fuera de lightbox)
-      if (typeof IU === "function") {
-        var L2 = new IU();
-        window.cerrarLBInternoSelf = function(){ L2.HideInfo(); };
-        L2.ShowInfoWidget(url, 380, 720, "cerrarLBInternoSelf");
-      } else {
-        // Último recurso: abrir en nueva pestaña
-        window.open(url, "_blank");
-      }
-    }
-
-    function mostrarMsgAdvertencia() {
-      // Usar messagebox del padre si está disponible (siempre sobre el overlay)
-      if (window.parent && window.parent.MSGBOX && typeof window.parent.MSGBOX.Abrir === "function") {
-        window.parent.MSGBOX.Abrir({
-          titulocss: 'titulorojomsgbox',
-          titulo   : 'Advertencia',
-          texto    : 'Debe seleccionar un banco, para abrir el lightbox.',
-          botonera : 1,
-          conCerrar: false
-        });
-        return;
-      }
-
-      // Fallback local: crear un wrapper minimal de IU_MSGBOX
-      if (typeof IU_MSGBOX === "function") {
-        var _mb = new IU_MSGBOX();
-        _mb.titulo    = 'Advertencia';
-        _mb.texto     = '<center>Debe seleccionar un banco, para abrir el lightbox.</center>';
-        _mb.botonera  = 1; // Aceptar
-        _mb.titulocss = 'titulorojomsgbox';
-        _mb.url       = '<?=$POSICION?>';
-        _mb.top       = '25%';
-        _mb.zzIndex   = 99999; // por encima de overlays
-        _mb.fnretorno = 'MSGBOXaccion';
-        _mb.Messagebox();
-      } else {
-        alert('Debe seleccionar un banco, para abrir el lightbox.');
-      }
-    }
-
-    // -------------------- Handler del botón --------------------
-    function irAPagina() {
-      const sel = document.getElementById("selBanco");
-      const val = (sel.value || '').trim();
-      const txt = sel.options[sel.selectedIndex]?.text || '';
-
-      if (val === '') {
-        // Nada seleccionado -> MSGBOX sobre el overlay (en el padre)
-        mostrarMsgAdvertencia();
-        return;
-      }
-
-      // Abrir el segundo lightbox con el nombre (desde el padre)
-      abrirLBDetalle(txt);
-    }
-
-    // Init
-    cargarBancos();
-    document.getElementById("btnGo").onclick = irAPagina;
-  </script>
-</body>
-</html>
+  // 3) Último recurso
+  alert('Debe seleccionar un banco, para abrir el lightbox.');
+}
