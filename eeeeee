@@ -1,91 +1,117 @@
-// ---------- Carga bancos (DB via BASE) ----------
-const BD = new BASE();
-BD.commandFile = 'form/training/Lightbox/Ejercicio1/command.php';
+/*  Selector de bancos dentro del IFRAME del primer lightbox
+    Requiere que en el padre ya estén cargados:
+      - componente/mascara/lightbox-iframe.js
+      - componente/messagebox/class.php
+*/
 
-const sel = document.getElementById('selBanco');
-const btnIr = document.getElementById('btnIr');
+(function () {
+  // helpers DOM
+  function $(id) { return document.getElementById(id); }
 
-// Inicializa select con opción vacía
-function resetSelect() {
-  sel.innerHTML = '';
-  const opt0 = document.createElement('option');
-  opt0.value = '';
-  opt0.text = 'Seleccione...';
-  sel.appendChild(opt0);
-}
+  // referencia al padre (donde vive el overlay principal)
+  const TOP = window.top || window.parent;
 
-function cargarBancos() {
-  resetSelect();
+  // ruta base (misma que usaste en el index del ejercicio)
+  // si ya expones `posicion` en el padre, la tomamos de allí:
+  const posicion = (TOP.posicion || '../../../');
 
-  const RS = BD.send('cmd=listar');
-  if (RS.error && String(RS.error).trim() !== '') {
-    alert('Error DB:\n' + RS.error);
-    return;
+  // Asegura que el select exista
+  const sel = $('selBanco');
+  const btn = $('btnIr');
+
+  // --- Carga de bancos (vía BASE en el padre) --------------------
+  // Usamos el componente Database del padre (BASE vive ahí)
+  const BD = new TOP.BASE();
+  BD.commandFile = posicion + 'form/training/Lightbox/Ejercicio1/command.php';
+
+  // llena el combo
+  function cargarBancos() {
+    const RS = BD.send('cmd=listar_bancos', {});
+    if (RS.error && String(RS.error).trim() !== '') {
+      alert('Error DB:\n' + RS.error);
+      return;
+    }
+
+    sel.innerHTML = '';
+    const opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.text = 'Seleccione...';
+    sel.appendChild(opt0);
+
+    const n = Number(RS.numrows || 0);
+    for (let i = 0; i < n; i++) {
+      const id  = BD.getField(RS, 'idbanco', i);
+      const nom = BD.getField(RS, 'nombre', i);
+      if (!nom) continue;
+      const op = document.createElement('option');
+      op.value = id;
+      op.text  = nom;
+      sel.appendChild(op);
+    }
   }
-  const n = Number(RS.numrows || 0);
-  for (let i = 0; i < n; i++) {
-    let id  = BD.getField(RS, 'idbanco', i) || '';
-    let nom = BD.getField(RS, 'nombre', i) || '';
-    if (!id || !nom) continue;
 
-    const op = document.createElement('option');
-    op.value = nom;   // Usaremos el nombre en el detalle (tal como pediste)
-    op.text  = nom;
-    sel.appendChild(op);
+  // --- Abrir detalle (segundo lightbox) sobre el primero ----------
+  function abrirBancoSobreSelector(nombreBanco) {
+    // Subimos un peldaño los z-index (no agresivo)
+    try {
+      TOP.document.getElementById('overlay').style.zIndex  = 100001;
+      TOP.document.getElementById('lightbox').style.zIndex = 100002;
+    } catch (_) {}
+
+    // Abrimos el lightbox del PADRE (no dentro del iframe)
+    const url = posicion + 'form/training/Lightbox/Ejercicio1/banco.php?nombre=' +
+                encodeURIComponent(nombreBanco);
+
+    // Reutilizamos la función ya disponible en el padre
+    // para que respete el estilo corporativo
+    TOP.OpenLightbox(900, 420, url);
   }
-}
 
-// ---------- MSGBOX wrapper (Advertencia) ----------
-var MSGBOX = {
-  ventana: null,
-  init: function() {
-    this.ventana = new IU_MSGBOX();
-  },
-  abrir: function(conf) {
-    this.ventana.titulo   = conf.titulo || 'Aviso';
-    this.ventana.texto    = '<center>' + (conf.texto || '') + '</center>';
-    this.ventana.botonera = conf.botonera || 1;   // 1 = Aceptar
-    this.ventana.conCerrar = (conf.conCerrar === false) ? false : true;
-    this.ventana.fnretorno = conf.fnretorno || 'MSGBOXaccion';
-    this.ventana.url = posicion;
-    this.ventana.top = conf.top || '25%';
-    this.ventana.objeto = conf.objeto || {};
-    this.ventana.Messagebox();
-    this.ventana.zzIndex = 2;  // sobre lo que haya
+  // --- MessageBox (en el padre) ----------------------------------
+  function msgAdvertencia() {
+    // Prepara (si no existiera) un contenedor MSGBOX en el padre
+    if (!TOP.MSGBOX || !TOP.MSGBOX.ventana) {
+      TOP.MSGBOX = {
+        ventana: new TOP.IU_MSGBOX(),
+        Abrir: function (conf) {
+          this.ventana.titulo   = conf.titulo || 'Aviso';
+          this.ventana.texto    = '<center>' + (conf.texto || '') + '</center>';
+          this.ventana.botonera = conf.botonera || 1;
+          this.ventana.conCerrar = (conf.conCerrar !== false);
+          this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+          this.ventana.url = posicion;
+          this.ventana.top = conf.top || '25%';
+          this.ventana.objeto = conf.objeto || {};
+          this.ventana.Messagebox();
+          this.ventana.zzIndex = 100004; // por encima del lightbox
+        }
+      };
+    }
+
+    TOP.MSGBOX.Abrir({
+      titulocss: 'titulonaranjamsgbox',
+      titulo: 'Advertencia',
+      texto: 'Debe seleccionar un banco, para abrir el lightbox.',
+      botonera: 1,             // Aceptar
+      conCerrar: true
+    });
   }
-};
-MSGBOX.init();
 
-function advertenciaSeleccion() {
-  MSGBOX.abrir({
-    titulo: 'Advertencia',
-    texto: 'Debe seleccionar un banco, para abrir el lightbox.',
-    botonera: 1,              // Aceptar
-    conCerrar: true,
-    titulocss: 'titulorojomsgbox'
-  });
-}
+  // --- Click en “Ir a página Web” --------------------------------
+  function irAPagina() {
+    const idSel = sel.value;
+    const nombre = sel.options[sel.selectedIndex]?.text || '';
 
-// ---------- Abrir segundo lightbox ENCIMA ----------
-function abrirLBSegundo(nombreBanco) {
-  const url = posicion + 'form/training/Lightbox/Ejercicio1/lb_banco_detalle.php?nombre=' + encodeURIComponent(nombreBanco);
-
-  // Abrir sobre el overlay actual
-  if (window.parent && window.parent.Ajuste && window.parent.Ajuste.ventana &&
-      typeof window.parent.Ajuste.ventana.ShowInfoDentro === 'function') {
-    window.parent.Ajuste.ventana.ShowInfoDentro(url, 380, 820);
-  } else if (window.parent && typeof window.parent.OpenLightbox === 'function') {
-    // Fallback (no apila, pero no rompe)
-    window.parent.OpenLightbox(820, 380, url);
+    if (!idSel) {
+      msgAdvertencia();
+      return;
+    }
+    abrirBancoSobreSelector(nombre);
   }
-}
 
-// ---------- Eventos ----------
-btnIr.addEventListener('click', function () {
-  const nom = sel.value || '';
-  if (!nom) { advertenciaSeleccion(); return; }
-  abrirLBSegundo(nom);
-});
+  // listeners
+  if (btn) btn.addEventListener('click', irAPagina);
 
-// Carga inicial
-cargarBancos();
+  // init
+  cargarBancos();
+})();
