@@ -1,37 +1,63 @@
 <?php
-// Ubicar raíz del proyecto
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require_once($POSICION."formHeader.php"); // ISO-8859-1 + dependencias globales
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Lightbox – Bancos</title>
+  <title>Listado de Bancos</title>
 </head>
 <body>
 
-  <div style="padding:24px;text-align:center">
-    <button onclick="abrirLB()">Abrir listado de bancos</button>
+  <h3>Listado de Bancos</h3>
+  <div>
+    <select id="selBanco">
+      <option value="">Seleccione...</option>
+    </select>
+    <button id="btnGo" type="button">Ir a página Web</button>
   </div>
 
-  <!-- Lightbox (componentes del proyecto) -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+  <!-- Lightbox (para abrir el segundo LB desde este iframe) -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+
+  <!-- Database (define BASE) -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand();?>"></script>
 
   <script type="text/javascript">
-    // Crea overlay/lightbox del documento (según componente)
-    addLightboxMarkup();
+  (function(){
+    // Cargar bancos
+    let BD = new BASE();
+    BD.commandFile = "command.php";
+    let RS = BD.send("cmd=listar");
 
-    // Handler estándar
-    let Ajuste = { ventana: typeof IU, initialize(){ this.ventana = new IU(); } };
-    Ajuste.initialize();
-
-    function abrirLB(){
-      // (iframe, alto, ancho, fnCerrar)
-      Ajuste.ventana.ShowInfoWidget("lb_bancos.php", 520, 820, "cerrarLBPrincipal");
+    if (RS.error && RS.error.trim() !== "") {
+      alert("Error DB:\n" + RS.error);
+      return;
     }
-    function cerrarLBPrincipal(){ Ajuste.ventana.HideInfo(); }
+
+    let sel = document.getElementById("selBanco");
+    let n = Number(RS.numrows||0);
+    for (let i=0; i<n; i++){
+      let id  = BD.getField(RS, "idbanco", i);
+      let nom = BD.getField(RS, "nombre",  i);
+      if (!nom) continue;
+      let op = document.createElement("option");
+      op.value = id;
+      op.text  = nom;
+      sel.appendChild(op);
+    }
+
+    // Abrir segundo lightbox con el nombre
+    document.getElementById("btnGo").onclick = function(){
+      let txt = sel.options[sel.selectedIndex]?.text || "";
+      if (!txt) { alert("Debe seleccionar un banco."); return; }
+
+      let L = new IU();
+      L.ShowInfoWidget("lb_detalle.php?nombre="+encodeURIComponent(txt), 380, 720, "cerrarLBInterno");
+      window.cerrarLBInterno = function(){ L.HideInfo(); };
+    };
+  })();
   </script>
 </body>
 </html>
