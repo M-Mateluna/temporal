@@ -1,40 +1,62 @@
-/* comunes iframe */
-body {
-  background:#f3f4f6;
-  font-family: Arial, Helvetica, sans-serif;
-  margin: 0;
+// ----- controlador.js -----
+
+// Instancia única del lightbox de máscara
+let UI = null;
+
+// Wrapper de MessageBox (igual que antes)
+let MSGBOX = {
+  ventana: undefined,
+  initialize() {
+    this.ventana = new IU_MSGBOX();
+  },
+  Abrir(conf) {
+    this.ventana.titulo    = conf.titulo || 'Aviso';
+    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
+    this.ventana.botonera  = (conf.botonera != null) ? conf.botonera : 1;
+    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'retMsgOnlyClose';
+    this.ventana.url       = posicion; // base del sistema
+    this.ventana.top       = '25%';
+    this.ventana.objeto    = conf.objeto || {};
+    this.ventana.Messagebox();
+    this.ventana.zzIndex   = 2;
+  }
+};
+MSGBOX.initialize();
+
+// Función que usa IU para cerrar (la pasamos por nombre)
+function CerrarLB() {
+  if (UI) UI.HideInfo();
 }
 
-/* Selector */
-.titulo {
-  background:#1f5d8a;
-  color:#fff;
-  padding:8px;
-  border-radius:6px 6px 0 0;
-  width:520px;
-  margin:20px auto 0;
-  font-weight:bold;
-  text-align:center;
+// Abre el selector (PRIMER lightbox)
+function abrirSelectorBancos() {
+  if (!UI) UI = new IU();
+  // ShowInfoWidget(iframe, alto, ancho, functionName, top?)
+  UI.ShowInfoWidget('lb_bancos.php', 480, 900, 'CerrarLB', 120);
 }
-.box {
-  width:520px;
-  margin:0 auto 20px;
-  padding:16px 0 26px;
-  background:#fff;
-  border:1px solid #999;
-  border-top:0;
-}
-.inner { margin: 10px auto; width: 520px; text-align: center; }
-select { padding: 6px 10px; border:1px solid #ccc; border-radius:6px; }
-.btn-go {
-  background:#1f8a3a; color:#fff; border:none; border-radius:6px;
-  padding:7px 14px; margin-left:8px; cursor:pointer;
-}
-.btn-go:hover { background:#17712f; }
 
-/* Detalle */
-.wrap-lb { width: 720px; margin: 30px auto; background:#fff; border:1px solid #999; }
-.wrap-lb .titulo { width:auto; margin:0; border-radius:0; }
-.contenido { padding: 26px; text-align:center; }
-.contenido .sub { margin-bottom:14px; }
-.contenido .txt { font-size: 42px; font-weight: 700; color:#111; }
+// Abre el detalle (SEGUNDO lightbox) mostrando el nombre del banco
+function abrirLightboxBanco(nombreBanco) {
+  if (!UI) UI = new IU();
+  // Reutilizamos el mismo overlay y reemplazamos el contenido con el segundo LB
+  UI.ShowInfoWidget('lb_detalle.php?nombre=' + encodeURIComponent(nombreBanco), 480, 900, 'CerrarLB', 120);
+}
+
+// MSGBOX – callback de 1 botón
+function retMsgOnlyClose() {
+  MSGBOX.ventana.HideInfo();
+}
+
+// Bind del botón principal
+document.addEventListener('DOMContentLoaded', function () {
+  const b = document.getElementById('btnAbrirLB');
+  if (b) b.onclick = abrirSelectorBancos;
+});
+
+// Exponer para que el iframe (lb_bancos.js) pueda llamar al padre
+window.abrirLightboxBanco = abrirLightboxBanco;
+window.MSGBOX = MSGBOX;
+window.retMsgOnlyClose = retMsgOnlyClose;
+window.CerrarLB = CerrarLB;
