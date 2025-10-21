@@ -1,99 +1,41 @@
-/* controlador.js — ClienteProveedor2 con Lightbox como en tu ejemplo resuelto */
-
-let clienteproveedor;
-
-window.onload = function () {
-  // === 0) Markup de Lightbox al estilo de tu ejemplo ===
-  // Si estamos en un iframe-lightbox, inyecta el markup en el PADRE, así abrimos por encima.
+/* === Boot Lightbox igual que en tu ejercicio resuelto === */
+(function bootLightbox() {
+  // 1) Usar el padre si estamos en iframe (para que el modal se muestre por encima)
   var root = (window.parent && window.parent !== window) ? window.parent : window;
+
+  // 2) Asegurar el markup del lightbox (la máscara y contenedor)
   if (typeof root.addLightboxMarkup === 'function') {
     root.addLightboxMarkup();
   } else if (typeof addLightboxMarkup === 'function') {
     addLightboxMarkup();
   }
 
-  // === 1) Fecha/Hora por defecto ===
-  let fh = document.getElementById('fechahora');
-  if (fh && !fh.value) {
-    let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    fh.value = d.toISOString().slice(0,16);
+  // 3) Asegurar el objeto controlador de la ventana modal: Accion.ventana
+  if (!root.Accion) root.Accion = {};
+  if (!root.Accion.ventana) {
+    // IU viene de componente/mascara/iu.js
+    try { root.Accion.ventana = new root.IU(); } catch(e) { /* si no existe IU aún, seguirá usando ShowInfo wrapper */ }
   }
 
-  // === 2) Instancia y setup del componente (igual al Ejemplo 6) ===
-  clienteproveedor = new ClienteProveedor2();
-
-  // Dónde dibuja los botones (lupa/crear/borrar)
-  clienteproveedor.ubicacion = document.getElementById("divBuscador");
-
-  // Campo buscador
-  clienteproveedor.elementoBuscador = "rut";
-
-  // Campos destino (coinciden con el enunciado del ejercicio)
-  clienteproveedor.elementos = {
-    rut: document.getElementById("rut"),
-    idclienteproveedor: document.getElementById("cliente2"),
-    giro: document.getElementById("giro"),
-    idusuario: document.getElementById("idusuario"),
-    fechahora: document.getElementById("fechahora")
-  };
-
-  // Botones visibles
-  clienteproveedor.creaBotonBuscar = true;
-  clienteproveedor.creaBotonBorrar = true;
-  clienteproveedor.creaBotonCrear  = true;
-
-  // Filtro y título según enunciado
-  clienteproveedor.filtro = "cliente|vigente";
-  clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
-
-  // === 3) Lightbox exactamente como tu ejemplo (tamaño y flag ANTES de New) ===
-  clienteproveedor.islightbox   = true;
-  clienteproveedor.altoLightbox = 500;
-  clienteproveedor.anchoLightbox= 800;
-
-  // (Compatibilidad si tu build reconoce estos alias; si no existen, no afecta)
-  clienteproveedor.isLightbox      = true;
-  clienteproveedor.usarLightbox    = true;
-  clienteproveedor.abrirEnLightbox = true;
-
-  // === 4) AfterEvent usando self.ultimoEvento (igual al Ejemplo 6) ===
-  clienteproveedor.afterEvent = function (self) {
-    // Asegurar fechahora si está vacío
-    try {
-      let f = self.elementos.fechahora || document.getElementById('fechahora');
-      if (f && !f.value) {
-        let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-        f.value = d.toISOString().slice(0,16);
+  // 4) Asegurar una función ShowInfo disponible (wrapper a IU.ShowInfo)
+  if (typeof root.ShowInfo !== 'function') {
+    root.ShowInfo = function(iframe, alto, ancho) {
+      if (!root.Accion || !root.Accion.ventana) {
+        // si aún no existe, intenta crearla en caliente
+        if (typeof root.IU === 'function') {
+          root.Accion = root.Accion || {};
+          root.Accion.ventana = new root.IU();
+        } else {
+          console.error('IU no está disponible para Lightbox');
+          return;
+        }
       }
-    } catch(e){}
+      root.Accion.ventana.ShowInfo(iframe, alto, ancho);
+    };
+  }
 
-    // MSGBOX desde el root si estamos en iframe, para que el modal salga arriba
-    var Box = (root && root.MSGBOX) ? root.MSGBOX : (window.MSGBOX || null);
-
-    if (self.ultimoEvento == "onkeypress") {
-      // Onkeypress: bloquear idusuario y giro
-      self.elementos.idusuario.disabled = true;
-      self.elementos.giro.disabled = true;
-
-      Box && Box.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-        botonera: 1
-      });
-    } else { // onclick
-      // Onclick: bloquear rut, giro e idusuario
-      self.elementos.rut.disabled = true;
-      self.elementos.giro.disabled = true;
-      self.elementos.idusuario.disabled = true;
-
-      Box && Box.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-        botonera: 1
-      });
-    }
-  };
-
-  // === 5) Construir componente (dibuja íconos y habilita flujo) ===
-  clienteproveedor.New();
-};
+  // 5) (Opcional) cerrar desde hijos
+  if (typeof root.OcultarVentana !== 'function') {
+    root.OcultarVentana = function(){ if (root.Accion && root.Accion.ventana) root.Accion.ventana.OcultarVentana(); };
+  }
+})();
