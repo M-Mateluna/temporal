@@ -1,5 +1,9 @@
+<link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css">
+
 <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+<script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
 <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
 <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
 <script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
 <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
