@@ -1,102 +1,99 @@
-<?php /* Ejercicio Propuesto — ClienteProveedor2 (Desis) */ ?>
-<?php
-$POSICION = "";
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Clientes / Proveedores</title>
+/* controlador.js — ClienteProveedor2 con Lightbox como en tu ejemplo resuelto */
 
-  <!-- Nuevo estilo CSS estándar -->
-  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css">
+let clienteproveedor;
 
-  <!-- Componentes base (sin modificar) -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
+window.onload = function () {
+  // === 0) Markup de Lightbox al estilo de tu ejemplo ===
+  // Si estamos en un iframe-lightbox, inyecta el markup en el PADRE, así abrimos por encima.
+  var root = (window.parent && window.parent !== window) ? window.parent : window;
+  if (typeof root.addLightboxMarkup === 'function') {
+    root.addLightboxMarkup();
+  } else if (typeof addLightboxMarkup === 'function') {
+    addLightboxMarkup();
+  }
 
-  <!-- Lightbox (IU + iframe) siguiendo tu ejemplo ya resuelto -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
-  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  // === 1) Fecha/Hora por defecto ===
+  let fh = document.getElementById('fechahora');
+  if (fh && !fh.value) {
+    let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    fh.value = d.toISOString().slice(0,16);
+  }
 
-  <!-- MessageBox -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  // === 2) Instancia y setup del componente (igual al Ejemplo 6) ===
+  clienteproveedor = new ClienteProveedor2();
 
-  <!-- ClienteProveedor2 -->
-  <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+  // Dónde dibuja los botones (lupa/crear/borrar)
+  clienteproveedor.ubicacion = document.getElementById("divBuscador");
 
-  <!-- Controlador local -->
-  <script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
+  // Campo buscador
+  clienteproveedor.elementoBuscador = "rut";
 
-  <style type="text/css">
-    .contenedor { max-width: 860px; margin: 12px auto; }
-    .grid{ width:100%; border-collapse:collapse; }
-    .grid td{ width:50%; vertical-align:top; padding:8px 12px; text-align:center; }
-    .stack label{ display:block; margin:0 0 4px 2px; text-align:center; }
-    .stack input{ width:90%; box-sizing:border-box; margin:0 auto; display:block; }
-    .inline{ display:flex; align-items:center; gap:6px; justify-content:center; }
-    .inline > span{ display:inline-flex; align-items:center; }
-  </style>
-</head>
-<body>
+  // Campos destino (coinciden con el enunciado del ejercicio)
+  clienteproveedor.elementos = {
+    rut: document.getElementById("rut"),
+    idclienteproveedor: document.getElementById("cliente2"),
+    giro: document.getElementById("giro"),
+    idusuario: document.getElementById("idusuario"),
+    fechahora: document.getElementById("fechahora")
+  };
 
-<div class="FORMULARIONECSS contenedor">
-  <form id="frmCP" method="post" onsubmit="return false" autocomplete="off">
-    <fieldset>
-      <legend class="legends">Información del Registro</legend>
+  // Botones visibles
+  clienteproveedor.creaBotonBuscar = true;
+  clienteproveedor.creaBotonBorrar = true;
+  clienteproveedor.creaBotonCrear  = true;
 
-      <table class="grid">
-        <tr>
-          <!-- Columna Izquierda -->
-          <td>
-            <table width="100%">
-              <tr>
-                <td class="stack">
-                  <label for="rut">RUT</label>
-                  <div class="inline">
-                    <input type="text" name="rut" id="rut" placeholder="12.345.678-9" maxlength="20">
-                    <span id="divBuscador"></span><!-- Lupa / Crear / Borrar -->
-                  </div>
-                  <input type="hidden" name="cliente2" id="cliente2">
-                </td>
-              </tr>
-              <tr>
-                <td class="stack">
-                  <label for="idusuario">ID Usuario</label>
-                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
-                </td>
-              </tr>
-            </table>
-          </td>
+  // Filtro y título según enunciado
+  clienteproveedor.filtro = "cliente|vigente";
+  clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
 
-          <!-- Columna Derecha -->
-          <td>
-            <table width="100%">
-              <tr>
-                <td class="stack">
-                  <label for="giro">Giro</label>
-                  <input type="text" name="giro" id="giro" maxlength="120">
-                </td>
-              </tr>
-              <tr>
-                <td class="stack">
-                  <label for="fechahora">Fecha/Hora</label>
-                  <input type="datetime-local" name="fechahora" id="fechahora">
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+  // === 3) Lightbox exactamente como tu ejemplo (tamaño y flag ANTES de New) ===
+  clienteproveedor.islightbox   = true;
+  clienteproveedor.altoLightbox = 500;
+  clienteproveedor.anchoLightbox= 800;
 
-      <div style="text-align:center; padding:10px 0;">
-        <button type="submit" id="btnGuardar" class="textazul">Guardar</button>
-        <button type="reset"  class="textazul">Limpiar</button>
-      </div>
-    </fieldset>
-  </form>
-</div>
+  // (Compatibilidad si tu build reconoce estos alias; si no existen, no afecta)
+  clienteproveedor.isLightbox      = true;
+  clienteproveedor.usarLightbox    = true;
+  clienteproveedor.abrirEnLightbox = true;
 
-</body>
-</html>
+  // === 4) AfterEvent usando self.ultimoEvento (igual al Ejemplo 6) ===
+  clienteproveedor.afterEvent = function (self) {
+    // Asegurar fechahora si está vacío
+    try {
+      let f = self.elementos.fechahora || document.getElementById('fechahora');
+      if (f && !f.value) {
+        let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        f.value = d.toISOString().slice(0,16);
+      }
+    } catch(e){}
+
+    // MSGBOX desde el root si estamos en iframe, para que el modal salga arriba
+    var Box = (root && root.MSGBOX) ? root.MSGBOX : (window.MSGBOX || null);
+
+    if (self.ultimoEvento == "onkeypress") {
+      // Onkeypress: bloquear idusuario y giro
+      self.elementos.idusuario.disabled = true;
+      self.elementos.giro.disabled = true;
+
+      Box && Box.Abrir({
+        titulo: 'AfterEvent',
+        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
+        botonera: 1
+      });
+    } else { // onclick
+      // Onclick: bloquear rut, giro e idusuario
+      self.elementos.rut.disabled = true;
+      self.elementos.giro.disabled = true;
+      self.elementos.idusuario.disabled = true;
+
+      Box && Box.Abrir({
+        titulo: 'AfterEvent',
+        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
+        botonera: 1
+      });
+    }
+  };
+
+  // === 5) Construir componente (dibuja íconos y habilita flujo) ===
+  clienteproveedor.New();
+};
