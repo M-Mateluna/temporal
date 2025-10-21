@@ -1,52 +1,116 @@
-<script type="text/javascript">
-  // === Wrapper para el componente IU_MSGBOX (estándar Desis) ===
-  var MSGBOX = {
-    ventana: typeof IU_MSGBOX,
-    initialize: function () {
-      this.ventana = new IU_MSGBOX();
-    },
-    Abrir: function (conf) {
-      this.ventana.titulo    = conf.titulo || 'Aviso';
-      var texto              = conf.texto  || '';
-      this.ventana.texto     = '<center>' + texto + '</center>';
-      this.ventana.botonera  = conf.botonera || 1;          // 1 = Solo Aceptar
-      this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
-      this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
-      this.ventana.titulocss = conf.titulocss || this.ventana.titulocss;
+<?php
+// Ubicar raíz del proyecto
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require_once($POSICION."formHeader.php"); // trae Prototype y estilos base (ISO-8859-1)
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Listado de Bancos</title>
+</head>
+<body>
 
-      // Ruta base del sistema y ajustes de stacking sobre el lightbox
-      this.ventana.url    = '<?=$POSICION?>';
-      this.ventana.top    = conf.top || '25%';
-      this.ventana.zzIndex = 9999;   // asegurar que quede sobre el lightbox
+  <!-- Placeholders para MessageBox (asegura que el componente pueda pintar) -->
+  <div id="MSGBOX_OL_" style="display:none;"></div>
+  <div id="MSGBOX_"    style="display:none;"></div>
 
-      this.ventana.Messagebox();
-    },
-    fnretorno: function () {
-      // Cierra el messagebox al presionar Aceptar
-      MSGBOX.ventana.HideInfo();
+  <h3>Listado de Bancos</h3>
+  <div>
+    <select id="selBanco">
+      <option value="">Seleccione...</option>
+    </select>
+    <button id="btnGo" type="button">Ir a p&aacute;gina Web</button>
+  </div>
+
+  <!-- Componentes Lightbox dentro del iframe (para abrir el segundo LB) -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+
+  <!-- Database (define BASE) -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand();?>"></script>
+
+  <!-- MessageBox -->
+  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=<?=rand();?>"></script>
+
+  <script type="text/javascript">
+    // ---------------- MSGBOX wrapper estándar ----------------
+    var MSGBOX = {
+      ventana: typeof IU_MSGBOX,
+      initialize: function () {
+        this.ventana = new IU_MSGBOX();
+      },
+      Abrir: function (conf) {
+        this.ventana.titulo    = conf.titulo || 'Aviso';
+        var texto              = conf.texto  || '';
+        this.ventana.texto     = '<center>' + texto + '</center>';
+        this.ventana.botonera  = conf.botonera || 1;              // 1 = Aceptar
+        this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+        this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+        this.ventana.titulocss = conf.titulocss || this.ventana.titulocss;
+
+        // Asegurar que pinte sobre el lightbox (z-index alto)
+        this.ventana.url     = '<?=$POSICION?>';
+        this.ventana.top     = conf.top || '25%';
+        this.ventana.zzIndex = 99999;
+
+        this.ventana.Messagebox();
+      },
+      fnretorno: function () {
+        // Cerrar al aceptar
+        MSGBOX.ventana.HideInfo();
+      }
+    };
+    MSGBOX.initialize();
+
+    // ---------------- Carga de bancos (Database/BASE) ----------------
+    let BD = new BASE();
+    BD.commandFile = "command.php";
+
+    function cargarBancos() {
+      var RS = BD.send("cmd=listar");
+      if (RS.error && RS.error.trim() !== "") {
+        alert("Error DB:\n" + RS.error);
+        return;
+      }
+      var sel = document.getElementById("selBanco");
+      var n = Number(RS.numrows || 0);
+      for (let i = 0; i < n; i++) {
+        let id  = BD.getField(RS, "idbanco", i);
+        let nom = BD.getField(RS, "nombre",  i);
+        if (!nom) continue;
+        let op = document.createElement("option");
+        op.value = id;
+        op.text  = nom;
+        sel.appendChild(op);
+      }
     }
-  };
-  MSGBOX.initialize();
 
-  // === Modifica tu handler para usar MSGBOX cuando no haya selección ===
-  function irAPagina(){
-    let sel = document.getElementById("selBanco");
-    let txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : "";
+    // ---------------- Acción del botón ----------------
+    function irAPagina() {
+      let sel = document.getElementById("selBanco");
+      let txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : "";
 
-    if (!txt) {
-      MSGBOX.Abrir({
-        titulocss: 'titulorojomsgbox',                  // estilo existente en tu proyecto
-        titulo   : 'Advertencia',
-        texto    : 'Debe seleccionar un banco, para abrir el lightbox.',
-        botonera : 1,                                    // Solo Aceptar
-        conCerrar: false
-      });
-      return;
+      if (!txt) {
+        MSGBOX.Abrir({
+          titulocss: 'titulorojomsgbox',                // estilos del proyecto
+          titulo   : 'Advertencia',
+          texto    : 'Debe seleccionar un banco, para abrir el lightbox.',
+          botonera : 1,                                  // Solo Aceptar
+          conCerrar: false
+        });
+        return;
+      }
+
+      // Segundo Lightbox: sólo mostrar el nombre del banco (requerimiento)
+      let L = new IU();
+      L.ShowInfoWidget("lb_detalle.php?nombre=" + encodeURIComponent(txt), 380, 720, "cerrarLBInterno");
+      window.cerrarLBInterno = function(){ L.HideInfo(); };
     }
 
-    // Si hay selección, abrir el segundo lightbox con el nombre del banco
-    let L = new IU();
-    L.ShowInfoWidget("lb_detalle.php?nombre="+encodeURIComponent(txt), 380, 720, "cerrarLBInterno");
-    window.cerrarLBInterno = function(){ L.HideInfo(); };
-  }
-</script>
+    // ---------------- Init ----------------
+    cargarBancos();
+    document.getElementById("btnGo").onclick = irAPagina;
+  </script>
+</body>
+</html>
