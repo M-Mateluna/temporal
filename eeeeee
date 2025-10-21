@@ -1,34 +1,6 @@
-let BD = new BASE();
-BD.commandFile = 'command.php';
-
-let MSGBOX = {
-  ventana: undefined,
-  initialize: function() {
-    this.ventana = new IU_MSGBOX();
-  },
-  Abrir: function(conf) {
-    this.ventana.titulo    = conf.titulo || 'Aviso';
-    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
-    this.ventana.botonera  = conf.botonera || 1;
-    this.ventana.titulocss = conf.titulocss || 'tituloazulmsgbox';
-    this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : true;
-    this.ventana.fnretorno = conf.fnretorno || 'retornoMSGBOX';
-    this.ventana.url       = posicion;
-    this.ventana.top       = conf.top || '25%';
-    this.ventana.objeto    = conf.objeto || {};
-    this.ventana.Messagebox();
-    this.ventana.zzIndex   = 2;
-  }
-};
-MSGBOX.initialize();
-
-/* ============= CARGAR TABLA ============= */
 function cargarTabla() {
   let RS = BD.send('cmd=listar');
-  if (!RS || RS.error) {
-    alert('Error al obtener los registros');
-    return;
-  }
+  if (!RS || RS.error) { alert('Error al obtener los registros'); return; }
 
   let tbody = document.getElementById('tbody-personas');
   tbody.innerHTML = '';
@@ -36,10 +8,8 @@ function cargarTabla() {
   for (let i = 0; i < RS.numrows; i++) {
     let id        = BD.getField(RS, 'idpersona', i);
     let nombre    = BD.getField(RS, 'nombre', i);
-    let paterno   = BD.getField(RS, 'apellidopaterno', i);
-    let materno   = BD.getField(RS, 'apellidomaterno', i);
+    let apellidos = BD.getField(RS, 'apellidos', i);   // <-- aquí el cambio
     let fechahora = BD.getField(RS, 'fechahora', i);
-    let apellidos = (paterno + ' ' + materno).trim();
 
     let fila = `
       <tr>
@@ -54,54 +24,3 @@ function cargarTabla() {
 
   asignarEventos();
 }
-
-/* ============= EVENTO ELIMINAR ============= */
-function asignarEventos() {
-  let botones = document.querySelectorAll('.btn-eliminar');
-  botones.forEach(boton => {
-    boton.addEventListener('click', function() {
-      let id = this.getAttribute('data-id');
-      let nombre = this.getAttribute('data-nombre');
-
-      MSGBOX.Abrir({
-        titulo: 'Eliminar Registro',
-        texto: `¿Está seguro de eliminar el registro seleccionado?<br><b>${nombre}</b>`,
-        botonera: 3, // Sí / No
-        conCerrar: false,
-        fnretorno: 'confirmarEliminacion',
-        objeto: { idpersona: id }
-      });
-    });
-  });
-}
-
-/* ============= CONFIRMAR ELIMINACIÓN ============= */
-function confirmarEliminacion(resp) {
-  if (resp === 'S') {
-    let id = MSGBOX.ventana.objeto.idpersona;
-    MSGBOX.ventana.HideInfo();
-
-    let RS = BD.send(`cmd=eliminar&idpersona=${id}`);
-    if (RS.error && RS.error.trim() !== '') {
-      alert('Error al eliminar el registro');
-      return;
-    }
-
-    MSGBOX.Abrir({
-      titulo: 'Información',
-      texto: 'Registro eliminado correctamente',
-      botonera: 1,
-      fnretorno: 'cerrarInfo'
-    });
-  } else {
-    MSGBOX.ventana.HideInfo();
-  }
-}
-
-function cerrarInfo(resp) {
-  MSGBOX.ventana.HideInfo();
-  cargarTabla();
-}
-
-/* ============= INICIO ============= */
-document.addEventListener('DOMContentLoaded', cargarTabla);
