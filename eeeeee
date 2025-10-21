@@ -1,62 +1,57 @@
-<?php /* index.php — Ejercicio Propuesto: Uso de nuevos estilos (Desis) */ ?>
+<?php /* index.php — Ejercicio Propuesto: ClienteProveedor2 (Desis) */ ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Gestión de Clientes / Proveedores</title>
+  <title>Clientes / Proveedores</title>
 
-  <!-- Import del nuevo estilo, tal como indica el documento -->
-  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <!-- Nuevo estilo CSS estándar -->
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css">
+
+  <!-- Componentes estándar (no modificar los base) -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+
+  <!-- Script local -->
+  <script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
 
   <style type="text/css">
-    /* Ajustes mínimos sin reemplazar el nuevoestilo.css */
-    .contenedor { max-width: 980px; margin: 10px auto; background: #f3f3f3; padding: 8px; border-radius: 6px; }
-    .grid { width: 100%; border-collapse: collapse; }
-    .grid td { width: 50%; vertical-align: top; padding: 6px 10px; }  /* espacio entre columnas */
-    .stack label { display: block; margin: 0 0 4px 2px; }            /* label arriba del input */
-    .stack input { width: 92%; box-sizing: border-box; }             /* ancho similar al ejemplo */
-    .fila { height: 52px; }                                          /* separa verticalmente las filas */
+    /* Ajustes mínimos, sin reemplazar el nuevoestilo.css */
+    .contenedor { max-width: 860px; margin: 12px auto; }
+    .grid      { width: 100%; border-collapse: collapse; }
+    .grid td   { width: 50%; vertical-align: top; padding: 8px 12px; }
+    .stack label { display:block; margin: 0 0 4px 2px; }
+    .stack input { width: 95%; box-sizing: border-box; }
+    .inline { display:flex; align-items:center; gap:6px; }
+    .inline > span { display:inline-flex; align-items:center; }
   </style>
 </head>
 <body>
 
 <div class="FORMULARIONECSS contenedor">
-  <form id="frmCP" method="post" autocomplete="off" onsubmit="return false;">
+  <form id="frmCP" method="post" onsubmit="return false" autocomplete="off">
     <fieldset>
       <legend class="legends">Información del Registro</legend>
 
-      <!-- Maquetación con TABLAS según el ejemplo del documento -->
-      <table class="grid" cellspacing="0" cellpadding="0">
-        <tr class="fila">
-          <!-- Columna izquierda -->
+      <table class="grid">
+        <tr>
+          <!-- Columna Izquierda -->
           <td>
-            <table width="100%" cellspacing="0" cellpadding="0">
+            <table width="100%">
               <tr>
                 <td class="stack">
                   <label for="rut">RUT</label>
-                  <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                  <div class="inline">
+                    <input type="text" name="rut" id="rut" placeholder="12.345.678-9" maxlength="20">
+                    <span id="divBuscador"></span>
+                  </div>
+                  <input type="hidden" name="cliente2" id="cliente2">
                 </td>
               </tr>
-            </table>
-          </td>
-
-          <!-- Columna derecha -->
-          <td>
-            <table width="100%" cellspacing="0" cellpadding="0">
-              <tr>
-                <td class="stack">
-                  <label for="giro">Giro</label>
-                  <input type="text" name="giro" id="giro" maxlength="120">
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr class="fila">
-          <!-- Columna izquierda -->
-          <td>
-            <table width="100%" cellspacing="0" cellpadding="0">
               <tr>
                 <td class="stack">
                   <label for="idusuario">ID Usuario</label>
@@ -66,9 +61,15 @@
             </table>
           </td>
 
-          <!-- Columna derecha -->
+          <!-- Columna Derecha -->
           <td>
-            <table width="100%" cellspacing="0" cellpadding="0">
+            <table width="100%">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120">
+                </td>
+              </tr>
               <tr>
                 <td class="stack">
                   <label for="fechahora">Fecha/Hora</label>
@@ -80,25 +81,13 @@
         </tr>
       </table>
 
-      <!-- Botonera opcional (mismo estilo) -->
-      <div style="padding:6px 10px;">
-        <button type="submit" class="textazul">Guardar</button>
+      <div style="text-align:center; padding:10px 0;">
+        <button type="submit" id="btnGuardar" class="textazul">Guardar</button>
         <button type="reset"  class="textazul">Limpiar</button>
       </div>
     </fieldset>
   </form>
 </div>
-
-<script type="text/javascript">
-  // Precargar Fecha/Hora sin romper el estándar
-  (function(){
-    var fh = document.getElementById('fechahora');
-    if (fh && !fh.value) {
-      var d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-      fh.value = d.toISOString().slice(0,16); // YYYY-MM-DDTHH:MM
-    }
-  })();
-</script>
 
 </body>
 </html>
