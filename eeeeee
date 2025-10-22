@@ -1,5 +1,5 @@
 <?php
-// Resolver ruta base DESIS
+// Resolver POSICION al root
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
 require($POSICION."formHeader.php");
 ?>
@@ -7,12 +7,12 @@ require($POSICION."formHeader.php");
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>MyIFrame – Cliente/Proveedor</title>
+  <title>MyIFrame — Parte 1: Buscador ClienteProveedor2</title>
 
-  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <link rel="stylesheet" type="text/css" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
   <style>
-    .contenedor{ max-width:900px; margin:auto; background:#f1f1f1; }
+    .contenedor{ max-width: 700px; margin:auto; background:#f1f1f1; }
     .fila{ padding:10px 12px; }
     .inline{ display:inline-flex; align-items:center; gap:6px; }
     .btn{ height:26px; padding:0 10px; border-radius:6px; border:1px solid #6c757d; background:#e9ecef; cursor:pointer; }
@@ -21,94 +21,57 @@ require($POSICION."formHeader.php");
 <body>
 
 <div class="FORMULARIONECSS contenedor">
-  <!-- BLOQUE DE BÚSQUEDA -->
+  <!-- BÚSQUEDA -->
   <fieldset>
     <legend class="legends">Búsqueda</legend>
     <div class="fila">
       <label for="rut">RUT</label>
       <div class="inline">
         <input type="text" id="rut" placeholder="12.345.678-9" maxlength="20" style="width:320px;">
-        <!-- Aquí pinta la LUPA el componente -->
+        <!-- aquí se dibuja la LUPA del componente -->
         <div id="divBuscador" style="display:inline"></div>
-        <!-- Botón limpiar manual -->
+        <!-- botón limpiar (aparte del componente) -->
         <button type="button" id="btnLimpiar" class="btn">Limpiar</button>
       </div>
-      <!-- Si necesitas capturar el id del cliente/proveedor -->
+      <!-- por si necesitas el id del cliente/proveedor -->
       <input type="hidden" id="idclienteproveedor">
     </div>
   </fieldset>
 
-  <!-- BLOQUE DE FRAMES -->
+  <!-- FRAME CLIENTE/PROVEEDOR (lo agregamos ya para el siguiente paso) -->
   <fieldset>
     <legend class="legends">Cliente / Proveedor</legend>
     <div id="hostFrames"></div>
   </fieldset>
 </div>
 
-<!-- Dependencias del sistema -->
+<!-- Dependencias DESIS -->
 <script src="<?=$POSICION?>js/general.js"></script> <!-- MyIFrame -->
 <script src="<?=$POSICION?>componente/database/class.php"></script>
 <script src="<?=$POSICION?>js/util.js"></script>
 <script src="<?=$POSICION?>componente/buscadores/clienteproveedor2/class.js"></script>
+
+<!-- Lightbox para el buscador -->
 <script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js"></script>
 <script src="<?=$POSICION?>componente/mascara/iu.js"></script>
 
+<!-- Controlador del buscador -->
+<script src="controlador.js"></script>
+
+<!-- Creación del MyIFrame que carga clienteproveedor.php (misma carpeta) -->
 <script>
-/* ===================== 1) MyIFrame: Cliente/Proveedor ===================== */
-(function(){
-  // Ruta a clienteproveedor.php (misma carpeta)
-  var url_cp = "clienteproveedor.php";
+  (function(){
+    var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
+    var url_cp = "clienteproveedor.php"; // misma carpeta que este index
 
-  // Directorio de íconos del frame
-  var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
+    window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
+    frame_cp.height = 180;   // ajusta al gusto
+    frame_cp.src    = url_cp;
+    frame_cp.show(true);
 
-  // Crear frame
-  window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
-  frame_cp.height = 180;           // alto aproximado como en tu captura
-  frame_cp.src    = url_cp;        // carga el formulario
-  frame_cp.show(true);             // dibuja
-  // frame_cp.contract();          // si quieres que parta contraído, descomenta
-
-  // Insertarlo en el contenedor
-  document.getElementById('hostFrames').appendChild(document.getElementById('frame_cp'));
-})();
-
-/* ============== 2) Buscador ClienteProveedor2 pegado al input RUT ============== */
-const cp2 = new ClienteProveedor2();
-
-// Dónde se renderiza la LUPA
-cp2.ubicacion = document.getElementById('divBuscador');
-
-// Solo LUPA (los otros botones los controlas tú)
-cp2.creaBotonBuscar = true;
-cp2.creaBotonBorrar = false;
-cp2.creaBotonCrear  = false;
-
-// Campo que recibe onkeypress
-cp2.elementoBuscador = 'rut';
-
-// Lightbox + tamaño + filtros
-cp2.islightbox    = true;
-cp2.altoLightbox  = 500;
-cp2.anchoLightbox = 800;
-cp2.filtro        = 'cliente|vigente|puedefacturar';
-cp2.tituloGrilla  = 'Clientes vigentes facturando';
-
-// Elementos a rellenar por ahora (rut + id)
-cp2.elementos = {
-  rut: document.getElementById('rut'),
-  idclienteproveedor: document.getElementById('idclienteproveedor')
-};
-
-// Inicializar componente
-cp2.New();
-
-// Botón "Limpiar"
-document.getElementById('btnLimpiar').addEventListener('click', function(){
-  document.getElementById('rut').value = '';
-  document.getElementById('idclienteproveedor').value = '';
-});
-
+    document.getElementById('hostFrames')
+            .appendChild(document.getElementById('frame_cp'));
+  })();
 </script>
 
 <?php require($POSICION."formFoot.php"); ?>
