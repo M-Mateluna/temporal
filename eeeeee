@@ -1,34 +1,44 @@
 <?php
-while (!file_exists($POSICION . "conexion.php")) {
+// --- Resolver POSICION de forma robusta ---
+$POSICION = isset($POSICION) ? $POSICION : '';
+for ($i = 0; $i < 12 && !file_exists($POSICION . "conexion.php"); $i++) {
   $POSICION .= "../";
 }
+if (!file_exists($POSICION . "conexion.php")) {
+  header('Content-Type: text/plain; charset=ISO-8859-1');
+  die("No se encontró conexion.php desde lb_fecha.php. POSICION actual: " . $POSICION);
+}
+
 require_once($POSICION . "formHeader.php");
+
+// Definir rango de fechas: hoy ± 1 mes
+$hoy = date('Y-m-d');
+$min = date('Y-m-d', strtotime('-1 month'));
+$max = date('Y-m-d', strtotime('+1 month'));
 ?>
 <!DOCTYPE html>
 <html>
 
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Ejercicio Calendario (Lightbox)</title>
-
+  <title>Calendario Lightbox</title>
   <link type="text/css" rel="stylesheet" href="<?= $POSICION ?>css/nuevoestilo.css?v=1.8">
   <style>
-    .contenedor {
-      text-align: center;
+    .wrap {
       padding: 20px;
       background: #f1f1f1;
-      border-radius: 10px;
-      width: 420px;
-      margin: 60px auto;
+      border-radius: 8px;
+      width: 95%;
+      margin: 15px auto;
     }
 
     label {
+      font-weight: bold;
       display: block;
-      margin-bottom: 6px;
-      text-align: left;
+      margin-bottom: 8px;
     }
 
-    input[type="text"] {
+    input[type="date"] {
       width: 100%;
       height: 26px;
       border-radius: 5px;
@@ -36,70 +46,62 @@ require_once($POSICION . "formHeader.php");
       padding: 0 8px;
     }
 
-    button {
+    .btn {
+      margin-top: 10px;
       height: 30px;
-      padding: 0 14px;
       border-radius: 5px;
       border: 1px solid #777;
       background: #e0e0e0;
       cursor: pointer;
       font-weight: bold;
-      margin-top: 10px;
     }
 
-    button:hover {
+    .btn:hover {
       background: #d0d0d0;
     }
   </style>
 </head>
 
 <body>
-
-  <div class="FORMULARIONECSS contenedor">
-    <fieldset>
-      <legend class="legends">Selección de Fecha</legend>
-      <label for="fecha">Fecha de término</label>
-      <input type="text" id="fecha" readonly placeholder="Seleccione una fecha">
-      <br>
-      <button type="button" id="btnAbrir">Abrir Calendario</button>
-    </fieldset>
+  <div class="FORMULARIONECSS wrap">
+    <label for="fechaTermino">Seleccione una fecha:</label>
+    <input type="date" id="fechaTermino" value="<?= $hoy ?>" min="<?= $min ?>" max="<?= $max ?>">
+    <br>
+    <button type="button" class="btn" id="btnGuardar">Guardar</button>
+    <button type="button" class="btn" id="btnBorrar">Borrar</button>
   </div>
 
-  <!-- Importaciones obligatorias del componente -->
-  <script type="text/javascript" src="<?= $POSICION ?>componente/mascara/lightbox-iframe.js?v=<?= rand(); ?>"></script>
-  <script type="text/javascript" src="<?= $POSICION ?>componente/mascara/iu.js?v=<?= rand(); ?>"></script>
-
   <script type="text/javascript">
-    // Crea el markup del lightbox (requerido por la wiki)
-    addLightboxMarkup();
+    function toDMY(fechaISO) {
+      const m = String(fechaISO).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? (m[3] + '-' + m[2] + '-' + m[1]) : '';
+    }
 
-    // Se crea el objeto Ajuste según el estándar
-    var Ajuste = {
-      ventana: typeof IU,
-      initialize: function () { this.ventana = new IU(); }
+    // Cerrar el Lightbox desde el hijo
+    function cerrarLightbox() {
+      try {
+        if (window.parent && typeof window.parent.OcultarVentana === 'function') {
+          window.parent.OcultarVentana();
+        }
+      } catch (e) { console.error(e); }
+    }
+
+    document.getElementById('btnBorrar').onclick = function () {
+      document.getElementById('fechaTermino').value = '';
     };
-    Ajuste.initialize();
 
-    // Abrir calendario dentro del lightbox
-    function abrirCalendario() {
-      Ajuste.ventana.ShowInfoWidget("lb_fecha.php", 300, 450, 'OcultarVentana');
-    }
-
-    // Cerrar el lightbox (usado desde el hijo)
-    function OcultarVentana() {
-      Ajuste.ventana.HideInfo();
-    }
-
-    // Abrir con el botón
-    document.getElementById("btnAbrir").onclick = abrirCalendario;
-
-    // Recibir mensaje desde el lightbox (fecha seleccionada)
-    window.addEventListener('message', function (event) {
-      if (event.data && event.data.type === 'set_fecha') {
-        document.getElementById('fecha').value = event.data.value;
-        OcultarVentana();
+    document.getElementById('btnGuardar').onclick = function () {
+      const val = document.getElementById('fechaTermino').value;
+      if (!val) {
+        alert('Debe seleccionar una fecha.');
+        return;
       }
-    }, false);
+
+      const fecha = toDMY(val);
+      // Envía la fecha seleccionada al padre
+      window.parent.postMessage({ type: 'set_fecha', value: fecha }, '*');
+      cerrarLightbox();
+    };
   </script>
 </body>
 </html>
