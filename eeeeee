@@ -1,23 +1,40 @@
-<script type="text/javascript">
-  /* Wrapper oficial para MessageBox, basado en tu ejemplo */
-  var MSGBOX = {
-    ventana: null,
-    initialize: function(){
-      this.ventana = new IU_MSGBOX();
-    },
-    Abrir: function(conf){
-      this.ventana.titulo   = conf.titulo || '';
-      var texto             = conf.texto || '';
-      this.ventana.texto    = '<center>' + texto + '</center>';
-      this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1; // 1 = ACEPTAR
-      this.ventana.conCerrar= (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
-      this.ventana.fnretorno= conf.fnretorno || ''; // opcional
-      this.ventana.url      = '<?=$POSICION?>';
-      this.ventana.top      = conf.top || '25%';
-      this.ventana.objeto   = conf.objeto || {};
-      this.ventana.Messagebox();
-      this.ventana.zzIndex  = 2;
-    }
-  };
-  MSGBOX.initialize();
+<script>
+// === MSGBOX (según tu ejercicio de messagebox) ===
+let MSGBOX = {
+  ventana: undefined,
+
+  initialize: function() {
+    this.ventana = new IU_MSGBOX();
+  },
+
+  Abrir: function(conf) {
+    this.ventana.titulo = conf.titulo || 'Aviso';
+    let texto = conf.texto || '';
+    this.ventana.texto = '<center>' + texto + '</center>';
+
+    // 1: Aceptar | 2: Aceptar/Cancelar | 3: Sí/No | 4: Sí/No/Cancelar | 5: Imprimir/Cancelar | 6: Aceptar/Cancelar/Anular
+    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
+
+    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'retGenerico';
+    if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
+
+    // url base
+    this.ventana.url = '<?=$POSICION?>';
+    this.ventana.top = conf.top || '25%';
+    this.ventana.objeto = conf.objeto || {};
+
+    this.ventana.Messagebox();
+    this.ventana.zzIndex = 2;
+  }
+};
+MSGBOX.initialize();
+
+// === callbacks globales ===
+function retGenerico(resp){
+  // cierra siempre al pulsar la botonera (A, C, S, N...)
+  if (MSGBOX && MSGBOX.ventana && typeof MSGBOX.ventana.HideInfo === 'function') {
+    MSGBOX.ventana.HideInfo();
+  }
+}
 </script>
