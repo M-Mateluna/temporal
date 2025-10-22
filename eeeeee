@@ -1,100 +1,106 @@
-/* ===================== PARCHE FECHA/HORA ===================== */
-/* Normaliza cadenas “YYYY-MM-DD HH:MM:SS(.ffff)” -> “YYYY-MM-DDTHH:MM” */
-function normalizeDBDateToDatetimeLocal(v){
-  if (!v) return '';
-  const m = String(v).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[1] + 'T' + m[2] + ':' + m[3]) : '';
-}
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+include $POSICION."formHeader.php";
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Gestión de Clientes / Proveedores</title>
 
-/* Intercepta cualquier asignación a value para #fechahora y corrige
-   antes de que el navegador valide (evita el warning y no pierde el dato) */
-(function patchDatetimeLocalSetter(){
-  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-  if (!desc || !desc.set || !desc.get) return;
-  const originalSet = desc.set;
-  const originalGet = desc.get;
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
-  Object.defineProperty(HTMLInputElement.prototype, 'value', {
-    get: function(){ return originalGet.call(this); },
-    set: function(v){
-      if (this && this.id === 'fechahora' && this.type === 'datetime-local' && typeof v === 'string') {
-        const fixed = normalizeDBDateToDatetimeLocal(v);
-        if (fixed) { originalSet.call(this, fixed); return; }
-      }
-      originalSet.call(this, v);
-    }
-  });
-})();
-/* ============================================================= */
+  <style type="text/css">
+    .contenedor{ max-width:600px; margin:auto; text-align:-webkit-center; background:#f1f1f1; }
+    .contenedor label{ display:block; text-align:left; margin-bottom:6px; }
+    .contenedor td{ padding:6px 15px; margin-bottom:6px; }
+    .buscador-inline{ display:inline-flex; align-items:center; gap:6px; }
+  </style>
+</head>
+<body>
 
-/* ====== cerrar Lightbox (compat) ====== */
-function cerrarLightbox() {
-  let root = (window.parent && window.parent !== window) ? window.parent : window;
-  if (typeof root.OcultarVentana === 'function') return root.OcultarVentana();
-  if (root.Accion && root.Accion.ventana && typeof root.Accion.ventana.OcultarVentana === 'function')
-    return root.Accion.ventana.OcultarVentana();
-  if (window.lightbox && typeof window.lightbox.OcultarVentana === 'function')
-    return window.lightbox.OcultarVentana();
-}
+<div class="FORMULARIONECSS contenedor">
+  <form id="frmCP" method="post" autocomplete="off" onsubmit="return false;">
+    <fieldset>
+      <legend class="legends">Información del Registro</legend>
 
-/* ====== ClienteProveedor2 ====== */
-let clienteproveedor = new ClienteProveedor2();
+      <table class="grid" cellspacing="0" cellpadding="0">
+        <tr class="fila">
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="rut">RUT</label>
+                  <div class="buscador-inline">
+                    <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                    <div id="divBuscador" style="display:inline"></div>
+                  </div>
+                  <input type="hidden" id="idclienteproveedor" name="idclienteproveedor">
+                </td>
+              </tr>
+            </table>
+          </td>
 
-clienteproveedor.ubicacion = document.getElementById("divBuscador");
-clienteproveedor.creaBotonBuscar = true;
-clienteproveedor.creaBotonBorrar = true;
-clienteproveedor.creaBotonCrear  = true;
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-clienteproveedor.elementoBuscador = "rut";
-clienteproveedor.islightbox = true;
-clienteproveedor.altoLightbox = 500;
-clienteproveedor.anchoLightbox = 800;
+        <tr class="fila">
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="idusuario">ID Usuario</label>
+                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
+                </td>
+              </tr>
+            </table>
+          </td>
 
-clienteproveedor.filtro = "cliente|vigente|puedefacturar";
-clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="fechahora">Fecha/Hora</label>
+                  <input type="datetime-local" name="fechahora" id="fechahora">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </fieldset>
+  </form>
+</div>
 
-clienteproveedor.elementos = {
-  rut: document.getElementById("rut"),
-  idclienteproveedor: document.getElementById("idclienteproveedor"),
-  giro: document.getElementById("giro"),
-  idusuario: document.getElementById("idusuario"),
-  fechahora: document.getElementById("fechahora")
-};
+<!-- libs del sistema -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+<script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js"></script>
 
-/* ====== AfterEvent ======
-   - Ya no ponemos “hoy”.
-   - No intentamos leer el “crudo” luego, porque el setter ya lo corrige
-     en el momento que lo asigna el componente.
-*/
-clienteproveedor.afterEvent = function(self) {
-  // Mensajes y bloqueos según evento
-  if (self.ultimoEvento === "onkeypress") {
-    self.elementos.idusuario.disabled = true;
-    self.elementos.giro.disabled = true;
-
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-      botonera: 1,
-      fnretorno: 'retGenerico',
-      conCerrar: false
-    });
-  } else {
-    self.elementos.rut.disabled = true;
-    self.elementos.giro.disabled = true;
-    self.elementos.idusuario.disabled = true;
-
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-      botonera: 1,
-      fnretorno: 'retGenerico',
-      conCerrar: false
-    });
+<!-- compat para messagebox antiguos -->
+<script>
+  if (typeof Class === "undefined") {
+    var Class = { create: function(){ return function(){ this.initialize && this.initialize.apply(this, arguments); }; } };
   }
+</script>
+<!-- clase del MessageBox (IU_MSGBOX) -->
+<script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
-  // Cerrar el lightbox después de volcar los datos
-  setTimeout(cerrarLightbox, 0);
-};
+<!-- expone la base para rutas a JS -->
+<script>window.POS_BASE = '<?=$POSICION?>';</script>
 
-clienteproveedor.New();
+<!-- tu controlador (contiene el wrapper de MSGBOX y toda la lógica) -->
+<script src="controlador.js"></script>
+</body>
+</html>
