@@ -9,7 +9,6 @@ include $POSICION."formHeader.php";
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Gestión de Clientes / Proveedores</title>
 
-  <!-- Nuevo estilo (lo trae formHeader; dejo el tuyo también por si aplica ruta distinta) -->
   <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
   <style type="text/css">
@@ -35,7 +34,6 @@ include $POSICION."formHeader.php";
                   <label for="rut">RUT</label>
                   <div class="buscador-inline">
                     <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
-                    <!-- UBICACION DEL BUSCADOR -->
                     <div id="divBuscador" style="display:inline"></div>
                   </div>
                   <input type="hidden" id="idclienteproveedor" name="idclienteproveedor">
@@ -84,17 +82,18 @@ include $POSICION."formHeader.php";
   </form>
 </div>
 
-<!-- IMPORTACIONES (como en la wiki) -->
+<!-- ===== Importaciones wiki ===== -->
 <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
 <script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
 <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
 
-<!-- Lightbox, exactamente como el ejemplo -->
+<!-- Lightbox -->
 <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js"></script>
 <script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js"></script>
 
-<!-- MessageBox (polyfill mínimo + script) -->
+<!-- MessageBox: polyfill + clase -->
 <script>
+  // Polyfill para libs antiguas
   if (typeof Class === "undefined") {
     var Class = { create: function(){ return function(){ this.initialize && this.initialize.apply(this, arguments); }; } };
   }
@@ -102,15 +101,14 @@ include $POSICION."formHeader.php";
 <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
 <script type="text/javascript">
-  /* ===== util fecha para <input type="datetime-local"> ===== */
+  /* ========= util fecha para <input type="datetime-local"> ========= */
   function pad(n){ return (n<10?'0'+n:n); }
   function formatoFechaLocal(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes()); }
   function toDatetimeLocal(val){
     if (!val) return '';
     var s = String(val).trim()
-      .replace(/Z$/,'').replace(/[+-]\d{2}:?\d{2}$/,'') // quita zona horaria
-      .replace(' ','T')                                 // espacio -> T
-      .replace(/\.\d+$/,'');                            // quita microsegundos
+      .replace(/Z$/,'').replace(/[+-]\d{2}:?\d{2}$/,'')
+      .replace(' ','T').replace(/\.\d+$/,'');
     var m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?$/);
     if (m) return m[1]+'T'+m[2]+':'+m[3];
     var d = new Date(val); return isNaN(d)?'':formatoFechaLocal(d);
@@ -122,30 +120,52 @@ include $POSICION."formHeader.php";
     if (fh && !fh.value) fh.value = formatoFechaLocal(new Date());
   })();
 
-  /* ========== ClienteProveedor2 según la wiki + requisitos ========= */
+  /* ========= helpers de compatibilidad: MSGBOX y cerrar Lightbox ========= */
+  function msgBox(titulo, html){
+    var root = (window.parent && window.parent !== window) ? window.parent : window;
+
+    // Si no hay MSGBOX global pero existe la clase IU_MSGBOX, crea una instancia
+    if (!root.MSGBOX && typeof root.IU_MSGBOX === 'function') {
+      try { root.MSGBOX = new root.IU_MSGBOX(); } catch(e){}
+    }
+    // Si por alguna razón existe en este frame pero no en el padre
+    if (!root.MSGBOX && window.MSGBOX) root.MSGBOX = window.MSGBOX;
+
+    if (root.MSGBOX && typeof root.MSGBOX.Abrir === 'function') {
+      root.MSGBOX.Abrir({ titulo: titulo, texto: html, botonera: 1 });
+    } else {
+      // fallback silencioso (no rompe flujo)
+      alert(titulo + "\n\n" + html.replace(/<[^>]+>/g,''));
+    }
+  }
+
+  function cerrarLightbox(){
+    var root = (window.parent && window.parent !== window) ? window.parent : window;
+    // Vías posibles según tu build
+    if (typeof root.OcultarVentana === 'function')            return root.OcultarVentana();
+    if (root.Accion && root.Accion.ventana && typeof root.Accion.ventana.OcultarVentana === 'function')
+      return root.Accion.ventana.OcultarVentana();
+    // Algunos builds exponen show/hide en lightbox-iframe
+    if (window.lightbox && typeof window.lightbox.OcultarVentana === 'function')
+      return window.lightbox.OcultarVentana();
+  }
+
+  /* ========== ClienteProveedor2 (wiki + requisitos) ========== */
   var clienteproveedor = new ClienteProveedor2();
 
-  // Ubicación del buscador (como en el ejemplo)
   clienteproveedor.ubicacion = document.getElementById("divBuscador");
-
-  // Botones: el ejercicio pide los tres
   clienteproveedor.creaBotonBuscar = true;
   clienteproveedor.creaBotonBorrar = true;
   clienteproveedor.creaBotonCrear  = true;
 
-  // Elemento que recibe onkeypress (RUT)
   clienteproveedor.elementoBuscador = "rut";
-
-  // Lightbox ON + tamaño solicitado
   clienteproveedor.islightbox   = true;
   clienteproveedor.altoLightbox = 500;
   clienteproveedor.anchoLightbox= 800;
 
-  // Filtros / título pedidos
   clienteproveedor.filtro = "cliente|vigente|puedefacturar";
   clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
 
-  // Elementos que se llenan al seleccionar
   clienteproveedor.elementos = {
     rut: document.getElementById("rut"),
     idclienteproveedor: document.getElementById("idclienteproveedor"),
@@ -154,9 +174,9 @@ include $POSICION."formHeader.php";
     fechahora: document.getElementById("fechahora")
   };
 
-  // AfterEvent como el Ejemplo 6 (self.ultimoEvento) + normalización de fecha y MessageBox
+  // AfterEvent con normalización de fecha, MSGBOX y cierre del Lightbox
   clienteproveedor.afterEvent = function(self){
-    // Normaliza el datetime-local si vino con "espacio + microsegundos"
+    // Normaliza datetime-local si el buscador escribió "YYYY-MM-DD hh:mm:ss.ffffff"
     if (self.elementos.fechahora){
       var norm = toDatetimeLocal(self.elementos.fechahora.value);
       if (norm) self.elementos.fechahora.value = norm;
@@ -166,26 +186,19 @@ include $POSICION."formHeader.php";
     if (self.ultimoEvento === "onkeypress"){
       self.elementos.idusuario.disabled = true;
       self.elementos.giro.disabled = true;
-
-      MSGBOX.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-        botonera: 1
-      });
-    } else { // onclick
+      msgBox('AfterEvent', 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.');
+    } else {
       self.elementos.rut.disabled = true;
       self.elementos.giro.disabled = true;
       self.elementos.idusuario.disabled = true;
-
-      MSGBOX.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-        botonera: 1
-      });
+      msgBox('AfterEvent', 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.');
     }
+
+    // Cierra el lightbox inmediatamente después de completar los campos
+    setTimeout(cerrarLightbox, 0);
   };
 
-  // Inicia el componente (como en la wiki)
+  // Inicia el componente
   clienteproveedor.New();
 </script>
 </body>
