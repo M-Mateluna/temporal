@@ -1,7 +1,5 @@
 <?php
-while (!file_exists($POSICION . "conexion.php")) {
-    $POSICION .= "../";
-}
+while (!file_exists($POSICION . "conexion.php")) { $POSICION .= "../"; }
 require_once($POSICION . "formHeader.php");
 ?>
 <!DOCTYPE html>
@@ -21,42 +19,17 @@ require_once($POSICION . "formHeader.php");
       padding: 18px 20px;
       text-align: left;
     }
-
-    label {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 12px;
-    }
-
-    .fila {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    label { display:block; margin-bottom:4px; font-size:12px; }
+    .fila { display:flex; align-items:center; gap:8px; }
     #fecha {
-      width: 230px;
-      height: 26px;
-      border-radius: 5px;
-      border: 1px solid #999;
-      padding: 0 8px;
-      background-color: #eee;
+      width: 230px; height: 26px; border-radius: 5px; border: 1px solid #999;
+      padding: 0 8px; background-color: #eee;
     }
-
     #btnAbrir {
-      height: 28px;
-      padding: 0 14px;
-      border-radius: 5px;
-      border: 1px solid #000;
-      background: #000;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
+      height: 28px; padding: 0 14px; border-radius: 5px; border: 1px solid #000;
+      background:#000; color:#fff; font-weight:bold; cursor:pointer;
     }
-
-    #btnAbrir:hover {
-      background: #111;
-    }
+    #btnAbrir:hover { background:#111; }
   </style>
 </head>
 
@@ -68,5 +41,44 @@ require_once($POSICION . "formHeader.php");
       <button type="button" id="btnAbrir">Ingresa fecha</button>
     </div>
   </div>
+
+  <!-- Importaciones Lightbox (según la wiki) -->
+  <script src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
+  <script src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand()?>"></script>
+
+  <script>
+    // 1) Crear el markup del lightbox y la instancia IU (ejemplo oficial)
+    addLightboxMarkup();
+    var Ajuste = {
+      ventana: typeof IU,
+      initialize: function(){ this.ventana = new IU(); }
+    };
+    Ajuste.initialize();
+
+    // 2) Función de cierre requerida por ShowInfoWidget
+    function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
+
+    // 3) Abrir el lightbox con el contenido lb_fecha.php (misma carpeta que este index)
+    document.getElementById('btnAbrir').onclick = function(){
+      var base = location.pathname.replace(/[^\/]+$/, ''); // carpeta del index
+      var url  = base + 'lb_fecha.php?ts=' + Date.now();   // evita caché
+
+      // Si tu build tiene la variante con título, úsala. Si no, cae a ShowInfoWidget estándar.
+      if (typeof Ajuste.ventana.ShowInfoWidgetTitulo === 'function') {
+        Ajuste.ventana.ShowInfoWidgetTitulo('Termino Contrato', url, 360, 650, 'OcultarVentana');
+      } else {
+        Ajuste.ventana.ShowInfoWidget(url, 360, 650, 'OcultarVentana');
+      }
+    };
+
+    // (Opcional) Recibir la fecha desde el lightbox y cerrarlo
+    window.addEventListener('message', function (ev) {
+      if (ev && ev.data && ev.data.type === 'set_fecha') {
+        var el = document.getElementById('fecha');
+        if (el) el.value = ev.data.value || '';
+        OcultarVentana();
+      }
+    }, false);
+  </script>
 </body>
 </html>
