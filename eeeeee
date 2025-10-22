@@ -1,25 +1,43 @@
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <style>
+    .contenedor {padding:10px;}
+    input {width:95%;}
+    .btnGuardar {height:25px; padding:0 10px; border-radius:6px; background:#e9ecef;}
+  </style>
+</head>
+<body>
+<div class="contenedor">
+  <fieldset>
+    <legend class="legends">CLIENTE / PROVEEDOR</legend>
+
+    <table width="100%" cellspacing="6">
+      <tr>
+        <td><label>Razón Social</label><input type="text" id="razonsocial"></td>
+        <td><label>Giro</label><input type="text" id="giro"></td>
+        <td align="right"><button id="btnGuardar" class="btnGuardar">Guardar</button></td>
+      </tr>
+      <tr>
+        <td><label>ID Usuario</label><input type="text" id="idusuario"></td>
+        <td><label>Fecha/Hora</label><input type="datetime-local" id="fechahora"></td>
+      </tr>
+    </table>
+  </fieldset>
+</div>
+
 <script>
-  (function(){
-    var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
-
-    // 1) Frame CLIENTE / PROVEEDOR
-    var url_cp = "clienteproveedor.php"; // misma carpeta
-    window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
-    frame_cp.height = 180;
-    frame_cp.src    = url_cp;
-    frame_cp.show(true);
-
-    // 2) Frame CLIENTE / PROVEEDOR GUARDADO (textarea)
-    var url_sv = "guardado.php";        // misma carpeta
-    window.frame_save = new MyIFrame('frame_save','CLIENTE / PROVEEDOR GUARDADO','', imgdir);
-    frame_save.height = 200;
-    frame_save.src    = url_sv;
-    frame_save.show(true);
-    frame_save.contract();              // << inicia contraído
-
-    // Insertar en el contenedor, en orden
-    var host = document.getElementById('hostFrames');
-    host.appendChild(document.getElementById('frame_cp'));
-    host.appendChild(document.getElementById('frame_save'));
-  })();
+document.getElementById('btnGuardar').onclick = function(){
+  if (parent && typeof parent.guardarClienteProveedor === 'function') {
+    parent.guardarClienteProveedor();
+  }
+};
 </script>
+</body>
+</html>
