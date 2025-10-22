@@ -1,124 +1,20 @@
-/* ===================== Utiles ===================== */
-// Normaliza "YYYY-MM-DD HH:MM:SS(.fff...)" -> "YYYY-MM-DDTHH:MM"
-function normDT(v) {
-  if (!v) return '';
-  var s = String(v);
-  var m = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[1] + 'T' + m[2] + ':' + m[3]) : '';
-}
-
-// Obtiene el document del iframe creado por MyIFrame ('iframe_' + nombre)
-function getCPDoc() {
-  var ifr = document.getElementById('iframe_frame_cp');
-  if (!ifr) return null;
-  if (ifr.contentDocument) return ifr.contentDocument;
-  if (ifr.contentWindow && ifr.contentWindow.document) return ifr.contentWindow.document;
-  return null;
-}
-
-// Cierra el lightbox (según build)
-function cerrarLightbox() {
-  try {
-    if (window.parent && typeof window.parent.OcultarVentana === 'function') {
-      window.parent.OcultarVentana();
-      return;
-    }
-    if (typeof OcultarVentana === 'function') {
-      OcultarVentana();
-      return;
-    }
-  } catch (e) {}
-}
-
-/* ===================== ClienteProveedor2 ===================== */
-var cp2 = new ClienteProveedor2();
-
-// Dónde se pinta la LUPA
-cp2.ubicacion = document.getElementById('divBuscador');
-
-// Sólo LUPA (los otros botones los controlamos aparte)
-cp2.creaBotonBuscar = true;
-cp2.creaBotonBorrar = false;
-cp2.creaBotonCrear  = false;
-
-// Elemento que recibe el onkeypress
-cp2.elementoBuscador = 'rut';
-
-// Lightbox + tamaño + filtros/título
-cp2.islightbox    = true;
-cp2.altoLightbox  = 500;
-cp2.anchoLightbox = 800;
-cp2.filtro        = 'cliente|vigente|puedefacturar';
-cp2.tituloGrilla  = 'Clientes vigentes facturando';
-
-// Elementos que el componente completará.
-// OJO: usamos ocultos en el padre para luego volcar al iframe.
-cp2.elementos = {
-  rut: document.getElementById('rut'),
-  idclienteproveedor: document.getElementById('idclienteproveedor'),
-  razonsocial: document.getElementById('razonsocial_h'),
-  giro:        document.getElementById('giro_h'),
-  idusuario:   document.getElementById('idusuario_h'),
-  fechahora:   document.getElementById('fechahora_h')
-};
-
-// Al seleccionar desde la grilla o validar por teclado
-cp2.afterEvent = function (self) {
-  var d = getCPDoc();
-  if (!d) return; // iframe aún no disponible
-
-  // Leer de ocultos (ya llenados por el componente)
-  var rs = (self.elementos.razonsocial && typeof self.elementos.razonsocial.value !== 'undefined') ? String(self.elementos.razonsocial.value) : '';
-  var gi = (self.elementos.giro        && typeof self.elementos.giro.value        !== 'undefined') ? String(self.elementos.giro.value)        : '';
-  var iu = (self.elementos.idusuario   && typeof self.elementos.idusuario.value   !== 'undefined') ? String(self.elementos.idusuario.value)   : '';
-  var fhRaw = (self.elementos.fechahora && typeof self.elementos.fechahora.value  !== 'undefined') ? String(self.elementos.fechahora.value)   : '';
-  var fh = normDT(fhRaw);
-
-  // Volcar al iframe
-  var f_rs = d.getElementById('razonsocial');
-  var f_gi = d.getElementById('giro');
-  var f_iu = d.getElementById('idusuario');
-  var f_fh = d.getElementById('fechahora');
-
-  if (f_rs) f_rs.value = rs;
-  if (f_gi) f_gi.value = gi;
-  if (f_iu) f_iu.value = iu;
-  if (f_fh) f_fh.value = fh;
-
-  // Cerrar lightbox (si corresponde)
-  cerrarLightbox();
-};
-
-// Inicializar el componente
-cp2.New();
-
-/* ===================== Botón Limpiar ===================== */
-(function () {
-  var btn = document.getElementById('btnLimpiar');
-  var handler = function () {
-    // Limpia input visible y ocultos
-    var el;
-    el = document.getElementById('rut');               if (el) el.value = '';
-    el = document.getElementById('idclienteproveedor');if (el) el.value = '';
-    el = document.getElementById('razonsocial_h');     if (el) el.value = '';
-    el = document.getElementById('giro_h');            if (el) el.value = '';
-    el = document.getElementById('idusuario_h');       if (el) el.value = '';
-    el = document.getElementById('fechahora_h');       if (el) el.value = '';
-
-    // Limpia iframe si ya está cargado
-    var d = getCPDoc();
-    if (d) {
-      var ids = ['razonsocial', 'giro', 'idusuario', 'fechahora'];
-      for (var i = 0; i < ids.length; i++) {
-        var x = d.getElementById(ids[i]);
-        if (x) x.value = '';
-      }
-    }
-  };
-
-  if (btn) {
-    if (btn.addEventListener) btn.addEventListener('click', handler, false);
-    else if (btn.attachEvent) btn.attachEvent('onclick', handler); // IE
-    else btn.onclick = handler;
-  }
-})();
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <style>
+    .wrap{padding:10px;}
+    #txtResumen{width:100%;height:160px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <textarea id="txtResumen"></textarea>
+  </div>
+</body>
+</html>
