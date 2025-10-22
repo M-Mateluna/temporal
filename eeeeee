@@ -2,8 +2,7 @@
 // Resolver base de rutas DESIS
 $POSICION = "";
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$titulo_formulario = "Ejercicio Teléfono";
-include $POSICION."formHeader.php";
+require($POSICION."formHeader.php");
 ?>
 <!DOCTYPE html>
 <html>
@@ -11,53 +10,14 @@ include $POSICION."formHeader.php";
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Ejercicio Teléfono</title>
 
-  <!-- Nuevo estilo DESIS -->
+  <!-- (opcional) Si tu header no ya lo incluye, mantén el nuevo estilo -->
   <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
   <style>
+    /* Mantener look del ejercicio Nuevoestiloscss, sin tocar metodología */
     .contenedor { max-width: 600px; margin: auto; text-align: -webkit-center; background: #f1f1f1; }
     .contenedor label { display:block; text-align:left; margin-bottom: 6px; }
     .contenedor td { padding: 6px 15px; margin-bottom: 6px; }
-
-    /* Contenedor del control de teléfono */
-    .telefono-wrap { position: relative; width: 100%; }
-
-    /* Select de código dentro del input */
-    .telefono-wrap select {
-      position: absolute; left: 6px; top: 4px;
-      height: 26px; line-height: 26px;
-      border-radius: 6px; border: 1px solid #ccc;
-      font-size: 12px; padding: 0 6px;
-      outline: none;
-    }
-
-    /* Input de teléfono con padding-left 83px (requisito) */
-    .telefono-wrap input[type="text"] {
-      padding-left: 83px;    /* requisito */
-      border-radius: 7px;    /* requisito */
-      height: 34px;          /* requisito */
-      width: 99%;            /* requisito */
-      font-size: 12px;       /* requisito */
-      box-sizing: border-box;
-    }
-
-    /* Botón Validar (alto 34, radio 7) */
-    .btn-validar {
-      height: 34px;
-      border-radius: 7px;
-      padding: 0 14px;
-      border: 1px solid #2a4b8d;
-      background: #325bb6;
-      color: #fff;
-      cursor: pointer;
-      font-size: 12px;
-      margin-left: 8px;
-    }
-    .btn-validar:hover { filter: brightness(1.05); }
-
-    /* Fila compacta para el control completo */
-    .telefono-row { display:flex; align-items:center; gap:8px; }
-    .telefono-row > .telefono-wrap { flex: 1; }
   </style>
 </head>
 <body>
@@ -73,34 +33,25 @@ include $POSICION."formHeader.php";
             <table width="100%" cellspacing="0" cellpadding="0">
               <tr>
                 <td class="stack">
-                  <label for="telefono">Teléfono</label>
-                  <div class="telefono-row">
-                    <div class="telefono-wrap">
-                      <!-- Códigos restringidos (personalizados) -->
-                      <select id="codpais" name="codpais" aria-label="Código de país">
-                        <option value="+56">Chile (+56)</option>
-                        <option value="+54">Argentina (+54)</option>
-                        <option value="+55">Brasil (+55)</option>
-                        <option value="+57">Colombia (+57)</option>
-                        <option value="+34">España (+34)</option>
-                        <option value="+51">Perú (+51)</option>
-                        <option value="+52">México (+52)</option>
-                      </select>
+                  <label for="movil">Teléfono</label>
 
-                      <!-- Input de teléfono: text, placeholder y obligatorio -->
-                      <input
-                        type="text"
-                        id="telefono"
-                        name="telefono"
-                        class="txt_obligatorio"
-                        placeholder="Ingrese teléfono"
-                        maxlength="20"
-                        onkeypress="return soloNumeros(event);"
-                      >
-                    </div>
+                  <?php
+                  // ====== Parámetros del componente Teléfono (como en tu ejemplo) ======
+                  $tel_id             = 'movil';
+                  // Importante: padding-left 83px y ancho/alto, siguiendo tu guía
+                  $tel_style          = 'padding-left:83px !important;border-radius:3px;height:21px;width:99%; ';
+                  $tel_class          = 'movil';
+                  $tel_tipo           = 'principal'; // principal | todos
+                  $tel_inicial        = 'cl';        // país inicial (cl, mx, pe, ve, etc.)
+                  $tel_principales    = '';          // Ej: '["mx","pe","ve","cl"]' si quisieras destacar
+                  $tel_onkeypress     = 'return validarTecla(event);';
+                  $tel_placeholder    = 'Ej: 123456789';
+                  $tel_inputType      = 'text';      // 'text' por requerimiento
 
-                    <button type="button" class="btn-validar" onclick="validarTelefono()">Validar</button>
-                  </div>
+                  // Inserta el input del componente teléfono
+                  include($POSICION."componente/telefono/inserta_input.php");
+                  ?>
+
                 </td>
               </tr>
             </table>
@@ -112,113 +63,15 @@ include $POSICION."formHeader.php";
   </form>
 </div>
 
-<!-- Dependencias base -->
-<script type="text/javascript" src="<?=$POSICION?>componente/database/class.php"></script>
-<script type="text/javascript" src="<?=$POSICION?>js/util.js"></script>
-
-<!-- MessageBox (aseguramos compatibilidad) -->
 <script>
-  // Algunos MessageBox antiguos usan Prototype's Class.create()
-  if (typeof Class === "undefined") {
-    var Class = { create: function(){ return function(){ this.initialize && this.initialize.apply(this, arguments); }; } };
+// Validación numérica estricta (igual a tu ejemplo)
+function validarTecla(event){
+  var tecla = event.key;
+  if (!/^[0-9]$/.test(tecla)) {
+    event.preventDefault();
   }
+}
 </script>
-<script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
-<script>
-  /* ==== Instancia robusta de MessageBox, local o parent ==== */
-  (function ensureMSGBOX(){
-    var candidates = [];
-    try { candidates.push(window); } catch(e){}
-    try { if (window.parent && window.parent !== window) candidates.push(window.parent); } catch(e){}
-
-    for (var i=0;i<candidates.length;i++){
-      var r = candidates[i];
-      if (r.MSGBOX && typeof r.MSGBOX.Abrir === 'function') { window.__MSGBOX__ = r.MSGBOX; return; }
-      if (typeof r.IU_MSGBOX === 'function') {
-        try { r.MSGBOX = new r.IU_MSGBOX(); window.__MSGBOX__ = r.MSGBOX; return; } catch(e){}
-      }
-    }
-    console.warn('MSGBOX no disponible: revisa ruta/orden de componente/messagebox/class.php');
-  })();
-
-  function msgBoxAbrir(opts){
-    if (window.__MSGBOX__ && typeof window.__MSGBOX__.Abrir === 'function') {
-      window.__MSGBOX__.Abrir(opts);
-    }
-  }
-  function msgBoxCerrar(){
-    if (window.__MSGBOX__) {
-      if (typeof window.__MSGBOX__.Cerrar === 'function') return window.__MSGBOX__.Cerrar();
-      if (typeof window.__MSGBOX__.OcultarVentana === 'function') return window.__MSGBOX__.OcultarVentana();
-    }
-  }
-
-  /* ==== Solo números en onkeypress ==== */
-  function soloNumeros(evt){
-    var k = evt.which || evt.keyCode;
-    // Permitir: backspace, delete, arrows, tab
-    if (k===8 || k===46 || k===37 || k===39 || k===9) return true;
-    // Dígitos 0-9
-    if (k>=48 && k<=57) return true;
-    return false;
-  }
-
-  /* ==== Obtener teléfono completo ==== */
-  function getTelefonoCompleto(){
-    var cod = (document.getElementById('codpais')||{}).value || '';
-    var tel = (document.getElementById('telefono')||{}).value || '';
-    tel = tel.replace(/\s+/g,'');
-    return (cod ? cod+' ' : '') + tel;
-  }
-
-  /* ==== Flujo Validar ==== */
-  function validarTelefono(){
-    var tel = document.getElementById('telefono').value.trim();
-    if (!tel){
-      // IMAGEN1: campo vacío → MSGBOX de aviso
-      msgBoxAbrir({
-        titulo: 'Validación',
-        texto: 'El campo <b>teléfono</b> es obligatorio.',
-        botonera: 1
-      });
-      return;
-    }
-
-    // IMAGEN2: Preguntar si desea agregar el teléfono como mío (con input dentro del MSGBOX)
-    var completo = getTelefonoCompleto();
-    var html = ''
-      + '<div>¿Desea agregar el teléfono como suyo?</div>'
-      + '<div style="margin-top:8px;">'
-      + '  <input id="confirm_tel" type="text" class="txt_obligatorio" style="width:96%;height:28px;border-radius:6px;padding:4px 8px;font-size:12px;" value="'+completo+'">'
-      + '</div>'
-      + '<div style="margin-top:10px;text-align:right;">'
-      + '  <button type="button" class="btn-validar" style="margin-right:6px;" onclick="confirmarTelefono(true)">SI</button>'
-      + '  <button type="button" class="btn-validar" onclick="confirmarTelefono(false)">NO</button>'
-      + '</div>';
-
-    msgBoxAbrir({
-      titulo: 'Confirmación',
-      texto: html,
-      botonera: 0 // usamos botones propios en el contenido
-    });
-  }
-
-  /* ==== Respuesta del usuario en el MSGBOX ==== */
-  function confirmarTelefono(esSi){
-    if (!esSi){
-      // NO → cerrar msgbox
-      msgBoxCerrar();
-      return;
-    }
-    // SI → leer el input y mostrar IMAGEN3
-    var v = (document.getElementById('confirm_tel')||{}).value || getTelefonoCompleto();
-    msgBoxAbrir({
-      titulo: 'Teléfono registrado',
-      texto: 'Se registró el teléfono: <b>'+v+'</b>',
-      botonera: 1
-    });
-  }
-</script>
 </body>
 </html>
