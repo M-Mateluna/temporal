@@ -1,42 +1,129 @@
-// Extrae "YYYY-MM-DDTHH:MM" de cadenas como "YYYY-MM-DD HH:MM:SS(.fffff)"
-function normalizaFechaHoraDB(a) {
-  if (!a) return '';
-  const m = String(a).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[1] + 'T' + m[2] + ':' + m[3]) : '';
-}
-
-
-
-clienteproveedor.afterEvent = function(self) {
-  // --- normaliza datetime-local SIN poner "hoy" ---
-  if (self.elementos.fechahora) {
-    const raw = self.elementos.fechahora.value;
-    const fix = normalizaFechaHoraDB(raw);
-    if (fix) self.elementos.fechahora.value = fix;
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+include $POSICION."formHeader.php";
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Gestión de Clientes / Proveedores</title>
+ 
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+ 
+  <style type="text/css">
+    .contenedor{ max-width:600px; margin:auto; text-align:-webkit-center; background:#f1f1f1; }
+    .contenedor label{ display:block; text-align:left; margin-bottom:6px; }
+    .contenedor td{ padding:6px 15px; margin-bottom:6px; }
+    .buscador-inline{ display:inline-flex; align-items:center; gap:6px; }
+  </style>
+</head>
+<body>
+ 
+<div class="FORMULARIONECSS contenedor">
+  <form id="frmCP" method="post" autocomplete="off" onsubmit="return false;">
+    <fieldset>
+      <legend class="legends">Información del Registro</legend>
+ 
+      <table class="grid" cellspacing="0" cellpadding="0">
+        <tr class="fila">
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="rut">RUT</label>
+                  <div class="buscador-inline">
+                    <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                    <div id="divBuscador" style="display:inline"></div>
+                  </div>
+                  <input type="hidden" id="idclienteproveedor" name="idclienteproveedor">
+                </td>
+              </tr>
+            </table>
+          </td>
+ 
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+ 
+        <tr class="fila">
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="idusuario">ID Usuario</label>
+                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
+                </td>
+              </tr>
+            </table>
+          </td>
+ 
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="fechahora">Fecha/Hora</label>
+                  <input type="datetime-local" name="fechahora" id="fechahora">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </fieldset>
+  </form>
+</div>
+ 
+<script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+<script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+ 
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js"></script>
+ 
+<script>
+  if (typeof Class === "undefined") {
+    var Class = { create: function(){ return function(){ this.initialize && this.initialize.apply(this, arguments); }; } };
   }
+</script>
+<script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
-  if (self.ultimoEvento === "onkeypress") {
-    self.elementos.idusuario.disabled = true;
-    self.elementos.giro.disabled = true;
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-      botonera: 1,
-      fnretorno: 'retGenerico',
-      conCerrar: false
-    });
-  } else {
-    self.elementos.rut.disabled = true;
-    self.elementos.giro.disabled = true;
-    self.elementos.idusuario.disabled = true;
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-      botonera: 1,
-      fnretorno: 'retGenerico',
-      conCerrar: false
-    });
+<!-- Wrapper MSGBOX “ejercicio messagebox” + callback genérico -->
+<script>
+let MSGBOX = {
+  ventana: undefined,
+  initialize(){ this.ventana = new IU_MSGBOX(); },
+  Abrir(conf){
+    this.ventana.titulo = conf.titulo || 'Aviso';
+    const texto = conf.texto || '';
+    this.ventana.texto = '<center>'+texto+'</center>';
+    this.ventana.botonera = (conf.botonera!=null) ? conf.botonera : 1;
+    this.ventana.conCerrar = (conf.conCerrar!=undefined) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno = conf.fnretorno || 'retGenerico';
+    if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
+    this.ventana.url = '<?=$POSICION?>';
+    this.ventana.top = conf.top || '25%';
+    this.ventana.objeto = conf.objeto || {};
+    this.ventana.Messagebox();
+    this.ventana.zzIndex = 2;
   }
-
-  setTimeout(cerrarLightbox, 0);
 };
+MSGBOX.initialize();
+
+function retGenerico(resp){
+  if (MSGBOX && MSGBOX.ventana && typeof MSGBOX.ventana.HideInfo === 'function'){
+    MSGBOX.ventana.HideInfo();
+  }
+}
+</script>
+
+<script src="controlador.js"></script>
+</body>
+</html>
