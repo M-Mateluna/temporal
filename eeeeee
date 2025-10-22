@@ -1,36 +1,154 @@
-<script>
-(function(){
-  var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
+<?php
+// Resolver $POSICION hasta la raíz
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Ejercicio – Teléfono</title>
 
-  // 1) Crear frames
-  var url_cp = "clienteproveedor.php";
-  window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
-  frame_cp.height = 180;
-  frame_cp.src    = url_cp;
-  frame_cp.show(true);
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
-  var url_sv = "guardado.php";
-  window.frame_save = new MyIFrame('frame_save','CLIENTE / PROVEEDOR GUARDADO','', imgdir);
-  frame_save.height = 200;
-  frame_save.src    = url_sv;
-  frame_save.show(true);
-  frame_save.contract();
-
-  // 2) Insertar en el contenedor solo si los nodos existen
-  var host = document.getElementById('hostFrames');
-
-  function safeAppend(id){
-    var el = document.getElementById(id);
-    // el.nodeType === 1 asegura que es un Element
-    if (host && el && el.nodeType === 1 && el.parentNode !== host){
-      host.appendChild(el);
+  <style>
+    .wrap { max-width: 520px; margin: 18px auto; background:#f1f1f1; padding:14px; }
+    .fila { display:flex; gap:10px; align-items:center; }
+    .btn-validar {
+      height:34px; padding:0 14px; border:1px solid #6c757d;
+      background:#e9ecef; border-radius:7px; cursor:pointer; font-size:12px;
     }
+    /* El input del componente tendrá además la clase txt_obligatorio */
+  </style>
+</head>
+<body>
+
+<div class="wrap FORMULARIONECSS">
+  <fieldset>
+    <legend class="legends">Teléfono</legend>
+
+    <div class="fila">
+      <div style="flex:1">
+        <?php
+        // ====== Parámetros del componente Teléfono ======
+        $tel_id          = 'movil';
+        // Estilos pedidos (coinciden con el enunciado)
+        $tel_style       = 'padding-left:83px !important;border-radius:7px;height:34px;width:99%;font-size:12px;';
+        // Clase obligatoria estándar DESIS
+        $tel_class       = 'txt_obligatorio';
+        // Sólo “principales personalizados”
+        $tel_tipo        = 'principal';   // principal | todos
+        $tel_inicial     = 'cl';          // primer código visible
+        // Países principales: Chile, Argentina, Brasil, Colombia, España, Perú, México
+        $tel_principales = '["cl","ar","br","co","es","pe","mx"]';
+        // Validación para sólo dígitos en cada tecla
+        $tel_onkeypress  = 'return validarTecla(event);';
+        $tel_placeholder = 'Ingrese teléfono';
+        $tel_inputType   = 'text';
+
+        // Render del componente
+        include($POSICION."componente/telefono/inserta_input.php");
+        ?>
+      </div>
+
+      <button id="btnValidar" type="button" class="btn-validar">Validar</button>
+    </div>
+  </fieldset>
+</div>
+
+<!-- MessageBox -->
+<script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+
+<script>
+// ======== Validación onkeypress: sólo números ========
+function validarTecla(event){
+  var tecla = event.key || '';
+  if (!/^[0-9]$/.test(tecla)) { event.preventDefault(); }
+}
+
+// ======== Wrapper seguro para IU_MSGBOX (compatible) ========
+var MSGBOX = {
+  ventana: undefined,
+  initialize: function(){
+    try { this.ventana = new IU_MSGBOX(); } catch(e){ this.ventana = undefined; }
+  },
+  Abrir: function(conf){
+    if (!this.ventana) return alert((conf.titulo||'')+'\n\n'+(conf.texto||'').replace(/<[^>]+>/g,''));
+    this.ventana.titulo   = conf.titulo   || 'Información';
+    this.ventana.texto    = '<center>' + (conf.texto||'') + '</center>';
+    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1; // 1=Aceptar, 3=Sí/No, etc.
+    this.ventana.conCerrar= (conf.conCerrar != null) ? conf.conCerrar : this.ventana.conCerrar;
+    this.ventana.fnretorno= conf.fnretorno || 'retGenerico';
+    this.ventana.titulocss= conf.titulocss || this.ventana.titulocss;
+    this.ventana.objeto   = conf.objeto || {};
+    this.ventana.url      = '<?=$POSICION?>';
+    this.ventana.top      = conf.top || '25%';
+    this.ventana.Messagebox();
+    this.ventana.zzIndex  = 2;
+  }
+};
+MSGBOX.initialize();
+
+// ======== Flujo del botón Validar ========
+(function(){
+  var btn = document.getElementById('btnValidar');
+  if (!btn) return;
+
+  function onClick(){
+    var inp = document.getElementById('movil'); // id definido en $tel_id
+    var numero = (inp && inp.value) ? String(inp.value).trim() : '';
+
+    // Si está vacío -> MSGBOX (solo Aceptar)
+    if (!numero){
+      MSGBOX.Abrir({
+        titulo: 'Validación',
+        texto : 'El campo teléfono es obligatorio.',
+        botonera: 1,     // Aceptar
+        fnretorno: 'retCerrar'
+      });
+      return;
+    }
+
+    // Si tiene contenido -> preguntar Sí/No
+    MSGBOX.Abrir({
+      titulo: 'Confirmación',
+      texto : '&#191;Desea agregar el teléfono como mío?',
+      botonera: 3,      // Sí / No
+      fnretorno: 'retConfirmaTelefono',
+      objeto: { telefono: numero }
+    });
   }
 
-  // Ejecutar tras el siguiente tick por si el render es asíncrono
-  setTimeout(function(){
-    safeAppend('frame_cp');
-    safeAppend('frame_save');
-  }, 0);
+  if (btn.addEventListener) btn.addEventListener('click', onClick, false);
+  else if (btn.attachEvent) btn.attachEvent('onclick', onClick);
+  else btn.onclick = onClick;
 })();
+
+// ======== Callbacks del MessageBox ========
+function retCerrar(resp){
+  // Cierra el cuadro (cualquiera que sea la respuesta)
+  if (MSGBOX.ventana && typeof MSGBOX.ventana.HideInfo === 'function') MSGBOX.ventana.HideInfo();
+}
+
+function retConfirmaTelefono(resp){
+  // resp: 'S' (Sí) o 'N' (No) para botonera=3
+  if (resp === 'S'){
+    var fono = (MSGBOX.ventana && MSGBOX.ventana.objeto && MSGBOX.ventana.objeto.telefono) ? MSGBOX.ventana.objeto.telefono : '';
+    // Cierro el cuadro actual y muestro el teléfono
+    if (MSGBOX.ventana && typeof MSGBOX.ventana.HideInfo === 'function') MSGBOX.ventana.HideInfo();
+
+    MSGBOX.Abrir({
+      titulo: 'Teléfono agregado',
+      texto : 'El teléfono ingresado es: <b>' + fono + '</b>',
+      botonera: 1,      // Aceptar
+      fnretorno: 'retCerrar'
+    });
+    return;
+  }
+  // Si NO, sólo cerrar
+  if (MSGBOX.ventana && typeof MSGBOX.ventana.HideInfo === 'function') MSGBOX.ventana.HideInfo();
+}
 </script>
+
+</body>
+</html>
