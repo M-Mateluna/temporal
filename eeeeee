@@ -1,43 +1,56 @@
-<?php
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
-  <style>
-    .contenedor {padding:10px;}
-    input {width:95%;}
-    .btnGuardar {height:25px; padding:0 10px; border-radius:6px; background:#e9ecef;}
-  </style>
-</head>
-<body>
-<div class="contenedor">
-  <fieldset>
-    <legend class="legends">CLIENTE / PROVEEDOR</legend>
+/* ====== Utilidad para obtener documentos de iframes ====== */
+function getDoc(nombre) {
+  var ifr = document.getElementById('iframe_' + nombre);
+  if (!ifr) return null;
+  return ifr.contentDocument || (ifr.contentWindow && ifr.contentWindow.document) || null;
+}
 
-    <table width="100%" cellspacing="6">
-      <tr>
-        <td><label>Razón Social</label><input type="text" id="razonsocial"></td>
-        <td><label>Giro</label><input type="text" id="giro"></td>
-        <td align="right"><button id="btnGuardar" class="btnGuardar">Guardar</button></td>
-      </tr>
-      <tr>
-        <td><label>ID Usuario</label><input type="text" id="idusuario"></td>
-        <td><label>Fecha/Hora</label><input type="datetime-local" id="fechahora"></td>
-      </tr>
-    </table>
-  </fieldset>
-</div>
+/* ====== Guardar: copia al segundo frame y expande ====== */
+function guardarClienteProveedor() {
+  var d1 = getDoc('frame_cp');
+  var d2 = getDoc('frame_save');
+  if (!d1 || !d2) return;
 
-<script>
-document.getElementById('btnGuardar').onclick = function(){
-  if (parent && typeof parent.guardarClienteProveedor === 'function') {
-    parent.guardarClienteProveedor();
+  var rs = d1.getElementById('razonsocial').value || '';
+  var gi = d1.getElementById('giro').value || '';
+  var iu = d1.getElementById('idusuario').value || '';
+  var fh = d1.getElementById('fechahora').value || '';
+  var rut = document.getElementById('rut').value || '';
+
+  var resumen =
+    '-Rut: ' + rut + '\n' +
+    '-Razón Social: ' + rs + '\n' +
+    '-Giro: ' + gi + '\n' +
+    '-Id Usuario: ' + iu + '\n' +
+    '-Fecha/Hora: ' + fh;
+
+  var txt = d2.getElementById('txtResumen');
+  if (txt) txt.value = resumen;
+
+  // expandir segundo frame
+  if (window.frame_save && typeof frame_save.expand === 'function') frame_save.expand();
+}
+
+/* ====== Limpiar: deja todo como al inicio ====== */
+document.getElementById('btnLimpiar').onclick = function() {
+  document.getElementById('rut').value = '';
+  document.getElementById('idclienteproveedor').value = '';
+
+  var d1 = getDoc('frame_cp');
+  if (d1) {
+    var ids = ['razonsocial','giro','idusuario','fechahora'];
+    for (var i=0;i<ids.length;i++){
+      var e = d1.getElementById(ids[i]);
+      if (e) e.value = '';
+    }
   }
+
+  var d2 = getDoc('frame_save');
+  if (d2) {
+    var t = d2.getElementById('txtResumen');
+    if (t) t.value = '';
+  }
+
+  // contraer segundo frame
+  if (window.frame_save && typeof frame_save.contract === 'function') frame_save.contract();
 };
-</script>
-</body>
-</html>
