@@ -1,13 +1,52 @@
-function showMsgLocal(){
-  MSGBOX.Abrir({
-    titulo: 'Información',
-    texto: 'Hola desde el lightbox hijo',
-    botonera: 1,
-    fnretorno: 'cerrarMsgLocal'   // <- agregado
-  });
+<button type="button" onclick="showCalendarioLB()" style="height:32px;padding:0 14px;">
+  Calendario (Lightbox)
+</button>
+
+
+function showCalendarioLB(){
+  addLightboxMarkup();
+  Ajuste.ventana.ShowInfoDentro('calendario_lightbox.php', '340px', '620px', 'Ajuste.ventana.HideInfo');
 }
 
-function cerrarMsgLocal(resp){
-  // Cierra el MessageBox al presionar Aceptar (resp === 'A')
-  MSGBOX.ventana.HideInfo();
-}
+
+
+
+
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "Calendario en Lightbox";
+require_once($POSICION."conexion.php");
+require_once($POSICION."formHeader.php");
+?>
+
+
+<div style="padding:1rem 1.25rem;">
+<h3 style="margin-top:0;">Demostración del Componente Calendario</h3>
+<p>Seleccione una fecha y cierre el lightbox con la X o desde el padre.</p>
+
+
+<?php
+// Configuración mínima del componente Calendario
+$label_input = 'Fecha';
+$nom_fech = 'fecha_demo';
+$nom_fech_disabled = 'F';
+$val_fech = '';
+$btn_clear_fech = 'fecha_demo_btn';
+$btn_clear_fech_disabled = 'F';
+$classPrincipal = 'FORMULARIONECSS';
+$classAdicional = '';
+$btn_borrar_in = true;
+$fech_style = 'width:17em;height:21px;';
+
+
+// (Opcional) límites de ejemplo
+$cnf_to = '';
+$cnf_hasta = '';
+
+
+include $POSICION."componente/calendario/componente_fechadd.php";
+?>
+</div>
+
+
+<?php require_once($POSICION."formFoot.php"); ?>
