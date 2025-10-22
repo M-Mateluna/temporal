@@ -1,13 +1,14 @@
 <?php
-while (!file_exists($POSICION . "conexion.php")) { $POSICION .= "../"; }
+// Resolver $POSICION
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
 $titulo_formulario = "Termino Contrato";
-require_once($POSICION . "formHeader.php");
+require_once($POSICION."formHeader.php");
 
-// Fechas: hoy ± 1 mes
+/* ---- Fechas: hoy ± 1 mes ---- */
 $hoy = new DateTime('today');
-$min = (clone $hoy)->modify('-1 month')->format('Y-m-d');
-$max = (clone $hoy)->modify('+1 month')->format('Y-m-d');
-$hoyStr = $hoy->format('Y-m-d');
+$min = (clone $hoy)->modify('-1 month')->format('d-m-Y');
+$max = (clone $hoy)->modify('+1 month')->format('d-m-Y');
+$hoyStr = $hoy->format('d-m-Y');
 ?>
 
 <!DOCTYPE html>
@@ -15,127 +16,76 @@ $hoyStr = $hoy->format('Y-m-d');
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Termino Contrato</title>
-  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
   <style>
-    .contenedor {
-      background: #f1f1f1;
-      min-width: 560px;
-      padding: 24px;
+    .lb-box { 
+      min-width: 560px; 
+      background: #f1f1f1; 
+      padding: 24px; 
       font-family: Verdana, Arial, sans-serif;
     }
-    .fila {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 14px 0;
+    .row { 
+      display: flex; 
+      align-items: center; 
+      gap: 10px; 
+      margin: 14px 0; 
     }
-    .lbl {
-      min-width: 220px;
-      font-weight: bold;
-      font-size: 12px;
+    .lbl { 
+      min-width: 220px; 
+      font-weight: bold; 
+      font-size: 12px; 
     }
-    .date-wrap {
-      position: relative;
-      width: 220px;
-    }
-    input[type="date"] {
-      width: 100%;
-      height: 26px;
-      border: 1px solid #999;
-      border-radius: 5px;
-      padding: 0 28px 0 8px;
-      background: #fff;
-      font-family: Verdana;
-      font-size: 11px;
-    }
-    .btn-clear {
-      position: absolute;
-      right: 5px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 20px;
-      height: 20px;
-      line-height: 18px;
-      text-align: center;
-      border: 1px solid #aaa;
-      border-radius: 3px;
-      background: #fff;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    .btn-guardar {
-      height: 30px;
-      padding: 0 18px;
-      background: #e9ecef;
-      border: 1px solid #6c757d;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: Verdana;
-      font-size: 11px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .center {
-      text-align: center;
-    }
+    .center { text-align: center; }
   </style>
 </head>
+
 <body>
-  <div class="FORMULARIONECSS contenedor">
-    <div class="fila">
+  <div class="FORMULARIONECSS lb-box">
+    <div class="row">
       <div class="lbl">Ingrese Fecha de Término:</div>
-      <div class="date-wrap">
-        <input 
-          type="date" 
-          id="fechaTermino" 
-          value="<?=$hoyStr?>" 
-          min="<?=$min?>" 
-          max="<?=$max?>" 
-          onkeydown="return false" 
-          onkeypress="return false" 
-          title="Seleccione una fecha dentro del rango permitido"
-        >
-        <button type="button" class="btn-clear" id="btnClear" title="Borrar">×</button>
-      </div>
+
+      <?php
+      // Configuración del componente calendario
+      $nom_fech              = "fecha_termino";
+      $val_fech              = $hoyStr;          // valor inicial = hoy
+      $cnf_to                = $min;             // fecha mínima permitida
+      $cnf_hasta             = $max;             // fecha máxima permitida
+      $nom_fech_disabled     = "F";              // habilitado
+      $btn_clear_fech        = "btnClear";       // botón borrar
+      $btn_clear_fech_disabled = "F";            // botón borrar activo
+      $label_input           = "";               // sin label adicional
+      $btn_borrar_in         = false;
+      $classAdicional        = "inputFecha";
+      $classPrincipal        = "form-control";
+
+      include($POSICION."componente/calendario/componente_fechadd.php");
+      ?>
     </div>
 
-    <div class="fila center">
-      <button type="button" class="btn-guardar" id="btnGuardar">
-        <img src="<?=$POSICION?>img/<?=$CSS_STYLE?>/disk.png" alt="Guardar" style="width:16px;height:16px;">
-        Guardar
-      </button>
+    <div class="row center">
+      <button type="button" id="btnGuardar" style="padding:5px 15px;">Guardar</button>
     </div>
   </div>
 
-  <!-- Importación de componentes estándar -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php?v=<?=rand()?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=<?=rand()?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand()?>"></script>
+  <!-- Componentes requeridos del entorno Desis -->
+  <script src="<?=$POSICION?>componente/database/class.php?v=<?=rand()?>"></script>
+  <script src="<?=$POSICION?>componente/messagebox/class.php?v=<?=rand()?>"></script>
+  <script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
+  <script src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand()?>"></script>
 
   <script>
-    // Referencias
-    const inputFecha = document.getElementById('fechaTermino');
-    const btnClear = document.getElementById('btnClear');
     const btnGuardar = document.getElementById('btnGuardar');
+    const inputFecha = document.getElementById('fecha_termino');
 
-    // Borrar fecha
-    btnClear.addEventListener('click', () => inputFecha.value = '');
-
-    // Guardar → Enviar valor al index y cerrar lightbox
+    // Al guardar: enviar valor al padre y cerrar
     btnGuardar.addEventListener('click', () => {
-      try {
-        const val = inputFecha.value;
-        if (window.parent) {
-          window.parent.postMessage({ type: 'set_fecha', value: val }, '*');
-        }
-      } catch (e) {}
-      try {
-        if (window.parent && typeof window.parent.OcultarVentana === 'function') {
-          window.parent.OcultarVentana();
-        }
-      } catch (e) {}
+      const val = inputFecha.value;
+      if (window.parent) {
+        window.parent.postMessage({ type: 'set_fecha', value: val }, '*');
+      }
+      if (window.parent && typeof window.parent.OcultarVentana === 'function') {
+        window.parent.OcultarVentana();
+      }
     });
   </script>
 </body>
