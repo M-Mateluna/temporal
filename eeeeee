@@ -1,65 +1,94 @@
 <?php
-// Resolver $POSICION
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$titulo_formulario = "Termino Contrato";
-require_once($POSICION."formHeader.php");
+// ---------- Resolver $POSICION de forma SEGURA ----------
+$POSICION = isset($POSICION) ? $POSICION : '';
+for ($i = 0; $i < 12 && !file_exists($POSICION.'conexion.php'); $i++) { $POSICION .= '../'; }
 
-/* ---- Fechas: hoy ± 1 mes ---- */
-$hoy = new DateTime('today');
-$min = (clone $hoy)->modify('-1 month')->format('Y-m-d');
-$max = (clone $hoy)->modify('+1 month')->format('Y-m-d');
-$hoyStr = $hoy->format('Y-m-d');
+// Incluye formHeader solo si realmente existe (evita 500 por require fallido)
+if (file_exists($POSICION.'formHeader.php')) {
+  require_once($POSICION.'formHeader.php');
+}
+
+// ---------- Fechas: hoy ± 1 mes ----------
+$hoy  = new DateTime('today');
+$min  = (clone $hoy)->modify('-1 month')->format('Y-m-d');
+$max  = (clone $hoy)->modify('+1 month')->format('Y-m-d');
+$hoyS = $hoy->format('Y-m-d');
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Termino Contrato</title>
-  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
-  <style>
-    .lb-box { min-width: 560px; background:#f1f1f1; padding:24px; }
-    .row    { display:flex; align-items:center; gap:10px; margin:14px 0; }
-    .lbl    { min-width:220px; }
 
+  <?php if (file_exists($POSICION.'css/nuevoestilo.css')): ?>
+    <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <?php endif; ?>
+
+  <style>
+    /* Fallback de estilos si no se pudo cargar formHeader/nuevoestilo */
+    .lb-box{ min-width:560px; background:#f1f1f1; padding:24px; font-family: Arial,sans-serif; }
+    .row{ display:flex; align-items:center; gap:10px; margin:14px 0; }
+    .lbl{ min-width:220px; font-weight:bold; }
     .date-wrap{ position:relative; width:220px; }
     .date-wrap input[type="date"]{
-      width:100%; height:26px; border:1px solid #999; border-radius:5px;
-      padding:0 28px 0 8px; background:#fff;
+      width:100%; height:26px; border:1px solid #999; border-radius:5px; padding:0 28px 0 8px; background:#fff;
     }
     .btn-clear{
       position:absolute; right:5px; top:50%; transform:translateY(-50%);
       width:20px; height:20px; line-height:18px; text-align:center;
-      border:1px solid #aaa; border-radius:3px; background:#fff;
-      cursor:pointer; font-weight:bold;
+      border:1px solid #aaa; border-radius:3px; background:#fff; cursor:pointer; font-weight:bold;
     }
+    .btn{
+      height:32px; padding:0 16px; border-radius:6px; border:1px solid #6c757d;
+      background:#e9ecef; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    }
+    .center{ text-align:center; }
   </style>
 </head>
 <body>
   <div class="FORMULARIONECSS lb-box">
     <div class="row">
-      <div class="lbl"><strong>Ingrese Fecha de Término:</strong></div>
+      <div class="lbl">Ingrese Fecha de Término:</div>
 
       <!-- Calendario no editable por teclado + botón borrar -->
       <div class="date-wrap">
         <input
           type="date"
           id="fechaTermino"
-          value="<?=$hoyStr?>"
+          value="<?=$hoyS?>"
           min="<?=$min?>" max="<?=$max?>"
           onkeydown="return false" onkeypress="return false"
-          title="Seleccione una fecha"
+          title="Seleccione una fecha dentro del rango"
         >
         <button type="button" class="btn-clear" id="btnClear" title="Borrar">×</button>
       </div>
     </div>
+
+    <div class="row center">
+      <button type="button" class="btn" id="btnGuardar">Guardar</button>
+    </div>
   </div>
 
   <script>
+    // Borrar
     const inputFecha = document.getElementById('fechaTermino');
-    const btnClear   = document.getElementById('btnClear');
+    document.getElementById('btnClear').addEventListener('click', () => { inputFecha.value = ''; });
 
-    // Botón borrar fecha
-    btnClear.addEventListener('click', () => { inputFecha.value = ''; });
+    // Guardar (solo para probar: envía la fecha al index y cierra el lightbox)
+    document.getElementById('btnGuardar').addEventListener('click', () => {
+      try {
+        const val = inputFecha.value; // YYYY-MM-DD (dentro del ±1 mes)
+        if (window.parent) {
+          // Si quieres formatear a DD-MM-YYYY, cambia aquí:
+          window.parent.postMessage({ type: 'set_fecha', value: val }, '*');
+        }
+      } catch (e) {}
+      try {
+        if (window.parent && typeof window.parent.OcultarVentana === 'function') {
+          window.parent.OcultarVentana();
+        }
+      } catch (e) {}
+    });
   </script>
 </body>
 </html>
