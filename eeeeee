@@ -1,20 +1,25 @@
-<?php
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
-  <style>
-    .wrap{padding:10px;}
-    #txtResumen{width:100%;height:160px;}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <textarea id="txtResumen"></textarea>
-  </div>
-</body>
-</html>
+<script>
+  (function(){
+    var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
+
+    // 1) Frame CLIENTE / PROVEEDOR
+    var url_cp = "clienteproveedor.php"; // misma carpeta
+    window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
+    frame_cp.height = 180;
+    frame_cp.src    = url_cp;
+    frame_cp.show(true);
+
+    // 2) Frame CLIENTE / PROVEEDOR GUARDADO (textarea)
+    var url_sv = "guardado.php";        // misma carpeta
+    window.frame_save = new MyIFrame('frame_save','CLIENTE / PROVEEDOR GUARDADO','', imgdir);
+    frame_save.height = 200;
+    frame_save.src    = url_sv;
+    frame_save.show(true);
+    frame_save.contract();              // << inicia contraído
+
+    // Insertar en el contenedor, en orden
+    var host = document.getElementById('hostFrames');
+    host.appendChild(document.getElementById('frame_cp'));
+    host.appendChild(document.getElementById('frame_save'));
+  })();
+</script>
