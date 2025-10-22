@@ -1,86 +1,10 @@
-/* ClienteProveedor2 — abrir buscador en VENTANA (no lightbox) */
-
-let clienteproveedor;
-
-window.onload = function () {
-  // Fecha/Hora por defecto
-  let fh = document.getElementById('fechahora');
-  if (fh && !fh.value) {
-    let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    fh.value = d.toISOString().slice(0,16);
+// Asegurar fecha/hora correcta en formato datetime-local (YYYY-MM-DDTHH:MM)
+try {
+  let f = self.elementos.fechahora;
+  if (f && !f.value) {
+    let d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    // ✅ Formato válido para <input type="datetime-local">
+    f.value = d.toISOString().slice(0,16);
   }
-
-  // Instancia
-  clienteproveedor = new ClienteProveedor2();
-
-  // Ubicación de los botones (lupa/crear/borrar)
-  clienteproveedor.ubicacion = document.getElementById("divBuscador");
-
-  // Campo de búsqueda (Rut)
-  clienteproveedor.elementoBuscador = "rut";
-
-  // Campos a completar
-  clienteproveedor.elementos = {
-    rut: document.getElementById("rut"),
-    idclienteproveedor: document.getElementById("cliente2"),
-    giro: document.getElementById("giro"),
-    idusuario: document.getElementById("idusuario"),
-    fechahora: document.getElementById("fechahora")
-  };
-
-  // Mostrar los 3 botones
-  clienteproveedor.creaBotonBuscar = true;
-  clienteproveedor.creaBotonBorrar = true;
-  clienteproveedor.creaBotonCrear  = true;
-
-  // Filtro y título
-  // (si tu build soporta "puedefacturar", déjalo; si no, usa "cliente|vigente")
-  clienteproveedor.filtro = "cliente|vigente|puedefacturar";
-  clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
-
-  // >>>>>>>>>>>>>>>>> MODO VENTANA <<<<<<<<<<<<<<<<<
-  clienteproveedor.islightbox = false;
-
-  // Si tu clase soporta tamaño de ventana, usa estas (si no existen, no pasa nada)
-  clienteproveedor.altoVentana  = 500;
-  clienteproveedor.anchoVentana = 800;
-  // Algunos builds aceptan estas propiedades alternativas:
-  clienteproveedor.alto  = 500;
-  clienteproveedor.ancho = 800;
-
-  // AfterEvent (igual a lo pedido; usa self.ultimoEvento como en Ejemplo 6)
-  clienteproveedor.afterEvent = function (self) {
-    // asegurar fecha/hora
-    try {
-      let f = self.elementos.fechahora;
-      if (f && !f.value) {
-        let d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-        f.value = d.toISOString().slice(0,16);
-      }
-    } catch(e){}
-
-    if (self.ultimoEvento == "onkeypress") {
-      self.elementos.idusuario.disabled = true;
-      self.elementos.giro.disabled = true;
-
-      MSGBOX.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-        botonera: 1
-      });
-    } else {
-      self.elementos.rut.disabled = true;
-      self.elementos.giro.disabled = true;
-      self.elementos.idusuario.disabled = true;
-
-      MSGBOX.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-        botonera: 1
-      });
-    }
-  };
-
-  // Construir el componente
-  clienteproveedor.New();
-};
+} catch(e){}
