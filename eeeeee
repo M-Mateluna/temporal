@@ -1,177 +1,182 @@
 <?php
-// Resuelve la raíz del proyecto para rutas robustas
-$POSICION = "";
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "ClienteProveedor2 (según ejemplo wiki + requisitos)";
+include $POSICION."formHeader.php";
 ?>
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Gestión de Clientes / Proveedores</title>
 
+  <!-- Nuevo estilo (lo trae formHeader; dejo el tuyo también por si aplica ruta distinta) -->
   <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
   <style type="text/css">
-    .contenedor { max-width: 600px; margin: auto; text-align: -webkit-center; background: #f1f1f1; }
-    .contenedor label { display: block; text-align: left; margin-bottom: 6px; }
-    .contenedor td { padding: 6px 15px; margin-bottom: 6px; }
-    .buscador-inline { display: inline-flex; align-items: center; gap: 6px; }
+    .contenedor{ max-width:600px; margin:auto; text-align:-webkit-center; background:#f1f1f1; }
+    .contenedor label{ display:block; text-align:left; margin-bottom:6px; }
+    .contenedor td{ padding:6px 15px; margin-bottom:6px; }
+    .buscador-inline{ display:inline-flex; align-items:center; gap:6px; }
   </style>
 </head>
-
 <body>
-  <div class="FORMULARIONECSS contenedor">
-    <form id="frmCP" method="post" autocomplete="off" onsubmit="return false;">
-      <fieldset>
-        <legend class="legends">Información del Registro</legend>
 
-        <table class="grid" cellspacing="0" cellpadding="0">
-          <tr class="fila">
-            <td>
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td class="stack">
-                    <label for="rut">RUT</label>
-                    <div class="buscador-inline">
-                      <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
-                      <span id="divBuscador"></span><!-- lupa/crear/borrar -->
-                    </div>
-                    <input type="hidden" name="cliente2" id="cliente2">
-                  </td>
-                </tr>
-              </table>
-            </td>
+<div class="FORMULARIONECSS contenedor">
+  <form id="frmCP" method="post" autocomplete="off" onsubmit="return false;">
+    <fieldset>
+      <legend class="legends">Información del Registro</legend>
 
-            <td>
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td class="stack">
-                    <label for="giro">Giro</label>
-                    <input type="text" name="giro" id="giro" maxlength="120">
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+      <table class="grid" cellspacing="0" cellpadding="0">
+        <tr class="fila">
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="rut">RUT</label>
+                  <div class="buscador-inline">
+                    <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                    <!-- UBICACION DEL BUSCADOR -->
+                    <div id="divBuscador" style="display:inline"></div>
+                  </div>
+                  <input type="hidden" id="idclienteproveedor" name="idclienteproveedor">
+                </td>
+              </tr>
+            </table>
+          </td>
 
-          <tr class="fila">
-            <td>
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td class="stack">
-                    <label for="idusuario">ID Usuario</label>
-                    <input type="text" name="idusuario" id="idusuario" maxlength="10">
-                  </td>
-                </tr>
-              </table>
-            </td>
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-            <td>
-              <table width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td class="stack">
-                    <label for="fechahora">Fecha/Hora</label>
-                    <input type="datetime-local" name="fechahora" id="fechahora">
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </fieldset>
-    </form>
-  </div>
+        <tr class="fila">
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="idusuario">ID Usuario</label>
+                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
+                </td>
+              </tr>
+            </table>
+          </td>
 
-  <!-- Dependencias con $POSICION -->
-  <script type="text/javascript" src="<?=$POSICION?>componente/database/class.php"></script>
-  <script type="text/javascript" src="<?=$POSICION?>js/util.js"></script>
+          <td>
+            <table width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td class="stack">
+                  <label for="fechahora">Fecha/Hora</label>
+                  <input type="datetime-local" name="fechahora" id="fechahora">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </fieldset>
+  </form>
+</div>
 
-  <!-- Polyfill simple para MessageBox antiguos (evita 'Class is not defined') -->
-  <script>
-    if (typeof Class === "undefined") {
-      var Class = { create: function(){ return function(){ this.initialize && this.initialize.apply(this, arguments); }; } };
+<!-- IMPORTACIONES (como en la wiki) -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+<script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+
+<!-- Lightbox, exactamente como el ejemplo -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js"></script>
+
+<script type="text/javascript">
+  /* ===== util fecha para <input type="datetime-local"> ===== */
+  function pad(n){ return (n<10?'0'+n:n); }
+  function formatoFechaLocal(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes()); }
+  function toDatetimeLocal(val){
+    if (!val) return '';
+    var s = String(val).trim()
+      .replace(/Z$/,'').replace(/[+-]\d{2}:?\d{2}$/,'')
+      .replace(' ','T').replace(/\.\d+$/,'');
+    var m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?$/);
+    if (m) return m[1]+'T'+m[2]+':'+m[3];
+    var d = new Date(val); return isNaN(d)?'':formatoFechaLocal(d);
+  }
+
+  // Set inicial de Fecha/Hora si viene vacío
+  (function(){
+    var fh = document.getElementById('fechahora');
+    if (fh && !fh.value) fh.value = formatoFechaLocal(new Date());
+  })();
+
+  // Fallback de mensajes: usa MSGBOX si existe, si no usa alert
+  function showMsg(titulo, html){
+    if (window.MSGBOX && typeof MSGBOX.Abrir === 'function'){
+      MSGBOX.Abrir({ titulo: titulo, texto: html, botonera: 1 });
+    } else {
+      alert(titulo + "\n\n" + html.replace(/<[^>]+>/g,''));
     }
-  </script>
+  }
 
-  <script type="text/javascript" src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-  <script type="text/javascript" src="<?=$POSICION?>componente/buscadores/clienteproveedor2/class.js"></script>
+  /* ========== ClienteProveedor2 según la wiki + requisitos ========= */
+  var clienteproveedor = new ClienteProveedor2();
 
-  <script type="text/javascript">
-    // Utilidades fecha para <input type="datetime-local">
-    function pad(n){ return (n<10?'0'+n:n); }
-    function formatoFechaLocal(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes()); }
-    function toDatetimeLocal(val){
-      if (!val) return '';
-      var s = String(val).trim()
-        .replace(/Z$/,'').replace(/[+-]\d{2}:?\d{2}$/,'')
-        .replace(' ','T').replace(/\.\d+$/,'');
-      var m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?$/);
-      if (m) return m[1]+'T'+m[2]+':'+m[3];
-      var d = new Date(val); return isNaN(d)?'':formatoFechaLocal(d);
+  // Ubicación del buscador (como en el ejemplo)
+  clienteproveedor.ubicacion = document.getElementById("divBuscador");
+
+  // Botones: el ejercicio pide los tres; si quieres igual que el ejemplo, pon false en borrar/crear
+  clienteproveedor.creaBotonBuscar = true;
+  clienteproveedor.creaBotonBorrar = true;
+  clienteproveedor.creaBotonCrear  = true;
+
+  // Elemento que recibe onkeypress (RUT)
+  clienteproveedor.elementoBuscador = "rut";
+
+  // Lightbox ON (igual al ejemplo) + tamaño solicitado
+  clienteproveedor.islightbox   = true;
+  clienteproveedor.altoLightbox = 500;
+  clienteproveedor.anchoLightbox= 800;
+
+  // Filtros / título pedidos
+  clienteproveedor.filtro = "cliente|vigente|puedefacturar";
+  clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
+
+  // Elementos que se llenan al seleccionar
+  clienteproveedor.elementos = {
+    rut: document.getElementById("rut"),
+    idclienteproveedor: document.getElementById("idclienteproveedor"),
+    giro: document.getElementById("giro"),
+    idusuario: document.getElementById("idusuario"),
+    fechahora: document.getElementById("fechahora")
+  };
+
+  // AfterEvent como el Ejemplo 6 (self.ultimoEvento) + normalización de fecha y mensajes
+  clienteproveedor.afterEvent = function(self){
+    // Normaliza el datetime-local si vino con "espacio + microsegundos"
+    if (self.elementos.fechahora){
+      var norm = toDatetimeLocal(self.elementos.fechahora.value);
+      if (norm) self.elementos.fechahora.value = norm;
+      if (!self.elementos.fechahora.value) self.elementos.fechahora.value = formatoFechaLocal(new Date());
     }
 
-    // Set inicial de Fecha/Hora si viene vacío
-    (function(){
-      var fh = document.getElementById('fechahora');
-      if (fh && !fh.value) fh.value = formatoFechaLocal(new Date());
-    })();
+    if (self.ultimoEvento === "onkeypress"){
+      self.elementos.idusuario.disabled = true;
+      self.elementos.giro.disabled = true;
+      showMsg('AfterEvent', 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.');
+    } else { // onclick
+      self.elementos.rut.disabled = true;
+      self.elementos.giro.disabled = true;
+      self.elementos.idusuario.disabled = true;
+      showMsg('AfterEvent', 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.');
+    }
+  };
 
-    // === ClienteProveedor2 (modo ventana, visual intacto) ===
-    (function(){
-      var cp = new ClienteProveedor2();
-
-      cp.ubicacion = document.getElementById('divBuscador');
-      cp.elementoBuscador = 'rut';
-
-      cp.elementos = {
-        rut: document.getElementById('rut'),
-        idclienteproveedor: document.getElementById('cliente2'),
-        giro: document.getElementById('giro'),
-        idusuario: document.getElementById('idusuario'),
-        fechahora: document.getElementById('fechahora')
-      };
-
-      cp.creaBotonBuscar = true;
-      cp.creaBotonBorrar = true;
-      cp.creaBotonCrear  = true;
-
-      cp.filtro = 'cliente|vigente|puedefacturar';
-      cp.tituloGrilla = 'Clientes vigentes facturando';
-
-      cp.islightbox = false;   // ventana para no alterar la UI base
-      cp.alto = 500; cp.ancho = 800;
-
-      cp.afterEvent = function(self){
-        // Normaliza fecha/hora si viene con espacios y microsegundos
-        if (self.elementos.fechahora) {
-          var norm = toDatetimeLocal(self.elementos.fechahora.value);
-          if (norm) self.elementos.fechahora.value = norm;
-          if (!self.elementos.fechahora.value) self.elementos.fechahora.value = formatoFechaLocal(new Date());
-        }
-
-        if (self.ultimoEvento === 'onkeypress') {
-          self.elementos.idusuario.disabled = true;
-          self.elementos.giro.disabled = true;
-          MSGBOX.Abrir({
-            titulo: 'AfterEvent',
-            texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-            botonera: 1
-          });
-        } else { // onclick
-          self.elementos.rut.disabled = true;
-          self.elementos.giro.disabled = true;
-          self.elementos.idusuario.disabled = true;
-          MSGBOX.Abrir({
-            titulo: 'AfterEvent',
-            texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-            botonera: 1
-          });
-        }
-      };
-
-      cp.New();
-    })();
-  </script>
+  // Inicia el componente (como en la wiki)
+  clienteproveedor.New();
+</script>
 </body>
 </html>
