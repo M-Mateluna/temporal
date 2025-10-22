@@ -1,7 +1,14 @@
 <?php
+// Resolver $POSICION
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$titulo_formulario = "Termino Contrato"; // si tu template muestra título dentro del iframe
+$titulo_formulario = "Termino Contrato";
 require_once($POSICION."formHeader.php");
+
+/* ---- Fechas: hoy ± 1 mes ---- */
+$hoy = new DateTime('today');
+$min = (clone $hoy)->modify('-1 month')->format('Y-m-d');
+$max = (clone $hoy)->modify('+1 month')->format('Y-m-d');
+$hoyStr = $hoy->format('Y-m-d');
 ?>
 <!DOCTYPE html>
 <html>
@@ -10,30 +17,49 @@ require_once($POSICION."formHeader.php");
   <title>Termino Contrato</title>
   <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
   <style>
-    .box { min-width: 460px; background:#f1f1f1; padding: 24px; text-align:center; }
-    .btn { height:32px; padding:0 16px; border-radius:6px; border:1px solid #6c757d; background:#e9ecef; cursor:pointer; }
+    .lb-box { min-width: 560px; background:#f1f1f1; padding:24px; }
+    .row    { display:flex; align-items:center; gap:10px; margin:14px 0; }
+    .lbl    { min-width:220px; }
+
+    .date-wrap{ position:relative; width:220px; }
+    .date-wrap input[type="date"]{
+      width:100%; height:26px; border:1px solid #999; border-radius:5px;
+      padding:0 28px 0 8px; background:#fff;
+    }
+    .btn-clear{
+      position:absolute; right:5px; top:50%; transform:translateY(-50%);
+      width:20px; height:20px; line-height:18px; text-align:center;
+      border:1px solid #aaa; border-radius:3px; background:#fff;
+      cursor:pointer; font-weight:bold;
+    }
   </style>
 </head>
 <body>
-  <div class="FORMULARIONECSS box">
-    <p>Lightbox cargado correctamente.</p>
-    <button class="btn" id="btnProbar">Enviar fecha de prueba</button>
+  <div class="FORMULARIONECSS lb-box">
+    <div class="row">
+      <div class="lbl"><strong>Ingrese Fecha de Término:</strong></div>
+
+      <!-- Calendario no editable por teclado + botón borrar -->
+      <div class="date-wrap">
+        <input
+          type="date"
+          id="fechaTermino"
+          value="<?=$hoyStr?>"
+          min="<?=$min?>" max="<?=$max?>"
+          onkeydown="return false" onkeypress="return false"
+          title="Seleccione una fecha"
+        >
+        <button type="button" class="btn-clear" id="btnClear" title="Borrar">×</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    document.getElementById('btnProbar').addEventListener('click', () => {
-      try {
-        if (window.parent) {
-          // Enviamos un valor de ejemplo al padre para comprobar el flujo
-          window.parent.postMessage({ type: 'set_fecha', value: '28-02-2024' }, '*');
-        }
-      } catch (e) {}
-      try {
-        if (window.parent && typeof window.parent.OcultarVentana === 'function') {
-          window.parent.OcultarVentana();
-        }
-      } catch (e) {}
-    });
+    const inputFecha = document.getElementById('fechaTermino');
+    const btnClear   = document.getElementById('btnClear');
+
+    // Botón borrar fecha
+    btnClear.addEventListener('click', () => { inputFecha.value = ''; });
   </script>
 </body>
 </html>
