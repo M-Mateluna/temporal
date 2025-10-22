@@ -1,10 +1,106 @@
-// Asegurar fecha/hora correcta en formato datetime-local (YYYY-MM-DDTHH:MM)
-try {
-  let f = self.elementos.fechahora;
-  if (f && !f.value) {
-    let d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    // ✅ Formato válido para <input type="datetime-local">
-    f.value = d.toISOString().slice(0,16);
-  }
-} catch(e){}
+<?php
+$POSICION = "";
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Clientes / Proveedores</title>
+
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+
+  <!-- Componentes base -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script>
+
+  <!-- Polyfill para compatibilidad con MessageBox antiguo -->
+  <script>
+    if (typeof Class === "undefined") {
+      var Class = {
+        create: function() {
+          return function() {
+            this.initialize && this.initialize.apply(this, arguments);
+          };
+        }
+      };
+    }
+  </script>
+
+  <!-- Componentes visuales -->
+  <script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
+  <script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js"></script>
+
+  <!-- Controlador -->
+  <script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
+
+  <style>
+    .contenedor { max-width: 860px; margin: 12px auto; }
+    .grid { width:100%; border-collapse:collapse; }
+    .grid td { width:50%; vertical-align:top; padding:8px 12px; text-align:center; }
+    .stack label { display:block; margin-bottom:4px; text-align:center; }
+    .stack input { width:90%; box-sizing:border-box; margin:0 auto; display:block; }
+    .inline { display:flex; align-items:center; gap:6px; justify-content:center; }
+    .inline > span { display:inline-flex; align-items:center; }
+  </style>
+</head>
+
+<body>
+
+<div class="FORMULARIONECSS contenedor">
+  <form id="frmCP" method="post" onsubmit="return false" autocomplete="off">
+    <fieldset>
+      <legend class="legends">Información del Registro</legend>
+
+      <table class="grid">
+        <tr>
+          <td>
+            <table width="100%">
+              <tr>
+                <td class="stack">
+                  <label for="rut">RUT</label>
+                  <div class="inline">
+                    <input type="text" name="rut" id="rut" placeholder="12.345.678-9" maxlength="20">
+                    <span id="divBuscador"></span>
+                  </div>
+                  <input type="hidden" name="cliente2" id="cliente2">
+                </td>
+              </tr>
+              <tr>
+                <td class="stack">
+                  <label for="idusuario">ID Usuario</label>
+                  <input type="text" name="idusuario" id="idusuario" maxlength="10">
+                </td>
+              </tr>
+            </table>
+          </td>
+
+          <td>
+            <table width="100%">
+              <tr>
+                <td class="stack">
+                  <label for="giro">Giro</label>
+                  <input type="text" name="giro" id="giro" maxlength="120">
+                </td>
+              </tr>
+              <tr>
+                <td class="stack">
+                  <label for="fechahora">Fecha/Hora</label>
+                  <input type="datetime-local" name="fechahora" id="fechahora">
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <div style="text-align:center; padding:10px 0;">
+        <button type="submit" id="btnGuardar" class="textazul">Guardar</button>
+        <button type="reset" class="textazul">Limpiar</button>
+      </div>
+    </fieldset>
+  </form>
+</div>
+
+</body>
+</html>
