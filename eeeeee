@@ -1,16 +1,15 @@
 <?php
-// Resolver $POSICION
+// Ubicar raíz
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$titulo_formulario = "Termino Contrato";
-require_once($POSICION."formHeader.php");
+require($POSICION."conexion.php");
+require($POSICION."formHeader.php");
 
-/* ---- Fechas: hoy ± 1 mes ---- */
-$hoy = new DateTime('today');
-$min = (clone $hoy)->modify('-1 month')->format('d-m-Y');
-$max = (clone $hoy)->modify('+1 month')->format('d-m-Y');
-$hoyStr = $hoy->format('d-m-Y');
+// --- Fechas: hoy ± 1 mes (formato dd-mm-YYYY que usa el componente) ---
+$hoy     = new DateTime('today');
+$desde   = (clone $hoy)->modify('-1 month')->format('d-m-Y');
+$hasta   = (clone $hoy)->modify('+1 month')->format('d-m-Y');
+$hoy_str = $hoy->format('d-m-Y');
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -18,73 +17,95 @@ $hoyStr = $hoy->format('d-m-Y');
   <title>Termino Contrato</title>
   <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
   <style>
-    .lb-box { 
-      min-width: 560px; 
-      background: #f1f1f1; 
-      padding: 24px; 
-      font-family: Verdana, Arial, sans-serif;
-    }
-    .row { 
-      display: flex; 
-      align-items: center; 
-      gap: 10px; 
-      margin: 14px 0; 
-    }
-    .lbl { 
-      min-width: 220px; 
-      font-weight: bold; 
-      font-size: 12px; 
-    }
-    .center { text-align: center; }
+    .lb-wrap {min-width:560px; background:#f1f1f1; padding:24px; font-family:Verdana,Arial,sans-serif;}
+    .row {display:flex; align-items:center; gap:12px; margin:16px 0;}
+    .lbl {min-width:220px; font-weight:bold; font-size:12px;}
+    .center {text-align:center; margin-top:16px;}
+    .btn {padding:6px 16px; border:1px solid #999; border-radius:6px; background:#e9eef3; cursor:pointer;}
   </style>
 </head>
-
 <body>
-  <div class="FORMULARIONECSS lb-box">
+  <div class="FORMULARIONECSS lb-wrap">
+
     <div class="row">
       <div class="lbl">Ingrese Fecha de Término:</div>
 
       <?php
-      // Configuración del componente calendario
-      $nom_fech              = "fecha_termino";
-      $val_fech              = $hoyStr;          // valor inicial = hoy
-      $cnf_to                = $min;             // fecha mínima permitida
-      $cnf_hasta             = $max;             // fecha máxima permitida
-      $nom_fech_disabled     = "F";              // habilitado
-      $btn_clear_fech        = "btnClear";       // botón borrar
-      $btn_clear_fech_disabled = "F";            // botón borrar activo
-      $label_input           = "";               // sin label adicional
-      $btn_borrar_in         = false;
-      $classAdicional        = "inputFecha";
-      $classPrincipal        = "form-control";
+      // ===== Componente Calendario (según tu ejemplo de la wiki) =====
+      $label_input              = '';                 // ya hay label a la izquierda
+      $nom_fech                 = 'fecha_termino';    // id/name del input generado
+      // Por defecto es readonly (no editable). Para mantenerlo no editable, dejamos $nom_fech_disabled = "";
+      $nom_fech_disabled        = "";                 // "" => readonly; "F" => habilitado; "T" => disabled
+      $val_fech                 = $hoy_str;           // valor por defecto: hoy (en dd-mm-YYYY)
+      $btn_clear_fech           = 'btn_borrar_fecha'; // id del botón borrar
+      $btn_clear_fech_disabled  = 'F';                // F => botón activo
+      $classPrincipal           = "clase1";
+      $classAdicional           = "clase2 clase3";
+      $btn_borrar_in            = true;               // botón borrar *dentro* del input
+      $fech_style               = "width:17em;height:21px;";
+      $cnf_to                   = $desde;             // fecha mínima permitida (dd-mm-YYYY)
+      $cnf_hasta                = $hasta;             // fecha máxima permitida (dd-mm-YYYY)
 
-      include($POSICION."componente/calendario/componente_fechadd.php");
+      include $POSICION."componente/calendario/componente_fechadd.php";
       ?>
     </div>
 
     <div class="row center">
-      <button type="button" id="btnGuardar" style="padding:5px 15px;">Guardar</button>
+      <button type="button" id="btnGuardar" class="btn">Guardar</button>
     </div>
+
   </div>
 
-  <!-- Componentes requeridos del entorno Desis -->
-  <script src="<?=$POSICION?>componente/database/class.php?v=<?=rand()?>"></script>
-  <script src="<?=$POSICION?>componente/messagebox/class.php?v=<?=rand()?>"></script>
-  <script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
-  <script src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand()?>"></script>
+  <!-- Dependencias usadas en ejercicios previos -->
+  <script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
+  <script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=1"></script>
+  <script src="<?=$POSICION?>componente/mascara/iu.js?v=1"></script>
 
   <script>
-    const btnGuardar = document.getElementById('btnGuardar');
-    const inputFecha = document.getElementById('fecha_termino');
-
-    // Al guardar: enviar valor al padre y cerrar
-    btnGuardar.addEventListener('click', () => {
-      const val = inputFecha.value;
-      if (window.parent) {
-        window.parent.postMessage({ type: 'set_fecha', value: val }, '*');
+    // MessageBox (mismo patrón que ya usamos)
+    let MSGBOX = {
+      ventana: undefined,
+      initialize: function(){ this.ventana = new IU_MSGBOX(); },
+      Abrir: function(conf) {
+        this.ventana.titulo   = conf.titulo || 'Aviso';
+        this.ventana.texto    = '<center>' + (conf.texto || '') + '</center>';
+        this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
+        this.ventana.conCerrar= (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
+        this.ventana.fnretorno= conf.fnretorno || 'retMSGBOX';
+        this.ventana.url      = '<?=$POSICION?>';
+        this.ventana.top      = conf.top || '25%';
+        this.ventana.objeto   = conf.objeto || {};
+        this.ventana.Messagebox();
+        this.ventana.zzIndex  = 2;
       }
-      if (window.parent && typeof window.parent.OcultarVentana === 'function') {
-        window.parent.OcultarVentana();
+    };
+    MSGBOX.initialize();
+    function retMSGBOX(){ MSGBOX.ventana && MSGBOX.ventana.HideInfo && MSGBOX.ventana.HideInfo(); }
+
+    // Guardar: valida obligatorio y devuelve al index
+    const btnGuardar = document.getElementById('btnGuardar');
+    const inpFecha   = document.getElementById('fecha_termino'); // id generado por el componente
+
+    btnGuardar.addEventListener('click', function(){
+      const val = (inpFecha.value || '').trim(); // dd-mm-YYYY
+
+      if (!val) {
+        MSGBOX.Abrir({
+          titulo: 'Obligatorio',
+          texto : 'El campo fecha es obligatorio',
+          botonera: 1,
+          fnretorno: 'retMSGBOX',
+          conCerrar: true
+        });
+        return;
+      }
+
+      // Enviar valor al index y cerrar el lightbox
+      if (window.parent) {
+        window.parent.postMessage({type: 'set_fecha', value: val}, '*');
+        if (typeof window.parent.OcultarVentana === 'function') {
+          window.parent.OcultarVentana();
+        }
       }
     });
   </script>
