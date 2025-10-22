@@ -1,87 +1,105 @@
 <?php
-// --- Resolver POSICION de forma robusta ---
-$POSICION = isset($POSICION) ? $POSICION : '';
-for ($i = 0; $i < 12; $i++) {               // sube hasta 12 niveles
-    if (file_exists($POSICION."conexion.php")) break;
-    $POSICION .= "../";
+while (!file_exists($POSICION . "conexion.php")) {
+  $POSICION .= "../";
 }
-if (!file_exists($POSICION."conexion.php")) {
-    // Evita un 500: muestra un mensaje de diagnóstico (temporal)
-    header('Content-Type: text/plain; charset=ISO-8859-1');
-    die("No se encontró conexion.php desde lb_fecha.php. POSICION actual: ".$POSICION);
-}
-
-require($POSICION."formHeader.php");
-
-// Cálculo de hoy y rango +/- 1 mes
-$hoy = new DateTime('today');
-$min = (clone $hoy)->modify('-1 month')->format('Y-m-d');
-$max = (clone $hoy)->modify('+1 month')->format('Y-m-d');
-$hoyStr = $hoy->format('Y-m-d');
+require_once($POSICION . "formHeader.php");
 ?>
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Termino Contrato</title>
-  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <title>Ejercicio Calendario (Lightbox)</title>
+
+  <link type="text/css" rel="stylesheet" href="<?= $POSICION ?>css/nuevoestilo.css?v=1.8">
   <style>
-    .wrap { min-width:560px; padding:18px 20px; background:#f1f1f1; }
-    .fila { display:flex; align-items:center; gap:10px; margin:10px 0 16px; }
-    .btn  { height:32px; padding:0 12px; border:1px solid #6c757d; background:#e9ecef; border-radius:6px; cursor:pointer; }
-    #fechaTermino { height:26px; }
-    .titulo { font-weight:bold; margin-bottom:8px; }
+    .contenedor {
+      text-align: center;
+      padding: 20px;
+      background: #f1f1f1;
+      border-radius: 10px;
+      width: 420px;
+      margin: 60px auto;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      text-align: left;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      height: 26px;
+      border-radius: 5px;
+      border: 1px solid #999;
+      padding: 0 8px;
+    }
+
+    button {
+      height: 30px;
+      padding: 0 14px;
+      border-radius: 5px;
+      border: 1px solid #777;
+      background: #e0e0e0;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #d0d0d0;
+    }
   </style>
 </head>
+
 <body>
-<div class="wrap FORMULARIONECSS">
-  <div class="titulo">Termino Contrato</div>
 
-  <div class="fila">
-    <label for="fechaTermino" style="min-width:220px">Ingrese Fecha de Término:</label>
-    <input type="date" id="fechaTermino" value="<?=$hoyStr?>" min="<?=$min?>" max="<?=$max?>" readonly onfocus="this.blur();">
-    <button type="button" id="btnBorrar" class="btn" title="Borrar fecha">✖</button>
+  <div class="FORMULARIONECSS contenedor">
+    <fieldset>
+      <legend class="legends">Selección de Fecha</legend>
+      <label for="fecha">Fecha de término</label>
+      <input type="text" id="fecha" readonly placeholder="Seleccione una fecha">
+      <br>
+      <button type="button" id="btnAbrir">Abrir Calendario</button>
+    </fieldset>
   </div>
 
-  <div class="fila">
-    <button type="button" id="btnGuardar" class="btn">Guardar</button>
-  </div>
-</div>
+  <!-- Importaciones obligatorias del componente -->
+  <script type="text/javascript" src="<?= $POSICION ?>componente/mascara/lightbox-iframe.js?v=<?= rand(); ?>"></script>
+  <script type="text/javascript" src="<?= $POSICION ?>componente/mascara/iu.js?v=<?= rand(); ?>"></script>
 
-<script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
-<script>
-// --- Messagebox wrapper ---
-var MSGBOX = { ventana:undefined,
-  init:function(){ try{ this.ventana=new IU_MSGBOX(); }catch(e){} },
-  show:function(t,t2){ if(!this.ventana){ alert(t+"\\n\\n"+t2); return; }
-    this.ventana.titulo=t; this.ventana.texto='<center>'+t2+'</center>'; this.ventana.botonera=1; this.ventana.Messagebox(); },
-  close:function(){ try{ this.ventana && this.ventana.HideInfo(); }catch(e){} }
-}; MSGBOX.init();
+  <script type="text/javascript">
+    // Crea el markup del lightbox (requerido por la wiki)
+    addLightboxMarkup();
 
-function toDMY(s){ var m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m? (m[3]+'-'+m[2]+'-'+m[1]) : ''; }
+    // Se crea el objeto Ajuste según el estándar
+    var Ajuste = {
+      ventana: typeof IU,
+      initialize: function () { this.ventana = new IU(); }
+    };
+    Ajuste.initialize();
 
-function cerrarLightbox(){
-  try {
-    if (window.parent && typeof window.parent.OcultarVentana==='function'){ window.parent.OcultarVentana(); return; }
-    if (typeof OcultarVentana==='function'){ OcultarVentana(); return; }
-  } catch(e){}
-  try { window.close(); } catch(e){}
-}
+    // Abrir calendario dentro del lightbox
+    function abrirCalendario() {
+      Ajuste.ventana.ShowInfoWidget("lb_fecha.php", 300, 450, 'OcultarVentana');
+    }
 
-document.getElementById('btnBorrar').onclick = function(){
-  var f=document.getElementById('fechaTermino'); if(f) f.value='';
-};
+    // Cerrar el lightbox (usado desde el hijo)
+    function OcultarVentana() {
+      Ajuste.ventana.HideInfo();
+    }
 
-document.getElementById('btnGuardar').onclick = function(){
-  var f=document.getElementById('fechaTermino'); var v=f?f.value:'';
-  if(!v){ MSGBOX.show('Obligatorio','El campo fecha es obligatorio'); return; }
-  var dmy=toDMY(v);
-  try {
-    if (window.parent && window.parent!==window) { window.parent.postMessage({type:'set_fecha',value:dmy}, '*'); }
-    else if (window.opener) { window.opener.postMessage({type:'set_fecha',value:dmy}, '*'); }
-  } catch(e){}
-  cerrarLightbox();
-};
-</script>
+    // Abrir con el botón
+    document.getElementById("btnAbrir").onclick = abrirCalendario;
+
+    // Recibir mensaje desde el lightbox (fecha seleccionada)
+    window.addEventListener('message', function (event) {
+      if (event.data && event.data.type === 'set_fecha') {
+        document.getElementById('fecha').value = event.data.value;
+        OcultarVentana();
+      }
+    }, false);
+  </script>
 </body>
 </html>
