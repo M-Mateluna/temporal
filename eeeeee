@@ -1,172 +1,36 @@
-/* ======================= Utilidades ======================= */
-// Normaliza "YYYY-MM-DD HH:MM:SS(.fff...)" -> "YYYY-MM-DDTHH:MM"
-function normDT(v) {
-  if (!v) return '';
-  var s = String(v);
-  var m = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[1] + 'T' + m[2] + ':' + m[3]) : '';
-}
+<script>
+(function(){
+  var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
 
-// Obtiene el document de un MyIFrame por nombre ("frame_cp" o "frame_save")
-function getDoc(nombre) {
-  var ifr = document.getElementById('iframe_' + nombre);
-  if (!ifr) return null;
-  if (ifr.contentDocument) return ifr.contentDocument;
-  if (ifr.contentWindow && ifr.contentWindow.document) return ifr.contentWindow.document;
-  return null;
-}
+  // 1) Crear frames
+  var url_cp = "clienteproveedor.php";
+  window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
+  frame_cp.height = 180;
+  frame_cp.src    = url_cp;
+  frame_cp.show(true);
 
-// Cierra el lightbox si tu build lo expone
-function cerrarLightbox() {
-  try {
-    if (window.parent && typeof window.parent.OcultarVentana === 'function') {
-      window.parent.OcultarVentana();
-      return;
-    }
-    if (typeof OcultarVentana === 'function') {
-      OcultarVentana();
-      return;
-    }
-  } catch (e) {}
-}
+  var url_sv = "guardado.php";
+  window.frame_save = new MyIFrame('frame_save','CLIENTE / PROVEEDOR GUARDADO','', imgdir);
+  frame_save.height = 200;
+  frame_save.src    = url_sv;
+  frame_save.show(true);
+  frame_save.contract();
 
-/* =================== ClienteProveedor2 (lupa) =================== */
-var cp2 = new ClienteProveedor2();
+  // 2) Insertar en el contenedor solo si los nodos existen
+  var host = document.getElementById('hostFrames');
 
-// Dónde se dibuja la lupa
-cp2.ubicacion = document.getElementById('divBuscador');
-
-// Mostramos solo la LUPA
-cp2.creaBotonBuscar = true;
-cp2.creaBotonBorrar = false;
-cp2.creaBotonCrear  = false;
-
-// Campo que recibe onkeypress
-cp2.elementoBuscador = 'rut';
-
-// Lightbox + tamaño + filtros/título
-cp2.islightbox    = true;
-cp2.altoLightbox  = 500;
-cp2.anchoLightbox = 800;
-cp2.filtro        = 'cliente|vigente|puedefacturar';
-cp2.tituloGrilla  = 'Clientes vigentes facturando';
-
-// Elementos que el componente completará (usamos ocultos para luego volcar al iframe)
-cp2.elementos = {
-  rut: document.getElementById('rut'),
-  idclienteproveedor: document.getElementById('idclienteproveedor'),
-  razonsocial: document.getElementById('razonsocial_h'),
-  giro:        document.getElementById('giro_h'),
-  idusuario:   document.getElementById('idusuario_h'),
-  fechahora:   document.getElementById('fechahora_h')
-};
-
-// Tras seleccionar en la grilla / validar por teclado
-cp2.afterEvent = function (self) {
-  var d = getDoc('frame_cp');
-  if (!d) return;
-
-  // 1) Leemos de ocultos (rellenos por el componente)
-  var rs = (self.elementos.razonsocial && typeof self.elementos.razonsocial.value !== 'undefined') ? String(self.elementos.razonsocial.value) : '';
-  var gi = (self.elementos.giro        && typeof self.elementos.giro.value        !== 'undefined') ? String(self.elementos.giro.value)        : '';
-  var iu = (self.elementos.idusuario   && typeof self.elementos.idusuario.value   !== 'undefined') ? String(self.elementos.idusuario.value)   : '';
-  var fhRaw = (self.elementos.fechahora && typeof self.elementos.fechahora.value  !== 'undefined') ? String(self.elementos.fechahora.value)   : '';
-  var fh = normDT(fhRaw);
-
-  // 2) Volcamos al iframe (formulario)
-  var f_rs = d.getElementById('razonsocial');
-  var f_gi = d.getElementById('giro');
-  var f_iu = d.getElementById('idusuario');
-  var f_fh = d.getElementById('fechahora');
-
-  if (f_rs) f_rs.value = rs;
-  if (f_gi) f_gi.value = gi;
-  if (f_iu) f_iu.value = iu;
-  if (f_fh) f_fh.value = fh;
-
-  // 3) Cerramos el lightbox si corresponde
-  cerrarLightbox();
-};
-
-// Inicializamos el componente
-cp2.New();
-
-/* ============== Guardar: llamado desde clienteproveedor.php ============== */
-function guardarClienteProveedor() {
-  var d1 = getDoc('frame_cp');
-  var d2 = getDoc('frame_save');
-  if (!d1 || !d2) return;
-
-  var rs = '';
-  var gi = '';
-  var iu = '';
-  var fh = '';
-
-  var el;
-
-  el = d1.getElementById('razonsocial'); if (el) rs = el.value || '';
-  el = d1.getElementById('giro');        if (el) gi = el.value || '';
-  el = d1.getElementById('idusuario');   if (el) iu = el.value || '';
-  el = d1.getElementById('fechahora');   if (el) fh = el.value || '';
-
-  var rut = '';
-  el = document.getElementById('rut'); if (el) rut = el.value || '';
-
-  var resumen = ''
-    + '-Rut: ' + rut + '\n'
-    + '-Razón Social: ' + rs + '\n'
-    + '-Giro: ' + gi + '\n'
-    + '-Id Usuario: ' + iu + '\n'
-    + '-Fecha/Hora: ' + fh;
-
-  var t = d2.getElementById('txtResumen');
-  if (t) t.value = resumen;
-
-  // Expandimos el segundo frame
-  if (window.frame_save && typeof window.frame_save.expand === 'function') {
-    window.frame_save.expand();
-  }
-}
-
-/* ===================== Botón Limpiar (index) ===================== */
-(function () {
-  var btn = document.getElementById('btnLimpiar');
-
-  function handler() {
-    var el;
-
-    // 1) Limpiar campos visibles/ocultos del padre
-    el = document.getElementById('rut');               if (el) el.value = '';
-    el = document.getElementById('idclienteproveedor');if (el) el.value = '';
-    el = document.getElementById('razonsocial_h');     if (el) el.value = '';
-    el = document.getElementById('giro_h');            if (el) el.value = '';
-    el = document.getElementById('idusuario_h');       if (el) el.value = '';
-    el = document.getElementById('fechahora_h');       if (el) el.value = '';
-
-    // 2) Limpiar primer iframe
-    var d1 = getDoc('frame_cp');
-    if (d1) {
-      var ids = ['razonsocial','giro','idusuario','fechahora'];
-      for (var i = 0; i < ids.length; i++) {
-        var x = d1.getElementById(ids[i]);
-        if (x) x.value = '';
-      }
-    }
-
-    // 3) Limpiar segundo iframe (textarea) y contraer
-    var d2 = getDoc('frame_save');
-    if (d2) {
-      var t = d2.getElementById('txtResumen');
-      if (t) t.value = '';
-    }
-    if (window.frame_save && typeof window.frame_save.contract === 'function') {
-      window.frame_save.contract();
+  function safeAppend(id){
+    var el = document.getElementById(id);
+    // el.nodeType === 1 asegura que es un Element
+    if (host && el && el.nodeType === 1 && el.parentNode !== host){
+      host.appendChild(el);
     }
   }
 
-  if (btn) {
-    if (btn.addEventListener) btn.addEventListener('click', handler, false);
-    else if (btn.attachEvent) btn.attachEvent('onclick', handler);
-    else btn.onclick = handler;
-  }
+  // Ejecutar tras el siguiente tick por si el render es asíncrono
+  setTimeout(function(){
+    safeAppend('frame_cp');
+    safeAppend('frame_save');
+  }, 0);
 })();
+</script>
