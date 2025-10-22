@@ -1,20 +1,91 @@
-<script>
-  addLightboxMarkup();
-  const Ajuste = { ventana: typeof IU };
-  Ajuste.initialize = function(){ this.ventana = new IU(); };
-  Ajuste.initialize();
+<?php
+while (!file_exists($POSICION . "conexion.php")) { $POSICION .= "../"; }
+require_once($POSICION . "formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Ejercicio Calendario</title>
 
-  function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
-  document.getElementById('btnAbrir').onclick = function () {
-    const url = 'lb_fecha.php'; // SIN ?ts= para no romper la ruta
-
-    if (typeof Ajuste.ventana.ShowInfoWidgetTitulo === 'function') {
-      //    titulo            url         alto  ancho   fnCerrar
-      Ajuste.ventana.ShowInfoWidgetTitulo('Termino Contrato', url, 360, 650, 'OcultarVentana');
-    } else {
-      // variante estándar (sin título en barra del lightbox)
-      Ajuste.ventana.ShowInfoWidget(url, 360, 650, 'OcultarVentana');
+  <style>
+    .contenedor {
+      width: 420px;
+      margin: 60px auto;
+      background: #f1f1f1;
+      border-radius: 10px;
+      padding: 18px 20px;
+      text-align: left;
     }
-  };
-</script>
+    label { display:block; margin-bottom:4px; font-size:12px; }
+    .fila { display:flex; align-items:center; gap:8px; }
+
+    #fecha {
+      width: 230px;
+      height: 26px;
+      border-radius: 5px;
+      border: 1px solid #999;
+      padding: 0 8px;
+      background-color: #eee;
+    }
+
+    #btnAbrir {
+      height: 28px;
+      padding: 0 14px;
+      border-radius: 5px;
+      border: 1px solid #000;
+      background: #000;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #btnAbrir:hover { background:#111; }
+  </style>
+</head>
+
+<body>
+  <div class="FORMULARIONECSS contenedor">
+    <label for="fecha">Fecha</label>
+    <div class="fila">
+      <input type="text" id="fecha" placeholder="Ej: 28-02-2024" disabled>
+      <button type="button" id="btnAbrir">Ingresa fecha</button>
+    </div>
+  </div>
+
+  <!-- Importaciones Lightbox (según la wiki) -->
+  <script src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
+  <script src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand()?>"></script>
+
+  <script>
+    // Markup + instancia IU (patrón oficial)
+    addLightboxMarkup();
+    const Ajuste = { ventana: typeof IU };
+    Ajuste.initialize = function(){ this.ventana = new IU(); };
+    Ajuste.initialize();
+
+    function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
+
+    // Abrir lightbox con TÍTULO en la barra (fallback si no existe esa API)
+    document.getElementById('btnAbrir').onclick = function () {
+      const url = 'lb_fecha.php'; // sin ?ts= para no romper la ruta
+      if (typeof Ajuste.ventana.ShowInfoWidgetTitulo === 'function') {
+        //       titulo             url    alto ancho  fnCerrar
+        Ajuste.ventana.ShowInfoWidgetTitulo('Termino Contrato', url, 360, 650, 'OcultarVentana');
+      } else {
+        Ajuste.ventana.ShowInfoWidget(url, 360, 650, 'OcultarVentana');
+      }
+    };
+
+    // (opcional) recibir fecha desde el lightbox y cerrarlo
+    window.addEventListener('message', function (ev) {
+      if (ev && ev.data && ev.data.type === 'set_fecha') {
+        const campo = document.getElementById('fecha');
+        if (campo) campo.value = ev.data.value || '';
+        OcultarVentana();
+      }
+    });
+  </script>
+</body>
+</html>
