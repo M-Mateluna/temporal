@@ -1,139 +1,194 @@
-/* ===================== MSGBOX (wrapper) ===================== */
-/* Implementación tomada de tu ejercicio de MessageBox */
-let MSGBOX = {
-  ventana: undefined,
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Ejercicio – MyIFrame</title>
 
-  initialize: function() {
-    this.ventana = new IU_MSGBOX();
-  },
+  <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
-  Abrir: function(conf) {
-    this.ventana.titulo = conf.titulo || 'Aviso';
-    let texto = conf.texto || '';
-    this.ventana.texto = '<center>' + texto + '</center>';
+  <style>
+    .contenedor{max-width:900px;margin:auto;text-align:-webkit-center;background:#f1f1f1;}
+    .contenedor label{display:block;text-align:left;margin-bottom:6px;}
+    .contenedor td{padding:6px 15px;margin-bottom:6px;}
+    .buscador-inline{display:inline-flex;align-items:center;gap:6px;}
+    .toolbar{display:flex;gap:10px;align-items:center;justify-content:flex-start;margin:10px 15px;}
+    .toolbar .btn{height:28px;border:1px solid #2a4b8d;background:#325bb6;color:#fff;padding:0 12px;border-radius:6px;cursor:pointer;font-size:12px;}
+    .stack{width:100%}
+    .w100{width:100%}
+  </style>
+</head>
+<body>
 
-    // 1: Aceptar | 2: Aceptar/Cancelar | 3: Sí/No | 4: Sí/No/Cancelar | 5: Imprimir/Cancelar | 6: Aceptar/Cancelar/Anular
-    this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1;
+<div class="FORMULARIONECSS contenedor">
+  <fieldset>
+    <legend class="legends">BÚSQUEDA</legend>
+    <div class="toolbar">
+      <div class="buscador-inline">
+        <label for="rut" style="margin:0 10px 0 0;">RUT</label>
+        <input type="text" id="rut" placeholder="12.345.678-9" maxlength="20">
+        <div id="divBuscador" style="display:inline"></div>
+      </div>
+      <button type="button" class="btn" id="btnLimpiar">Limpiar</button>
+    </div>
+  </fieldset>
 
-    this.ventana.conCerrar = (conf.conCerrar != undefined) ? conf.conCerrar : this.ventana.conCerrar;
-    this.ventana.fnretorno = conf.fnretorno || 'retGenerico';
-    if (conf.titulocss) this.ventana.titulocss = conf.titulocss;
+  <fieldset>
+    <legend class="legends">FRAMES</legend>
+    <!-- Aquí se pintan los dos MyIFrame -->
+    <div id="hostFrames" class="w100"></div>
+  </fieldset>
+</div>
 
-    // base de rutas (la expone index.php)
-    this.ventana.url = (typeof window.POS_BASE !== 'undefined') ? window.POS_BASE : '';
+<!-- Dependencias del sistema -->
+<script src="<?=$POSICION?>js/general.js"></script> <!-- MyIFrame -->
+<script src="<?=$POSICION?>componente/database/class.php"></script>
+<script src="<?=$POSICION?>js/util.js"></script>
+<script src="<?=$POSICION?>componente/buscadores/clienteproveedor2/class.js"></script>
+<script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js"></script>
+<script src="<?=$POSICION?>componente/mascara/iu.js"></script>
 
-    this.ventana.top = conf.top || '25%';
-    this.ventana.objeto = conf.objeto || {};
-
-    this.ventana.Messagebox();
-    this.ventana.zzIndex = 2;
+<script>
+  // --- Util mínima para normalizar a <input type="datetime-local">
+  function normDT(v){
+    if(!v) return '';
+    const m=String(v).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+    return m ? (m[1]+'T'+m[2]+':'+m[3]) : '';
   }
-};
-MSGBOX.initialize();
 
-/* Cierra el messagebox para cualquier botonera (A, C, S, N, …) */
-function retGenerico(resp){
-  if (MSGBOX && MSGBOX.ventana && typeof MSGBOX.ventana.HideInfo === 'function') {
-    MSGBOX.ventana.HideInfo();
-  }
-}
-/* =========================================================== */
+  // === 1) Construcción de los MyIFrame (usando html embebido) ===
+  // Frame 1: CLIENTE / PROVEEDOR (4 inputs + botón Guardar)
+  var htmlCP = ''
+    + '<div style="padding:10px">'
+    + '  <table style="width:100%" cellspacing="0" cellpadding="0">'
+    + '    <tr>'
+    + '      <td class="stack">'
+    + '        <label>Razón Social</label>'
+    + '        <input type="text" id="razonsocial" class="w100">'
+    + '      </td>'
+    + '      <td class="stack">'
+    + '        <label>Giro</label>'
+    + '        <input type="text" id="giro" class="w100">'
+    + '      </td>'
+    + '    </tr>'
+    + '    <tr>'
+    + '      <td class="stack">'
+    + '        <label>ID Usuario</label>'
+    + '        <input type="text" id="idusuario" class="w100">'
+    + '      </td>'
+    + '      <td class="stack">'
+    + '        <label>Fecha/Hora</label>'
+    + '        <input type="datetime-local" id="fechahora" class="w100">'
+    + '      </td>'
+    + '    </tr>'
+    + '  </table>'
+    + '  <div style="text-align:right;margin-top:10px;">'
+    + '    <button type="button" id="btnGuardar" class="btn">Guardar</button>'
+    + '  </div>'
+    + '</div>';
 
+  // Frame 2: CLIENTE / PROVEEDOR GUARDADO (textarea)
+  var htmlSaved = ''
+    + '<div style="padding:10px">'
+    + '  <label>Resumen</label>'
+    + '  <textarea id="txtResumen" style="width:100%;height:150px"></textarea>'
+    + '</div>';
 
-/* ================== PARCHE FECHA/HORA ================== */
-/* Normaliza “YYYY-MM-DD HH:MM:SS(.ffff)” -> “YYYY-MM-DDTHH:MM” */
-function normalizeDBDateToDatetimeLocal(v){
-  if (!v) return '';
-  const m = String(v).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[1] + 'T' + m[2] + ':' + m[3]) : '';
-}
+  // Rutas iconos
+  var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
 
-/* Intercepta asignaciones a value en #fechahora para evitar warnings */
-(function patchDatetimeLocalSetter(){
-  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
-  if (!desc || !desc.set || !desc.get) return;
-  const originalSet = desc.set;
-  const originalGet = desc.get;
+  // Instancias
+  var frame_cp   = new MyIFrame('frame_cp',   'CLIENTE / PROVEEDOR',          '', imgdir, htmlCP);
+  var frame_save = new MyIFrame('frame_save', 'CLIENTE / PROVEEDOR GUARDADO', '', imgdir, htmlSaved);
 
-  Object.defineProperty(HTMLInputElement.prototype, 'value', {
-    get: function(){ return originalGet.call(this); },
-    set: function(v){
-      if (this && this.id === 'fechahora' && this.type === 'datetime-local' && typeof v === 'string') {
-        const fixed = normalizeDBDateToDatetimeLocal(v);
-        if (fixed) { originalSet.call(this, fixed); return; }
-      }
-      originalSet.call(this, v);
+  frame_cp.height   = 210;
+  frame_save.height = 200;
+
+  // Muestra (solo crea estructura, sin recargar)
+  frame_cp.show(true);
+  frame_save.show(true);
+  // Estado inicial: el segundo contraído
+  frame_save.contract();
+
+  // Inserta en el host
+  document.getElementById('hostFrames').appendChild(document.getElementById('frame_cp'));
+  document.getElementById('hostFrames').appendChild(document.getElementById('frame_save'));
+
+  // === 2) Buscador ClienteProveedor2 atado al input RUT ===
+  var clienteproveedor = new ClienteProveedor2();
+  clienteproveedor.ubicacion        = document.getElementById("divBuscador");
+  clienteproveedor.creaBotonBuscar  = true;
+  clienteproveedor.creaBotonBorrar  = true;
+  clienteproveedor.creaBotonCrear   = true;
+  clienteproveedor.elementoBuscador = "rut";
+  clienteproveedor.islightbox       = true;
+  clienteproveedor.altoLightbox     = 500;
+  clienteproveedor.anchoLightbox    = 800;
+  clienteproveedor.filtro           = "cliente|vigente|puedefacturar";
+  clienteproveedor.tituloGrilla     = "Clientes vigentes facturando";
+
+  // Mapeo de elementos (los inputs viven dentro del HTML del primer frame)
+  clienteproveedor.elementos = {
+    rut         : document.getElementById("rut"),
+    razonsocial : function(){ return document.getElementById("razonsocial"); },
+    giro        : function(){ return document.getElementById("giro"); },
+    idusuario   : function(){ return document.getElementById("idusuario"); },
+    fechahora   : function(){ return document.getElementById("fechahora"); }
+  };
+
+  // AfterEvent: colocar datos en inputs (normalizando fecha), sin mensajes
+  clienteproveedor.afterEvent = function(self){
+    // Resolver handlers/elementos si fueron definidos como funciones (por si el frame se re-renderiza)
+    function el(x){ return (typeof x === 'function') ? x() : x; }
+
+    if (self.elementos.razonsocial) el(self.elementos.razonsocial).value = (self.elementos.razonsocial.value || el(self.elementos.razonsocial).value);
+    if (self.elementos.giro)        el(self.elementos.giro).value        = (self.elementos.giro.value        || el(self.elementos.giro).value);
+    if (self.elementos.idusuario)   el(self.elementos.idusuario).value   = (self.elementos.idusuario.value   || el(self.elementos.idusuario).value);
+
+    if (self.elementos.fechahora){
+      var dtraw = el(self.elementos.fechahora).value || '';
+      var norm  = normDT(dtraw);
+      if (norm) el(self.elementos.fechahora).value = norm;
+    }
+    // El frame GUARDADO queda contraído hasta presionar Guardar
+    frame_save.contract();
+  };
+
+  clienteproveedor.New();
+
+  // === 3) Guardar: expande frame 2 y copia datos al textarea
+  document.addEventListener('click', function(e){
+    if (e.target && e.target.id === 'btnGuardar'){
+      var rs  = (document.getElementById('razonsocial').value || '').trim();
+      var gi  = (document.getElementById('giro').value || '').trim();
+      var idu = (document.getElementById('idusuario').value || '').trim();
+      var fh  = (document.getElementById('fechahora').value || '').trim();
+      var rut = (document.getElementById('rut').value || '').trim();
+
+      var texto = [
+        'RUT: ' + rut,
+        'Razón Social: ' + rs,
+        'Giro: ' + gi,
+        'ID Usuario: ' + idu,
+        'Fecha/Hora: ' + fh
+      ].join('\n');
+
+      document.getElementById('txtResumen').value = texto;
+      frame_save.expand();
     }
   });
-})();
-/* ======================================================= */
 
+  // === 4) Limpiar: borra toda la interfaz y vuelve al estado inicial
+  document.getElementById('btnLimpiar').addEventListener('click', function(){
+    document.getElementById('rut').value = '';
+    var ids = ['razonsocial','giro','idusuario','fechahora'];
+    ids.forEach(function(id){ var el = document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('txtResumen').value = '';
+    frame_save.contract();
+  });
+</script>
 
-/* ====== cerrar Lightbox (compat) ====== */
-function cerrarLightbox() {
-  let root = (window.parent && window.parent !== window) ? window.parent : window;
-  if (typeof root.OcultarVentana === 'function') return root.OcultarVentana();
-  if (root.Accion && root.Accion.ventana && typeof root.Accion.ventana.OcultarVentana === 'function')
-    return root.Accion.ventana.OcultarVentana();
-  if (window.lightbox && typeof window.lightbox.OcultarVentana === 'function')
-    return window.lightbox.OcultarVentana();
-}
-
-/* ====== ClienteProveedor2 ====== */
-let clienteproveedor = new ClienteProveedor2();
-
-clienteproveedor.ubicacion = document.getElementById("divBuscador");
-clienteproveedor.creaBotonBuscar = true;
-clienteproveedor.creaBotonBorrar = true;
-clienteproveedor.creaBotonCrear  = true;
-
-clienteproveedor.elementoBuscador = "rut";
-clienteproveedor.islightbox = true;
-clienteproveedor.altoLightbox = 500;
-clienteproveedor.anchoLightbox = 800;
-
-clienteproveedor.filtro = "cliente|vigente|puedefacturar";
-clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
-
-clienteproveedor.elementos = {
-  rut: document.getElementById("rut"),
-  idclienteproveedor: document.getElementById("idclienteproveedor"),
-  giro: document.getElementById("giro"),
-  idusuario: document.getElementById("idusuario"),
-  fechahora: document.getElementById("fechahora")
-};
-
-/* ====== AfterEvent ====== */
-clienteproveedor.afterEvent = function(self) {
-  // Nota: no seteamos “hoy”; el setter anterior normaliza lo que venga del componente
-
-  if (self.ultimoEvento === "onkeypress") {
-    self.elementos.idusuario.disabled = true;
-    self.elementos.giro.disabled = true;
-
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-      botonera: 1,
-      fnretorno: 'retGenerico',
-      conCerrar: false
-    });
-  } else {
-    self.elementos.rut.disabled = true;
-    self.elementos.giro.disabled = true;
-    self.elementos.idusuario.disabled = true;
-
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-      botonera: 1,
-      fnretorno: 'retGenerico',
-      conCerrar: false
-    });
-  }
-
-  // Cerrar lightbox cuando ya volcó los datos
-  setTimeout(cerrarLightbox, 0);
-};
-
-clienteproveedor.New();
+<?php require($POSICION."formFoot.php"); ?>
