@@ -1,79 +1,113 @@
-<?php
-// Resolver POSICION al root
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>MyIFrame — Parte 1: Buscador ClienteProveedor2</title>
+<!-- por si necesitas el id del cliente/proveedor -->
+<input type="hidden" id="idclienteproveedor">
 
-  <link rel="stylesheet" type="text/css" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+<!-- *** NUEVOS OCULTOS para recibir los datos del buscador *** -->
+<input type="hidden" id="razonsocial_h">
+<input type="hidden" id="giro_h">
+<input type="hidden" id="idusuario_h">
+<input type="hidden" id="fechahora_h">
 
-  <style>
-    .contenedor{ max-width: 700px; margin:auto; background:#f1f1f1; }
-    .fila{ padding:10px 12px; }
-    .inline{ display:inline-flex; align-items:center; gap:6px; }
-    .btn{ height:26px; padding:0 10px; border-radius:6px; border:1px solid #6c757d; background:#e9ecef; cursor:pointer; }
-  </style>
-</head>
-<body>
 
-<div class="FORMULARIONECSS contenedor">
-  <!-- BÚSQUEDA -->
-  <fieldset>
-    <legend class="legends">Búsqueda</legend>
-    <div class="fila">
-      <label for="rut">RUT</label>
-      <div class="inline">
-        <input type="text" id="rut" placeholder="12.345.678-9" maxlength="20" style="width:320px;">
-        <!-- aquí se dibuja la LUPA del componente -->
-        <div id="divBuscador" style="display:inline"></div>
-        <!-- botón limpiar (aparte del componente) -->
-        <button type="button" id="btnLimpiar" class="btn">Limpiar</button>
-      </div>
-      <!-- por si necesitas el id del cliente/proveedor -->
-      <input type="hidden" id="idclienteproveedor">
-    </div>
-  </fieldset>
 
-  <!-- FRAME CLIENTE/PROVEEDOR (lo agregamos ya para el siguiente paso) -->
-  <fieldset>
-    <legend class="legends">Cliente / Proveedor</legend>
-    <div id="hostFrames"></div>
-  </fieldset>
-</div>
+// === helper: normaliza "YYYY-MM-DD HH:MM:SS(.fff...)" a "YYYY-MM-DDTHH:MM"
+function normDT(v){
+  if(!v) return '';
+  const m = String(v).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? (m[1]+'T'+m[2]+':'+m[3]) : '';
+}
 
-<!-- Dependencias DESIS -->
-<script src="<?=$POSICION?>js/general.js"></script> <!-- MyIFrame -->
-<script src="<?=$POSICION?>componente/database/class.php"></script>
-<script src="<?=$POSICION?>js/util.js"></script>
-<script src="<?=$POSICION?>componente/buscadores/clienteproveedor2/class.js"></script>
+// === helper: obtiene el document del iframe del MyIFrame ===
+function getCPDoc(){
+  const ifr = document.getElementById('iframe_frame_cp'); // MyIFrame suele crear 'iframe_' + nombre
+  if (!ifr) return null;
+  return ifr.contentDocument || ifr.contentWindow?.document || null;
+}
 
-<!-- Lightbox para el buscador -->
-<script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js"></script>
-<script src="<?=$POSICION?>componente/mascara/iu.js"></script>
+// Instancia del buscador
+const cp2 = new ClienteProveedor2();
 
-<!-- Controlador del buscador -->
-<script src="controlador.js"></script>
+// Ubicación donde se pintan los íconos (lupa)
+cp2.ubicacion = document.getElementById('divBuscador');
 
-<!-- Creación del MyIFrame que carga clienteproveedor.php (misma carpeta) -->
-<script>
-  (function(){
-    var imgdir = '<?=$POSICION."img/".$CSS_STYLE."/rows/";?>';
-    var url_cp = "clienteproveedor.php"; // misma carpeta que este index
+// Solo mostramos la LUPA (los otros botones los controlamos nosotros)
+cp2.creaBotonBuscar = true;
+cp2.creaBotonBorrar = false;
+cp2.creaBotonCrear  = false;
 
-    window.frame_cp = new MyIFrame('frame_cp','CLIENTE / PROVEEDOR','', imgdir);
-    frame_cp.height = 180;   // ajusta al gusto
-    frame_cp.src    = url_cp;
-    frame_cp.show(true);
+// El campo que recibe el onkeypress
+cp2.elementoBuscador = 'rut';
 
-    document.getElementById('hostFrames')
-            .appendChild(document.getElementById('frame_cp'));
-  })();
-</script>
+// Abrir en Lightbox + tamaño requerido
+cp2.islightbox    = true;
+cp2.altoLightbox  = 500;
+cp2.anchoLightbox = 800;
 
-<?php require($POSICION."formFoot.php"); ?>
-</body>
-</html>
+// Filtro/título como pide el enunciado
+cp2.filtro       = 'cliente|vigente|puedefacturar';
+cp2.tituloGrilla = 'Clientes vigentes facturando';
+
+// Elementos a rellenar por el componente.
+// OJO: aquí apuntamos a los OCULTOS — el componente los setea por nosotros.
+cp2.elementos = {
+  rut: document.getElementById('rut'),
+  idclienteproveedor: document.getElementById('idclienteproveedor'),
+
+  // nuevos (ocultos):
+  razonsocial: document.getElementById('razonsocial_h'),
+  giro:        document.getElementById('giro_h'),
+  idusuario:   document.getElementById('idusuario_h'),
+  fechahora:   document.getElementById('fechahora_h')
+};
+
+// Cuando se elige un cliente en la grilla o se escribe/valida el RUT:
+cp2.afterEvent = function(self){
+  const d = getCPDoc();
+  if (!d) return; // iframe aún no cargado
+
+  // leer de ocultos (los llenó el componente)
+  const rs = (self.elementos.razonsocial?.value || '').trim();
+  const gi = (self.elementos.giro?.value        || '').trim();
+  const iu = (self.elementos.idusuario?.value   || '').trim();
+  const fh = normDT(self.elementos.fechahora?.value || '');
+
+  // volcar al iframe
+  const f_rs = d.getElementById('razonsocial');
+  const f_gi = d.getElementById('giro');
+  const f_iu = d.getElementById('idusuario');
+  const f_fh = d.getElementById('fechahora');
+
+  if (f_rs) f_rs.value = rs;
+  if (f_gi) f_gi.value = gi;
+  if (f_iu) f_iu.value = iu;
+  if (f_fh) f_fh.value = fh;
+
+  // (opcional) cerrar lightbox si tu build lo permite
+  try {
+    if (window.parent && typeof window.parent.OcultarVentana === 'function') window.parent.OcultarVentana();
+    if (typeof OcultarVentana === 'function') OcultarVentana();
+  } catch(e){}
+};
+
+// Inicializar componente
+cp2.New();
+
+// Botón "Limpiar"
+document.getElementById('btnLimpiar').addEventListener('click', () => {
+  document.getElementById('rut').value = '';
+  document.getElementById('idclienteproveedor').value = '';
+
+  // limpia ocultos
+  document.getElementById('razonsocial_h').value = '';
+  document.getElementById('giro_h').value        = '';
+  document.getElementById('idusuario_h').value   = '';
+  document.getElementById('fechahora_h').value   = '';
+
+  // limpia iframe si ya está cargado
+  const d = getCPDoc();
+  if (d){
+    ['razonsocial','giro','idusuario','fechahora'].forEach(id => {
+      const el = d.getElementById(id);
+      if (el) el.value = '';
+    });
+  }
+});
