@@ -1,63 +1,38 @@
 <?php
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "Termino Contrato"; // si tu template muestra título dentro del iframe
 require_once($POSICION."formHeader.php");
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Lightbox — Demo Fecha</title>
+  <title>Termino Contrato</title>
   <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
   <style>
-    .wrap { width: 420px; margin: 40px auto; background:#f1f1f1; border-radius:10px; padding:18px 20px; }
-    .fila { display:flex; align-items:center; gap:8px; }
-    label { display:block; margin-bottom:4px; font-size:12px; }
-    #fecha { width:230px; height:26px; border:1px solid #999; border-radius:5px; padding:0 8px; background:#eee; }
-    #btnAbrir { height:28px; padding:0 14px; border-radius:5px; border:1px solid #000; background:#000; color:#fff; font-weight:bold; cursor:pointer; }
-    #btnAbrir:hover { background:#111; }
+    .box { min-width: 460px; background:#f1f1f1; padding: 24px; text-align:center; }
+    .btn { height:32px; padding:0 16px; border-radius:6px; border:1px solid #6c757d; background:#e9ecef; cursor:pointer; }
   </style>
 </head>
 <body>
-
-  <div class="FORMULARIONECSS wrap">
-    <label for="fecha">Fecha</label>
-    <div class="fila">
-      <input type="text" id="fecha" placeholder="Ej: 28-02-2024" disabled>
-      <button type="button" id="btnAbrir">Ingresa fecha</button>
-    </div>
+  <div class="FORMULARIONECSS box">
+    <p>Lightbox cargado correctamente.</p>
+    <button class="btn" id="btnProbar">Enviar fecha de prueba</button>
   </div>
 
-  <!-- Lightbox -->
-  <script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
-  <script src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand()?>"></script>
   <script>
-    // Inicializa estructura del Lightbox (según la wiki)
-    addLightboxMarkup();
-    const Ajuste = { ventana: typeof IU };
-    Ajuste.initialize = function(){ this.ventana = new IU(); };
-    Ajuste.initialize();
-
-    // Función exigida por el componente para cerrar
-    function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
-
-    // Abrir el lightbox al click
-    document.getElementById('btnAbrir').addEventListener('click', () => {
-      const url = 'lb_fecha.php'; // SIN ?ts=
-      if (typeof Ajuste.ventana.ShowInfoWidgetTitulo === 'function') {
-        //        título              url    alto ancho  fnCerrar
-        Ajuste.ventana.ShowInfoWidgetTitulo('Termino Contrato', url, 300, 520, 'OcultarVentana');
-      } else {
-        Ajuste.ventana.ShowInfoWidget(url, 300, 520, 'OcultarVentana');
-      }
-    });
-
-    // (Opcional) recibir valor desde el iframe
-    window.addEventListener('message', (ev) => {
-      if (ev && ev.data && ev.data.type === 'set_fecha') {
-        const input = document.getElementById('fecha');
-        if (input) input.value = ev.data.value || '';
-        OcultarVentana();
-      }
+    document.getElementById('btnProbar').addEventListener('click', () => {
+      try {
+        if (window.parent) {
+          // Enviamos un valor de ejemplo al padre para comprobar el flujo
+          window.parent.postMessage({ type: 'set_fecha', value: '28-02-2024' }, '*');
+        }
+      } catch (e) {}
+      try {
+        if (window.parent && typeof window.parent.OcultarVentana === 'function') {
+          window.parent.OcultarVentana();
+        }
+      } catch (e) {}
     });
   </script>
 </body>
