@@ -1,42 +1,64 @@
-// Instancia del buscador
-const cp2 = new ClienteProveedor2();
+<?php
+// Resolver ruta base
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require($POSICION."formHeader.php");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>Cliente / Proveedor (Frame)</title>
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+  <style>
+    .wrap{padding:10px;}
+    .row{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin-bottom:8px;}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .stack label{display:block;margin-bottom:4px;}
+    .btn{height:26px;border-radius:6px;border:1px solid #6c757d;background:#e9ecef;padding:0 12px;cursor:pointer;}
+    input[type="text"], input[type="datetime-local"]{width:100%;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div class="stack">
+        <label for="razonsocial">Razón Social</label>
+        <input type="text" id="razonsocial" maxlength="120">
+      </div>
+      <div class="stack">
+        <label for="giro">Giro</label>
+        <input type="text" id="giro" maxlength="120">
+      </div>
+      <div style="text-align:right;">
+        <button type="button" id="btnGuardar" class="btn">Guardar</button>
+      </div>
+    </div>
 
-// Ubicación donde se pintan los íconos (lupa)
-cp2.ubicacion = document.getElementById('divBuscador');
+    <div class="row2">
+      <div class="stack">
+        <label for="idusuario">ID Usuario</label>
+        <input type="text" id="idusuario" maxlength="10">
+      </div>
+      <div class="stack">
+        <label for="fechahora">Fecha/Hora</label>
+        <input type="datetime-local" id="fechahora">
+      </div>
+    </div>
+  </div>
 
-// Solo mostramos la LUPA (los otros botones los controlamos nosotros)
-cp2.creaBotonBuscar = true;
-cp2.creaBotonBorrar = false;
-cp2.creaBotonCrear  = false;
-
-// El campo que recibe el onkeypress
-cp2.elementoBuscador = 'rut';
-
-// Abrir en Lightbox + tamaño requerido
-cp2.islightbox    = true;
-cp2.altoLightbox  = 500;
-cp2.anchoLightbox = 800;
-
-// Filtro/título como pide el enunciado
-cp2.filtro       = 'cliente|vigente|puedefacturar';
-cp2.tituloGrilla = 'Clientes vigentes facturando';
-
-// Elementos a rellenar (por ahora solo rut e id; más adelante agregamos el resto)
-cp2.elementos = {
-  rut: document.getElementById('rut'),
-  idclienteproveedor: document.getElementById('idclienteproveedor')
-};
-
-// (opcional) si quieres hacer algo cuando se selecciona desde la grilla:
-cp2.afterEvent = function(self){
-  // Por ahora nada más; más adelante completaremos otros campos/frames
-};
-
-// Inicializar componente
-cp2.New();
-
-// Botón "Limpiar"
-document.getElementById('btnLimpiar').addEventListener('click', () => {
-  document.getElementById('rut').value = '';
-  document.getElementById('idclienteproveedor').value = '';
-});
+  <script>
+    // (opcional) dispara un evento al padre cuando se presiona Guardar
+    document.getElementById('btnGuardar').addEventListener('click', function(){
+      const data = {
+        razonsocial: document.getElementById('razonsocial').value,
+        giro:        document.getElementById('giro').value,
+        idusuario:   document.getElementById('idusuario').value,
+        fechahora:   document.getElementById('fechahora').value
+      };
+      if (window.parent && window.parent !== window) {
+        try { window.parent.postMessage({type:'cp_guardar', payload:data}, '*'); } catch(e){}
+      }
+    });
+  </script>
+</body>
+</html>
