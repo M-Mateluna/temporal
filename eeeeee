@@ -1,72 +1,110 @@
 <?php
-// Resolver $POSICION hasta la raíz (metodología DESIS)
+// Resolver $POSICION hasta la raíz
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
 require($POSICION."formHeader.php");
+
+// Cálculo de hoy y rango +/- 1 mes
+$hoy = new DateTime('today');
+$min = (clone $hoy)->modify('-1 month')->format('Y-m-d');
+$max = (clone $hoy)->modify('+1 month')->format('Y-m-d');
+$hoyStr = $hoy->format('Y-m-d');
 ?>
 <!DOCTYPE html>
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Ejercicio Propuesto - Calendario</title>
+  <title>Termino Contrato</title>
 
-  <!-- Nuevo estilo -->
   <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
-
   <style>
-    .wrap { max-width: 560px; margin: 18px auto; background:#f1f1f1; padding:14px; }
-    .fila { display:flex; gap:8px; align-items:center; }
-    #fecha { width:260px; background:#eee; }
-    .btn-negro { height:30px; padding:0 14px; border:1px solid #000; background:#000; color:#fff; border-radius:6px; cursor:pointer; }
+    .wrap { min-width:560px; padding:18px 20px; background:#f1f1f1; }
+    .fila { display:flex; align-items:center; gap:10px; margin:10px 0 16px; }
+    .btn  { height:32px; padding:0 12px; border:1px solid #6c757d; background:#e9ecef; border-radius:6px; cursor:pointer; }
+    #fechaTermino { height:26px; }
+    .titulo { font-weight:bold; margin-bottom:8px; }
   </style>
 </head>
 <body>
-
 <div class="wrap FORMULARIONECSS">
-  <fieldset>
-    <legend class="legends">Calendario</legend>
+  <div class="titulo">Termino Contrato</div>
 
-    <label for="fecha">Fecha</label>
-    <div class="fila">
-      <input type="text" id="fecha" placeholder="Ej: 28-02-2024" disabled>
-      <button type="button" id="btnAbrir" class="btn-negro">Ingresa fecha</button>
-    </div>
-  </fieldset>
+  <div class="fila">
+    <label for="fechaTermino" style="min-width:220px">Ingrese Fecha de Término:</label>
+    <!-- Campo no editable, con rango de 1 mes antes y después -->
+    <input type="date" id="fechaTermino" value="<?=$hoyStr?>" min="<?=$min?>" max="<?=$max?>" readonly onfocus="this.blur();">
+    <button type="button" id="btnBorrar" class="btn" title="Borrar fecha">✖</button>
+  </div>
+
+  <div class="fila">
+    <button type="button" id="btnGuardar" class="btn">Guardar</button>
+  </div>
 </div>
 
-<!-- (opcional) librerías de lightbox que usaremos cuando creemos lb_fecha.php -->
-<script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js"></script>
-<script src="<?=$POSICION?>componente/mascara/iu.js"></script>
+<!-- Messagebox -->
+<script src="<?=$POSICION?>componente/messagebox/class.php?v=1"></script>
 
 <script>
-// Abrir lightbox (lo implementaremos en el siguiente paso con lb_fecha.php)
-function abrirLightbox(url, titulo, ancho, alto){
-  try {
-    if (window.Accion && Accion.ventana && typeof Accion.ventana.AbrirVentana === 'function') {
-      Accion.ventana.AbrirVentana(url, titulo||'', ancho||650, alto||360);
-      return;
-    }
-    if (typeof AbrirVentana === 'function') {
-      AbrirVentana(url, titulo||'', ancho||650, alto||360);
-      return;
-    }
-  } catch(e){}
-  // Fallback si no hay APIs de lightbox disponibles (abre una ventana nueva)
-  window.open(url, '_lb', 'width='+(ancho||650)+',height='+(alto||360));
+// --- Wrapper MSGBOX compatible ---
+var MSGBOX = {
+  ventana: undefined,
+  init: function(){ try{ this.ventana = new IU_MSGBOX(); }catch(e){} },
+  show: function(titulo, texto){
+    if (!this.ventana){ alert(titulo + "\n\n" + texto); return; }
+    this.ventana.titulo   = titulo;
+    this.ventana.texto    = '<center>'+texto+'</center>';
+    this.ventana.botonera = 1; // Aceptar
+    this.ventana.Messagebox();
+  },
+  close: function(){ try{ this.ventana && this.ventana.HideInfo(); }catch(e){} }
+};
+MSGBOX.init();
+
+// --- Util: YYYY-MM-DD -> DD-MM-YYYY ---
+function toDMY(yyyy_mm_dd){
+  if (!yyyy_mm_dd) return '';
+  var m = String(yyyy_mm_dd).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (m[3] + '-' + m[2] + '-' + m[1]) : '';
 }
 
-document.getElementById('btnAbrir').onclick = function(){
-  // Crearemos este archivo en el siguiente paso
-  abrirLightbox('lb_fecha.php', 'Termino Contrato', 650, 360);
+// --- Cerrar lightbox de forma tolerante ---
+function cerrarLightbox(){
+  try {
+    if (window.parent && typeof window.parent.OcultarVentana === 'function'){ window.parent.OcultarVentana(); return; }
+    if (typeof OcultarVentana === 'function'){ OcultarVentana(); return; }
+  } catch(e){}
+  // Si se abrió como ventana emergente
+  try { window.close(); } catch(e){}
+}
+
+// --- Botón Borrar ---
+document.getElementById('btnBorrar').onclick = function(){
+  var f = document.getElementById('fechaTermino');
+  if (f) f.value = '';
 };
 
-// Receptor del valor (lo enviará lb_fecha.php vía postMessage)
-window.addEventListener('message', function(ev){
-  if (!ev || !ev.data) return;
-  if (ev.data.type === 'set_fecha'){
-    var el = document.getElementById('fecha');
-    if (el) el.value = ev.data.value || '';
+// --- Botón Guardar ---
+document.getElementById('btnGuardar').onclick = function(){
+  var f = document.getElementById('fechaTermino');
+  var val = f ? f.value : '';
+
+  if (!val){
+    // Validación requerida
+    MSGBOX.show('Obligatorio', 'El campo fecha es obligatorio');
+    return;
   }
-}, false);
+
+  var dmy = toDMY(val);
+
+  // Enviar al padre y cerrar
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type:'set_fecha', value:dmy }, '*');
+    } else if (window.opener) {
+      window.opener.postMessage({ type:'set_fecha', value:dmy }, '*');
+    }
+  } catch(e){}
+  cerrarLightbox();
+};
 </script>
 
 </body>
