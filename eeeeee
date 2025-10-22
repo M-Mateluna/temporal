@@ -1,53 +1,42 @@
-<?php
-// Resolver POSICION al root
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require($POSICION."formHeader.php");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>MyIFrame — Parte 1: Buscador ClienteProveedor2</title>
+// Instancia del buscador
+const cp2 = new ClienteProveedor2();
 
-  <link rel="stylesheet" type="text/css" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+// Ubicación donde se pintan los íconos (lupa)
+cp2.ubicacion = document.getElementById('divBuscador');
 
-  <style>
-    .contenedor{ max-width: 700px; margin:auto; background:#f1f1f1; }
-    .fila{ padding:10px 12px; }
-    .inline{ display:inline-flex; align-items:center; gap:6px; }
-    .btn{ height:26px; padding:0 10px; border-radius:6px; border:1px solid #6c757d; background:#e9ecef; cursor:pointer; }
-  </style>
-</head>
-<body>
+// Solo mostramos la LUPA (los otros botones los controlamos nosotros)
+cp2.creaBotonBuscar = true;
+cp2.creaBotonBorrar = false;
+cp2.creaBotonCrear  = false;
 
-<div class="FORMULARIONECSS contenedor">
-  <fieldset>
-    <legend class="legends">Búsqueda</legend>
-    <div class="fila">
-      <label for="rut">RUT</label>
-      <div class="inline">
-        <input type="text" id="rut" placeholder="12.345.678-9" maxlength="20" style="width:320px;">
-        <!-- aquí se dibuja la LUPA del componente -->
-        <div id="divBuscador" style="display:inline"></div>
-        <!-- botón limpiar (aparte del componente) -->
-        <button type="button" id="btnLimpiar" class="btn">Limpiar</button>
-      </div>
-      <!-- por si necesitas el id del cliente/proveedor -->
-      <input type="hidden" id="idclienteproveedor">
-    </div>
-  </fieldset>
-</div>
+// El campo que recibe el onkeypress
+cp2.elementoBuscador = 'rut';
 
-<!-- Dependencias DESIS -->
-<script src="<?=$POSICION?>componente/database/class.php"></script>
-<script src="<?=$POSICION?>js/util.js"></script>
-<script src="<?=$POSICION?>componente/buscadores/clienteproveedor2/class.js"></script>
+// Abrir en Lightbox + tamaño requerido
+cp2.islightbox    = true;
+cp2.altoLightbox  = 500;
+cp2.anchoLightbox = 800;
 
-<!-- Lightbox para el buscador -->
-<script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js"></script>
-<script src="<?=$POSICION?>componente/mascara/iu.js"></script>
+// Filtro/título como pide el enunciado
+cp2.filtro       = 'cliente|vigente|puedefacturar';
+cp2.tituloGrilla = 'Clientes vigentes facturando';
 
-<!-- Controlador -->
-<script src="controlador.js"></script>
-</body>
-</html>
+// Elementos a rellenar (por ahora solo rut e id; más adelante agregamos el resto)
+cp2.elementos = {
+  rut: document.getElementById('rut'),
+  idclienteproveedor: document.getElementById('idclienteproveedor')
+};
+
+// (opcional) si quieres hacer algo cuando se selecciona desde la grilla:
+cp2.afterEvent = function(self){
+  // Por ahora nada más; más adelante completaremos otros campos/frames
+};
+
+// Inicializar componente
+cp2.New();
+
+// Botón "Limpiar"
+document.getElementById('btnLimpiar').addEventListener('click', () => {
+  document.getElementById('rut').value = '';
+  document.getElementById('idclienteproveedor').value = '';
+});
