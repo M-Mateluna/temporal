@@ -1,35 +1,20 @@
 <script>
-  // Crear el markup del lightbox e instancia IU
   addLightboxMarkup();
   const Ajuste = { ventana: typeof IU };
-  Ajuste.initialize = function() { this.ventana = new IU(); };
+  Ajuste.initialize = function(){ this.ventana = new IU(); };
   Ajuste.initialize();
 
-  // Función para cerrar el lightbox
-  function OcultarVentana() {
-    Ajuste.ventana.HideInfo();
-  }
+  function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
 
-  // Evento del botón
-  document.getElementById('btnAbrir').onclick = function() {
-    // Ruta limpia sin ?ts=
-    const url = 'lb_fecha.php';
+  document.getElementById('btnAbrir').onclick = function () {
+    const url = 'lb_fecha.php'; // SIN ?ts= para no romper la ruta
 
-    // Apertura del lightbox (según ejemplo wiki)
     if (typeof Ajuste.ventana.ShowInfoWidgetTitulo === 'function') {
-      Ajuste.ventana.ShowInfoWidgetTitulo('Calendario', url, 360, 650, 'OcultarVentana');
+      //    titulo            url         alto  ancho   fnCerrar
+      Ajuste.ventana.ShowInfoWidgetTitulo('Termino Contrato', url, 360, 650, 'OcultarVentana');
     } else {
+      // variante estándar (sin título en barra del lightbox)
       Ajuste.ventana.ShowInfoWidget(url, 360, 650, 'OcultarVentana');
     }
   };
-
-  // Recibir fecha seleccionada desde el iframe
-  window.addEventListener('message', function(ev) {
-    if (ev && ev.data && ev.data.type === 'set_fecha') {
-      const campo = document.getElementById('fecha');
-      if (campo) campo.value = ev.data.value || '';
-      OcultarVentana();
-    }
-  });
 </script>
-
