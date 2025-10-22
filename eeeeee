@@ -1,93 +1,23 @@
-// util fecha
-function pad(n) { return (n < 10 ? '0' + n : n); }
-
-function formatoFechaLocal(d) {
-  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-}
-
-function toDatetimeLocal(val) {
-  if (!val) return '';
-  let s = String(val).trim()
-      .replace(/Z$/, '').replace(/[+-]\d{2}:?\d{2}$/, '')
-      .replace(' ', 'T').replace(/\.\d+$/, '');
-  let m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?$/);
-  if (m) return m[1] + 'T' + m[2] + ':' + m[3];
-  let d = new Date(val);
-  return isNaN(d) ? '' : formatoFechaLocal(d);
-}
-
-// Set inicial de Fecha/Hora si viene vacío
-(function() {
-  let fh = document.getElementById('fechahora');
-  if (fh && !fh.value) fh.value = formatoFechaLocal(new Date());
-})();
-
-// cerrar Lightbox (compat según build)
-function cerrarLightbox() {
-  let root = (window.parent && window.parent !== window) ? window.parent : window;
-  if (typeof root.OcultarVentana === 'function') return root.OcultarVentana();
-  if (root.Accion && root.Accion.ventana && typeof root.Accion.ventana.OcultarVentana === 'function')
-    return root.Accion.ventana.OcultarVentana();
-  if (window.lightbox && typeof window.lightbox.OcultarVentana === 'function')
-    return window.lightbox.OcultarVentana();
-}
-
-// ClienteProveedor2
-let clienteproveedor = new ClienteProveedor2();
-
-clienteproveedor.ubicacion = document.getElementById("divBuscador");
-clienteproveedor.creaBotonBuscar = true;
-clienteproveedor.creaBotonBorrar = true;
-clienteproveedor.creaBotonCrear  = true;
-
-clienteproveedor.elementoBuscador = "rut";
-clienteproveedor.islightbox = true;
-clienteproveedor.altoLightbox  = 500;
-clienteproveedor.anchoLightbox = 800;
-
-clienteproveedor.filtro = "cliente|vigente|puedefacturar";
-clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
-
-clienteproveedor.elementos = {
-  rut: document.getElementById("rut"),
-  idclienteproveedor: document.getElementById("idclienteproveedor"),
-  giro: document.getElementById("giro"),
-  idusuario: document.getElementById("idusuario"),
-  fechahora: document.getElementById("fechahora")
-};
-
-// AfterEvent con normalización de fecha, MessageBox y cierre del Lightbox
-clienteproveedor.afterEvent = function(self) {
-  // Normaliza datetime-local
-  if (self.elementos.fechahora) {
-    let norm = toDatetimeLocal(self.elementos.fechahora.value);
-    if (norm) self.elementos.fechahora.value = norm;
-    if (!self.elementos.fechahora.value) self.elementos.fechahora.value = formatoFechaLocal(new Date());
-  }
-
-  if (self.ultimoEvento === "onkeypress") {
-    self.elementos.idusuario.disabled = true;
-    self.elementos.giro.disabled = true;
-
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-      botonera: 1 // ACEPTAR
-    });
-  } else {
-    self.elementos.rut.disabled = true;
-    self.elementos.giro.disabled = true;
-    self.elementos.idusuario.disabled = true;
-
-    MSGBOX.Abrir({
-      titulo: 'AfterEvent',
-      texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-      botonera: 1 // ACEPTAR
-    });
-  }
-
-  // Cierra el lightbox inmediatamente después de completar los campos
-  setTimeout(cerrarLightbox, 0);
-};
-
-clienteproveedor.New();
+<script type="text/javascript">
+  /* Wrapper oficial para MessageBox, basado en tu ejemplo */
+  var MSGBOX = {
+    ventana: null,
+    initialize: function(){
+      this.ventana = new IU_MSGBOX();
+    },
+    Abrir: function(conf){
+      this.ventana.titulo   = conf.titulo || '';
+      var texto             = conf.texto || '';
+      this.ventana.texto    = '<center>' + texto + '</center>';
+      this.ventana.botonera = (conf.botonera != null) ? conf.botonera : 1; // 1 = ACEPTAR
+      this.ventana.conCerrar= (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+      this.ventana.fnretorno= conf.fnretorno || ''; // opcional
+      this.ventana.url      = '<?=$POSICION?>';
+      this.ventana.top      = conf.top || '25%';
+      this.ventana.objeto   = conf.objeto || {};
+      this.ventana.Messagebox();
+      this.ventana.zzIndex  = 2;
+    }
+  };
+  MSGBOX.initialize();
+</script>
