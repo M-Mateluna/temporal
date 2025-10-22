@@ -1,86 +1,205 @@
-/* Ejercicio ClienteProveedor2 - Modo ventana
-   Cumple con: filtros, afterEvent, MSGBOX y formato de fecha correcto */
+<!DOCTYPE html>
+<html>
 
-let clienteproveedor;
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+    <title>Gestión de Clientes / Proveedores</title>
 
-window.onload = function () {
-  // Formatear fecha/hora actual correctamente (YYYY-MM-DDThh:mm)
-  function formatoFechaLocal(date) {
-    const pad = n => (n < 10 ? '0' + n : n);
-    return (
-      date.getFullYear() + '-' +
-      pad(date.getMonth() + 1) + '-' +
-      pad(date.getDate()) + 'T' +
-      pad(date.getHours()) + ':' +
-      pad(date.getMinutes())
-    );
-  }
+    <link type="text/css" rel="stylesheet" href="../../../../css/nuevoestilo.css?v=1.8">
 
-  // Asignar fecha/hora actual al cargar
-  const fh = document.getElementById('fechahora');
-  if (fh && !fh.value) fh.value = formatoFechaLocal(new Date());
+    <style type="text/css">
+        .contenedor {
+            max-width: 600px;
+            margin: auto;
+            text-align: -webkit-center;
+            background: #f1f1f1;
+        }
+        .contenedor label {
+            display: block;
+            text-align: left;
+            margin-bottom: 6px;
+        }
+        .contenedor td {
+            padding: 6px 15px 6px 15px;
+            margin-bottom: 6px;
+        }
+        /* contenedor pequeño para los iconos, sin alterar el layout */
+        .buscador-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
 
-  // Instancia del componente
-  clienteproveedor = new ClienteProveedor2();
+<body>
 
-  // Dónde se mostrará el buscador (botones lupa/crear/borrar)
-  clienteproveedor.ubicacion = document.getElementById("divBuscador");
+    <div class="FORMULARIONECSS contenedor">
+        <form id="frmCP" method="post" autocomplete="off" onsubmit="return false;">
+            <fieldset>
+                <legend class="legends">Información del Registro</legend>
 
-  // Campo que actúa como buscador
-  clienteproveedor.elementoBuscador = "rut";
+                <table class="grid" cellspacing="0" cellpadding="0">
+                    <tr class="fila">
+                        <td>
+                            <table width="100%" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td class="stack">
+                                        <label for="rut">RUT</label>
+                                        <div class="buscador-inline">
+                                            <input type="text" name="rut" id="rut" maxlength="20" placeholder="12.345.678-9">
+                                            <span id="divBuscador"></span><!-- aquí van lupa/crear/borrar -->
+                                        </div>
+                                        <input type="hidden" name="cliente2" id="cliente2">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
 
-  // Campos asociados
-  clienteproveedor.elementos = {
-    rut: document.getElementById("rut"),
-    idclienteproveedor: document.getElementById("cliente2"),
-    giro: document.getElementById("giro"),
-    idusuario: document.getElementById("idusuario"),
-    fechahora: document.getElementById("fechahora")
-  };
+                        <td>
+                            <table width="100%" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td class="stack">
+                                        <label for="giro">Giro</label>
+                                        <input type="text" name="giro" id="giro" maxlength="120">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
 
-  // Mostrar los 3 botones del buscador
-  clienteproveedor.creaBotonBuscar = true;
-  clienteproveedor.creaBotonBorrar = true;
-  clienteproveedor.creaBotonCrear  = true;
+                    <tr class="fila">
+                        <td>
+                            <table width="100%" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td class="stack">
+                                        <label for="idusuario">ID Usuario</label>
+                                        <input type="text" name="idusuario" id="idusuario" maxlength="10">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
 
-  // Filtro y título del buscador
-  clienteproveedor.filtro = "cliente|vigente|puedefacturar";
-  clienteproveedor.tituloGrilla = "Clientes vigentes facturando";
+                        <td>
+                            <table width="100%" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td class="stack">
+                                        <label for="fechahora">Fecha/Hora</label>
+                                        <input type="datetime-local" name="fechahora" id="fechahora">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </fieldset>
+        </form>
+    </div>
 
-  // Modo ventana (no lightbox)
-  clienteproveedor.islightbox = false;
-  clienteproveedor.alto = 500;
-  clienteproveedor.ancho = 800;
+    <!-- ====== dependencias mínimas ====== -->
+    <script type="text/javascript" src="../../../../componente/database/class.php"></script>
+    <script type="text/javascript" src="../../../../js/util.js"></script>
 
-  // AfterEvent
-  clienteproveedor.afterEvent = function (self) {
-    // Asignar fecha actual si está vacío
-    if (self.elementos.fechahora && !self.elementos.fechahora.value)
-      self.elementos.fechahora.value = formatoFechaLocal(new Date());
+    <!-- polyfill mini para messagebox antiguos -->
+    <script>
+      if (typeof Class === "undefined") {
+        var Class = { create: function(){ return function(){ this.initialize && this.initialize.apply(this, arguments); }; } };
+      }
+    </script>
 
-    // Diferenciar tipo de evento
-    if (self.ultimoEvento === "onkeypress") {
-      self.elementos.idusuario.disabled = true;
-      self.elementos.giro.disabled = true;
+    <script type="text/javascript" src="../../../../componente/messagebox/class.php?v=1"></script>
+    <script type="text/javascript" src='../../../../componente/buscadores/clienteproveedor2/class.js'></script>
 
-      MSGBOX.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
-        botonera: 1
-      });
-    } else if (self.ultimoEvento === "onclick") {
-      self.elementos.rut.disabled = true;
-      self.elementos.giro.disabled = true;
-      self.elementos.idusuario.disabled = true;
+    <script type="text/javascript">
+        // ===== util fecha: formato válido para <input type="datetime-local">
+        function pad(n){ return (n<10 ? '0'+n : ''+n); }
+        function formatoFechaLocal(d){
+            return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+        }
+        function toDatetimeLocal(val){
+            if (!val) return '';
+            var s = String(val).trim()
+                .replace(/Z$/, '')
+                .replace(/[+-]\d{2}:?\d{2}$/, '')
+                .replace(' ', 'T')
+                .replace(/\.\d+$/, '');
+            var m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?$/);
+            if (m) return m[1] + 'T' + m[2] + ':' + m[3];
+            var d = new Date(val);
+            return isNaN(d) ? '' : formatoFechaLocal(d);
+        }
 
-      MSGBOX.Abrir({
-        titulo: 'AfterEvent',
-        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
-        botonera: 1
-      });
-    }
-  };
+        // set inicial de fecha/hora si viene vacío
+        (function() {
+            var fh = document.getElementById('fechahora');
+            if (fh && !fh.value) fh.value = formatoFechaLocal(new Date());
+        })();
 
-  // Inicializar el componente
-  clienteproveedor.New();
-};
+        // ===== ClienteProveedor2 (modo ventana para mantener visual) =====
+        (function(){
+            var cp = new ClienteProveedor2();
+
+            cp.ubicacion = document.getElementById('divBuscador'); // donde poner los iconos
+            cp.elementoBuscador = 'rut';                           // buscar por RUT
+
+            // mapeo de campos que se llenan al seleccionar
+            cp.elementos = {
+                rut: document.getElementById('rut'),
+                idclienteproveedor: document.getElementById('cliente2'),
+                giro: document.getElementById('giro'),
+                idusuario: document.getElementById('idusuario'),
+                fechahora: document.getElementById('fechahora')
+            };
+
+            // mostrar botones
+            cp.creaBotonBuscar = true;
+            cp.creaBotonBorrar = true;
+            cp.creaBotonCrear  = true;
+
+            // filtros y título
+            cp.filtro = 'cliente|vigente|puedefacturar';        // solo clientes vigentes que facturan
+            cp.tituloGrilla = 'Clientes vigentes facturando';
+
+            // abrir en ventana (estable y no cambia visual)
+            cp.islightbox = false;
+            cp.alto = 500;
+            cp.ancho = 800;
+
+            // afterEvent: normaliza fecha y bloquea según origen
+            cp.afterEvent = function(self){
+                // normalizar datetime-local si el componente trajo "YYYY-MM-DD hh:mm:ss.ffff"
+                if (self.elementos.fechahora) {
+                    var norm = toDatetimeLocal(self.elementos.fechahora.value);
+                    if (norm) self.elementos.fechahora.value = norm;
+                    if (!self.elementos.fechahora.value) self.elementos.fechahora.value = formatoFechaLocal(new Date());
+                }
+
+                if (self.ultimoEvento === 'onkeypress') {
+                    self.elementos.idusuario.disabled = true;
+                    self.elementos.giro.disabled = true;
+
+                    MSGBOX.Abrir({
+                        titulo: 'AfterEvent',
+                        texto: 'Se ha desencadenado el evento <b>Onkeypress</b>, bloqueando <b>idusuario</b> y <b>giro</b>.',
+                        botonera: 1
+                    });
+                } else { // onclick
+                    self.elementos.rut.disabled = true;
+                    self.elementos.giro.disabled = true;
+                    self.elementos.idusuario.disabled = true;
+
+                    MSGBOX.Abrir({
+                        titulo: 'AfterEvent',
+                        texto: 'Se ha desencadenado el evento <b>Onclick</b>, bloqueando <b>rut</b>, <b>giro</b> y <b>idusuario</b>.',
+                        botonera: 1
+                    });
+                }
+            };
+
+            // construir componente (pinta iconos junto al RUT)
+            cp.New();
+        })();
+    </script>
+
+</body>
+</html>
