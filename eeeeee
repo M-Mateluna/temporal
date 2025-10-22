@@ -1,113 +1,124 @@
-<!-- por si necesitas el id del cliente/proveedor -->
-<input type="hidden" id="idclienteproveedor">
-
-<!-- *** NUEVOS OCULTOS para recibir los datos del buscador *** -->
-<input type="hidden" id="razonsocial_h">
-<input type="hidden" id="giro_h">
-<input type="hidden" id="idusuario_h">
-<input type="hidden" id="fechahora_h">
-
-
-
-// === helper: normaliza "YYYY-MM-DD HH:MM:SS(.fff...)" a "YYYY-MM-DDTHH:MM"
-function normDT(v){
-  if(!v) return '';
-  const m = String(v).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[1]+'T'+m[2]+':'+m[3]) : '';
+/* ===================== Utiles ===================== */
+// Normaliza "YYYY-MM-DD HH:MM:SS(.fff...)" -> "YYYY-MM-DDTHH:MM"
+function normDT(v) {
+  if (!v) return '';
+  var s = String(v);
+  var m = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? (m[1] + 'T' + m[2] + ':' + m[3]) : '';
 }
 
-// === helper: obtiene el document del iframe del MyIFrame ===
-function getCPDoc(){
-  const ifr = document.getElementById('iframe_frame_cp'); // MyIFrame suele crear 'iframe_' + nombre
+// Obtiene el document del iframe creado por MyIFrame ('iframe_' + nombre)
+function getCPDoc() {
+  var ifr = document.getElementById('iframe_frame_cp');
   if (!ifr) return null;
-  return ifr.contentDocument || ifr.contentWindow?.document || null;
+  if (ifr.contentDocument) return ifr.contentDocument;
+  if (ifr.contentWindow && ifr.contentWindow.document) return ifr.contentWindow.document;
+  return null;
 }
 
-// Instancia del buscador
-const cp2 = new ClienteProveedor2();
+// Cierra el lightbox (según build)
+function cerrarLightbox() {
+  try {
+    if (window.parent && typeof window.parent.OcultarVentana === 'function') {
+      window.parent.OcultarVentana();
+      return;
+    }
+    if (typeof OcultarVentana === 'function') {
+      OcultarVentana();
+      return;
+    }
+  } catch (e) {}
+}
 
-// Ubicación donde se pintan los íconos (lupa)
+/* ===================== ClienteProveedor2 ===================== */
+var cp2 = new ClienteProveedor2();
+
+// Dónde se pinta la LUPA
 cp2.ubicacion = document.getElementById('divBuscador');
 
-// Solo mostramos la LUPA (los otros botones los controlamos nosotros)
+// Sólo LUPA (los otros botones los controlamos aparte)
 cp2.creaBotonBuscar = true;
 cp2.creaBotonBorrar = false;
 cp2.creaBotonCrear  = false;
 
-// El campo que recibe el onkeypress
+// Elemento que recibe el onkeypress
 cp2.elementoBuscador = 'rut';
 
-// Abrir en Lightbox + tamaño requerido
+// Lightbox + tamaño + filtros/título
 cp2.islightbox    = true;
 cp2.altoLightbox  = 500;
 cp2.anchoLightbox = 800;
+cp2.filtro        = 'cliente|vigente|puedefacturar';
+cp2.tituloGrilla  = 'Clientes vigentes facturando';
 
-// Filtro/título como pide el enunciado
-cp2.filtro       = 'cliente|vigente|puedefacturar';
-cp2.tituloGrilla = 'Clientes vigentes facturando';
-
-// Elementos a rellenar por el componente.
-// OJO: aquí apuntamos a los OCULTOS — el componente los setea por nosotros.
+// Elementos que el componente completará.
+// OJO: usamos ocultos en el padre para luego volcar al iframe.
 cp2.elementos = {
   rut: document.getElementById('rut'),
   idclienteproveedor: document.getElementById('idclienteproveedor'),
-
-  // nuevos (ocultos):
   razonsocial: document.getElementById('razonsocial_h'),
   giro:        document.getElementById('giro_h'),
   idusuario:   document.getElementById('idusuario_h'),
   fechahora:   document.getElementById('fechahora_h')
 };
 
-// Cuando se elige un cliente en la grilla o se escribe/valida el RUT:
-cp2.afterEvent = function(self){
-  const d = getCPDoc();
-  if (!d) return; // iframe aún no cargado
+// Al seleccionar desde la grilla o validar por teclado
+cp2.afterEvent = function (self) {
+  var d = getCPDoc();
+  if (!d) return; // iframe aún no disponible
 
-  // leer de ocultos (los llenó el componente)
-  const rs = (self.elementos.razonsocial?.value || '').trim();
-  const gi = (self.elementos.giro?.value        || '').trim();
-  const iu = (self.elementos.idusuario?.value   || '').trim();
-  const fh = normDT(self.elementos.fechahora?.value || '');
+  // Leer de ocultos (ya llenados por el componente)
+  var rs = (self.elementos.razonsocial && typeof self.elementos.razonsocial.value !== 'undefined') ? String(self.elementos.razonsocial.value) : '';
+  var gi = (self.elementos.giro        && typeof self.elementos.giro.value        !== 'undefined') ? String(self.elementos.giro.value)        : '';
+  var iu = (self.elementos.idusuario   && typeof self.elementos.idusuario.value   !== 'undefined') ? String(self.elementos.idusuario.value)   : '';
+  var fhRaw = (self.elementos.fechahora && typeof self.elementos.fechahora.value  !== 'undefined') ? String(self.elementos.fechahora.value)   : '';
+  var fh = normDT(fhRaw);
 
-  // volcar al iframe
-  const f_rs = d.getElementById('razonsocial');
-  const f_gi = d.getElementById('giro');
-  const f_iu = d.getElementById('idusuario');
-  const f_fh = d.getElementById('fechahora');
+  // Volcar al iframe
+  var f_rs = d.getElementById('razonsocial');
+  var f_gi = d.getElementById('giro');
+  var f_iu = d.getElementById('idusuario');
+  var f_fh = d.getElementById('fechahora');
 
   if (f_rs) f_rs.value = rs;
   if (f_gi) f_gi.value = gi;
   if (f_iu) f_iu.value = iu;
   if (f_fh) f_fh.value = fh;
 
-  // (opcional) cerrar lightbox si tu build lo permite
-  try {
-    if (window.parent && typeof window.parent.OcultarVentana === 'function') window.parent.OcultarVentana();
-    if (typeof OcultarVentana === 'function') OcultarVentana();
-  } catch(e){}
+  // Cerrar lightbox (si corresponde)
+  cerrarLightbox();
 };
 
-// Inicializar componente
+// Inicializar el componente
 cp2.New();
 
-// Botón "Limpiar"
-document.getElementById('btnLimpiar').addEventListener('click', () => {
-  document.getElementById('rut').value = '';
-  document.getElementById('idclienteproveedor').value = '';
+/* ===================== Botón Limpiar ===================== */
+(function () {
+  var btn = document.getElementById('btnLimpiar');
+  var handler = function () {
+    // Limpia input visible y ocultos
+    var el;
+    el = document.getElementById('rut');               if (el) el.value = '';
+    el = document.getElementById('idclienteproveedor');if (el) el.value = '';
+    el = document.getElementById('razonsocial_h');     if (el) el.value = '';
+    el = document.getElementById('giro_h');            if (el) el.value = '';
+    el = document.getElementById('idusuario_h');       if (el) el.value = '';
+    el = document.getElementById('fechahora_h');       if (el) el.value = '';
 
-  // limpia ocultos
-  document.getElementById('razonsocial_h').value = '';
-  document.getElementById('giro_h').value        = '';
-  document.getElementById('idusuario_h').value   = '';
-  document.getElementById('fechahora_h').value   = '';
+    // Limpia iframe si ya está cargado
+    var d = getCPDoc();
+    if (d) {
+      var ids = ['razonsocial', 'giro', 'idusuario', 'fechahora'];
+      for (var i = 0; i < ids.length; i++) {
+        var x = d.getElementById(ids[i]);
+        if (x) x.value = '';
+      }
+    }
+  };
 
-  // limpia iframe si ya está cargado
-  const d = getCPDoc();
-  if (d){
-    ['razonsocial','giro','idusuario','fechahora'].forEach(id => {
-      const el = d.getElementById(id);
-      if (el) el.value = '';
-    });
+  if (btn) {
+    if (btn.addEventListener) btn.addEventListener('click', handler, false);
+    else if (btn.attachEvent) btn.attachEvent('onclick', handler); // IE
+    else btn.onclick = handler;
   }
-});
+})();
