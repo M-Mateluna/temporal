@@ -1,7 +1,5 @@
 <?php
-while (!file_exists($POSICION . "conexion.php")) {
-    $POSICION .= "../";
-}
+while (!file_exists($POSICION . "conexion.php")) { $POSICION .= "../"; }
 require_once($POSICION . "formHeader.php");
 ?>
 <!DOCTYPE html>
@@ -10,61 +8,34 @@ require_once($POSICION . "formHeader.php");
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
   <title>Ejercicio Calendario</title>
 
-  <link type="text/css" rel="stylesheet" href="<?= $POSICION ?>css/nuevoestilo.css?v=1.8">
+  <link rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
   <style>
-    .contenedor {
-      text-align: center;
-      padding: 20px;
-      background: #f1f1f1;
-      border-radius: 10px;
-      width: 420px;
-      margin: 60px auto;
+    .wrap { width: 420px; margin: 60px auto; background:#f1f1f1; border-radius:10px; padding:18px 20px; }
+    .fila { display:flex; align-items:center; gap:12px; }
+    label { min-width:52px; margin-right:4px; }
+    #fecha {
+      width: 230px; height: 28px; border:1px solid #999; border-radius:6px;
+      padding:0 10px; background:#eee; color:#333;
     }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      text-align: left;
+    #btnAbrir {
+      height: 32px; padding:0 16px; border-radius:6px; border:1px solid #000;
+      background:#000; color:#fff; font-weight:600; cursor:pointer;
     }
-
-    input[type="text"] {
-      width: 100%;
-      height: 26px;
-      border-radius: 5px;
-      border: 1px solid #999;
-      padding: 0 8px;
-      background-color: #eee;
-    }
-
-    button {
-      height: 30px;
-      padding: 0 14px;
-      border-radius: 5px;
-      border: 1px solid #777;
-      background: #000;
-      color: #fff;
-      cursor: pointer;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-
-    button:hover {
-      background: #111;
-    }
+    #btnAbrir:hover { filter: brightness(1.1); }
   </style>
 </head>
-
 <body>
 
-  <div class="FORMULARIONECSS contenedor">
+  <div class="FORMULARIONECSS wrap">
     <fieldset>
       <legend class="legends">Selección de Fecha</legend>
 
-      <label for="fecha">Fecha</label>
-      <input type="text" id="fecha" placeholder="Ej: 28-02-2024" disabled>
-      <br>
-      <button type="button" id="btnAbrir">Ingresa fecha</button>
+      <div class="fila">
+        <label for="fecha">Fecha</label>
+        <input type="text" id="fecha" placeholder="Ej: 28-02-2024" disabled>
+        <button type="button" id="btnAbrir">Ingresa fecha</button>
+      </div>
 
     </fieldset>
   </div>
