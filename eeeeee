@@ -1,107 +1,66 @@
 <?php
-// --- Resolver POSICION de forma robusta ---
-$POSICION = isset($POSICION) ? $POSICION : '';
-for ($i = 0; $i < 12 && !file_exists($POSICION . "conexion.php"); $i++) {
-  $POSICION .= "../";
-}
-if (!file_exists($POSICION . "conexion.php")) {
-  header('Content-Type: text/plain; charset=ISO-8859-1');
-  die("No se encontró conexion.php desde lb_fecha.php. POSICION actual: " . $POSICION);
-}
-
+while (!file_exists($POSICION . "conexion.php")) { $POSICION .= "../"; }
 require_once($POSICION . "formHeader.php");
-
-// Definir rango de fechas: hoy ± 1 mes
-$hoy = date('Y-m-d');
-$min = date('Y-m-d', strtotime('-1 month'));
-$max = date('Y-m-d', strtotime('+1 month'));
 ?>
 <!DOCTYPE html>
 <html>
-
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-  <title>Calendario Lightbox</title>
+  <title>Ejercicio Calendario (Lightbox)</title>
+
   <link type="text/css" rel="stylesheet" href="<?= $POSICION ?>css/nuevoestilo.css?v=1.8">
   <style>
-    .wrap {
-      padding: 20px;
-      background: #f1f1f1;
-      border-radius: 8px;
-      width: 95%;
-      margin: 15px auto;
-    }
-
-    label {
-      font-weight: bold;
-      display: block;
-      margin-bottom: 8px;
-    }
-
-    input[type="date"] {
-      width: 100%;
-      height: 26px;
-      border-radius: 5px;
-      border: 1px solid #999;
-      padding: 0 8px;
-    }
-
-    .btn {
-      margin-top: 10px;
-      height: 30px;
-      border-radius: 5px;
-      border: 1px solid #777;
-      background: #e0e0e0;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .btn:hover {
-      background: #d0d0d0;
-    }
+    .contenedor { text-align:center; padding:20px; background:#f1f1f1; border-radius:10px; width:420px; margin:60px auto; }
+    label{ display:block; margin-bottom:6px; text-align:left; }
+    input[type="text"]{ width:100%; height:26px; border-radius:5px; border:1px solid #999; padding:0 8px; background:#eee; }
+    button{ height:30px; padding:0 14px; border-radius:5px; border:1px solid #777; background:#000; color:#fff; cursor:pointer; font-weight:bold; margin-top:10px; }
+    button:hover{ background:#111; }
   </style>
 </head>
-
 <body>
-  <div class="FORMULARIONECSS wrap">
-    <label for="fechaTermino">Seleccione una fecha:</label>
-    <input type="date" id="fechaTermino" value="<?= $hoy ?>" min="<?= $min ?>" max="<?= $max ?>">
-    <br>
-    <button type="button" class="btn" id="btnGuardar">Guardar</button>
-    <button type="button" class="btn" id="btnBorrar">Borrar</button>
+
+  <div class="FORMULARIONECSS contenedor">
+    <fieldset>
+      <legend class="legends">Selección de Fecha</legend>
+      <label for="fecha">Fecha</label>
+      <input type="text" id="fecha" placeholder="Ej: 28-02-2024" disabled>
+      <br>
+      <button type="button" id="btnAbrir">Ingresa fecha</button>
+    </fieldset>
   </div>
 
-  <script type="text/javascript">
-    function toDMY(fechaISO) {
-      const m = String(fechaISO).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      return m ? (m[3] + '-' + m[2] + '-' + m[1]) : '';
-    }
+  <!-- Lightbox -->
+  <script src="<?=$POSICION?>componente/mascara/lightbox-iframe.js?v=<?=rand()?>"></script>
+  <script src="<?=$POSICION?>componente/mascara/iu.js?v=<?=rand()?>"></script>
 
-    // Cerrar el Lightbox desde el hijo
-    function cerrarLightbox() {
-      try {
-        if (window.parent && typeof window.parent.OcultarVentana === 'function') {
-          window.parent.OcultarVentana();
-        }
-      } catch (e) { console.error(e); }
-    }
+  <script>
+    // markup + IU como dicta la wiki
+    addLightboxMarkup();
+    var Ajuste = { ventana: typeof IU, initialize: function(){ this.ventana = new IU(); } };
+    Ajuste.initialize();
 
-    document.getElementById('btnBorrar').onclick = function () {
-      document.getElementById('fechaTermino').value = '';
-    };
-
-    document.getElementById('btnGuardar').onclick = function () {
-      const val = document.getElementById('fechaTermino').value;
-      if (!val) {
-        alert('Debe seleccionar una fecha.');
-        return;
+    function abrirCalendario(){
+      // Si existe ShowInfoWidgetTitulo lo usamos para poner el título en la barra del lightbox.
+      if (typeof Ajuste.ventana.ShowInfoWidgetTitulo === 'function') {
+        Ajuste.ventana.ShowInfoWidgetTitulo("Termino Contrato", "lb_fecha.php", 360, 650, "OcultarVentana");
+      } else {
+        // fallback clásico
+        Ajuste.ventana.ShowInfoWidget("lb_fecha.php", 360, 650, "OcultarVentana");
       }
+    }
 
-      const fecha = toDMY(val);
-      // Envía la fecha seleccionada al padre
-      window.parent.postMessage({ type: 'set_fecha', value: fecha }, '*');
-      cerrarLightbox();
-    };
+    function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
+
+    document.getElementById("btnAbrir").onclick = abrirCalendario;
+
+    // recibir fecha desde el lightbox
+    window.addEventListener('message', function (ev) {
+      if (ev && ev.data && ev.data.type === 'set_fecha') {
+        var el = document.getElementById('fecha');
+        if (el) el.value = ev.data.value || '';
+        OcultarVentana();
+      }
+    }, false);
   </script>
 </body>
 </html>
