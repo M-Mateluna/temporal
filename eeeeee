@@ -1,86 +1,74 @@
-<?php
-// Ubicar raíz del proyecto y cargar cabeceras estándar
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require_once($POSICION."conexion.php");
-require_once($POSICION."formHeader.php");
-?>
+// Crear estructura base de Lightbox al cargar la página
+addLightboxMarkup();
 
 
-<!-- Importaciones requeridas -->
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
-
-
-<!-- Controlador local de la demo -->
-<script>window.POSICION = '<?=$POSICION?>';</script>
-<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
-
-
-<div style="max-width:900px;margin:2rem auto;padding:1.5rem;border:1px solid #ccc;border-radius:8px;">
-<h2 style="margin-top:0;">Demo: Calendario + Lightbox + MessageBox</h2>
-<p>Ejemplo mínimo con los tres componentes estándar de Desis.</p>
-
-
-<!-- FILTROS: Fecha Desde / Fecha Hasta -->
-<fieldset style="border:1px solid #999;border-radius:6px;padding:1rem;">
-<legend>Rango de Fechas</legend>
-
-
-<!-- Fecha Desde -->
-<div style="padding:0.8rem 0;">
-<?php
-$label_input = 'Fecha Desde';
-$nom_fech = 'fechadesde';
-$nom_fech_disabled = 'F';
-$val_fech = '';
-$btn_clear_fech = 'fecha_desde_btn';
-$btn_clear_fech_disabled = 'F';
-$classPrincipal = 'FORMULARIONECSS';
-$classAdicional = '';
-$btn_borrar_in = true; // botón borrar dentro del input
-$fech_style = 'width:17em;height:21px;';
-// (Opcional) límites permitidos
-$cnf_to = '';
-$cnf_hasta = '';
-include $POSICION."componente/calendario/componente_fechadd.php";
-?>
-</div>
-
-
-<!-- Fecha Hasta -->
-<div style="padding:0.8rem 0;">
-<?php
-$label_input = 'Fecha Hasta';
-$nom_fech = 'fechahasta';
-$nom_fech_disabled = 'F';
-$val_fech = '';
-$btn_clear_fech = 'fecha_hasta_btn';
-$btn_clear_fech_disabled = 'F';
-$classPrincipal = 'FORMULARIONECSS';
-$classAdicional = '';
-$btn_borrar_in = true;
-$fech_style = 'width:17em;height:21px;';
-$cnf_to = '';
-$cnf_hasta = '';
-include $POSICION."componente/calendario/componente_fechadd.php";
-?>
-</div>
-</fieldset>
-
-
+// Objeto para gestionar Lightbox principal + anidados
+var Ajuste = {
+ventana: typeof IU,
+initialize: function () {
+this.ventana = new IU();
+},
+abrirLightboxPrincipal: function () {
+// Abre contenido.php en un lightbox con callback al cerrar
+this.ventana.ShowInfoWidget("contenido.php", 700, 900, 'OcultarVentana');
+}
+};
 $1
 
 
-<!-- Ejercicio Propuesto - Calendario -->
-<div style="max-width:900px;margin:2rem auto;padding:1.5rem;border:1px solid #ccc;border-radius:8px;">
-<h3 style="margin-top:0;">Ejercicio Propuesto - Calendario</h3>
-<label for="fecha_ejercicio" style="display:block;margin-bottom:6px;">Fecha</label>
-<div style="display:flex;gap:0.5rem;align-items:center;">
-<input id="fecha_ejercicio" type="text" disabled style="width:17em;height:21px;" placeholder="Ej: 28-02-2024"/>
-<button type="button" onclick="Ajuste.abrirTerminoContrato()" style="height:28px;padding:0 12px;">Ingresa fecha</button>
-</div>
-</div>
+// Abre lightbox "Termino Contrato" que contiene el componente Calendario con límites +/- 1 mes
+Ajuste.abrirTerminoContrato = function(){
+this.ventana.ShowInfoWidget('termino_contrato.php', 360, 620, 'OcultarVentana');
+};
 
 
-<?php require_once($POSICION."formFoot.php"); ?>
+// Callback estándar para cerrar
+function OcultarVentana() {
+Ajuste.ventana.HideInfo();
+}
+
+
+// Implementación de MessageBox (patrón escalable)
+var MSGBOX = {
+ventana: typeof IU_MSGBOX,
+initialize: function(){ this.ventana = new IU_MSGBOX(); },
+Abrir: function(conf){
+this.ventana.titulo = conf.titulo || 'Aviso';
+this.ventana.texto = '<center>' + (conf.texto || '') + '</center>';
+this.ventana.botonera = conf.botonera || 3; // por defecto Sí/No
+this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+this.ventana.objeto = conf.objeto || {};
+this.ventana.url = window.POSICION;
+this.ventana.Messagebox();
+},
+fnretorno: function(resp){ /* opcional */ }
+};
+MSGBOX.initialize();
+
+
+// Acciones de la vista principal
+var acciones = {
+confirmarFiltros: function(){
+var desde = document.getElementById('fechadesde') ? document.getElementById('fechadesde').value : '';
+var hasta = document.getElementById('fechahasta') ? document.getElementById('fechahasta').value : '';
+
+
+// Mensaje de confirmación
+MSGBOX.Abrir({
+titulo: 'Confirmación',
+texto: '¿Aplicar el rango de fechas seleccionado?<br><small>Desde: ' + (desde||'-') + ' / Hasta: ' + (hasta||'-') + '</small>',
+botonera: 3, // Sí / No
+fnretorno: 'acciones._confirmarFiltrosRetorno',
+conCerrar: false,
+objeto: { desde: desde, hasta: hasta }
+});
+},
+_confirmarFiltrosRetorno: function(resp){
+if (resp === 'S') {
+// Aquí iría la lógica real (AJAX/DB). Para demo, solo cierre.
+// Ej.: ajax('aplicarFiltros', 'desde=...&hasta=...', onOk, onErr)
+}
+MSGBOX.ventana.HideInfo();
+}
+};
