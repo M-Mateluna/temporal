@@ -1,4 +1,18 @@
 <?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "Termino Contrato";
+require_once($POSICION."conexion.php");
+require_once($POSICION."formHeader.php");
+
+
+// Fechas límite: hoy, +/- 1 mes
+$hoy = date('d-m-Y');
+$minimo = date('d-m-Y', strtotime('-1 month'));
+$maximo = date('d-m-Y', strtotime('+1 month'));
+?>
+
+
+<div style="padding:1rem 1.25rem;">
 <h3 style="margin:0 0 12px 0;">Termino Contrato</h3>
 <div style="margin-bottom:12px;">
 <?php
@@ -64,19 +78,5 @@ botonera: 1,
 fnretorno: 'cerrarObligatorio'
 });
 return;
-}
-// pasar valor al padre e inyectarlo en el input deshabilitado
-if (parent && parent.document){
-var tgt = parent.document.getElementById('fecha_ejercicio');
-if (tgt){ tgt.value = v; }
-}
-// cerrar lightbox
-if (parent && parent.Ajuste && parent.Ajuste.ventana){ parent.Ajuste.ventana.HideInfo(); }
-}
-
-
-function cerrarObligatorio(resp){
-// Solo cerrar el MessageBox, mantener el lightbox abierto
-MSGBOX.ventana.HideInfo();
 }
 </script>
