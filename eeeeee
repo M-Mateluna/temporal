@@ -1,72 +1,169 @@
 <?php
+// Resolver raíz y cargar cabeceras estándar (ISO-8859-1)
 while (!file_exists($POSICION."conexion.php")) $POSICION .= "../";
 require_once($POSICION."conexion.php");
+require_once($POSICION."formHeader.php");
+?>
 
-// Asumimos sesión iniciada (requisito del componente Database)  :contentReference[oaicite:3]{index=3}
+<!-- Estilo corporativo -->
+<link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 
-$cmd         = isset($_REQUEST['cmd']) ? $_REQUEST['cmd'] : '';
-$rut         = isset($_REQUEST['rut']) ? trim($_REQUEST['rut']) : '';
-$razonsocial = isset($_REQUEST['razonsocial']) ? trim($_REQUEST['razonsocial']) : '';
-$giro        = isset($_REQUEST['giro']) ? trim($_REQUEST['giro']) : '';
-$telefono    = isset($_REQUEST['telefono']) ? trim($_REQUEST['telefono']) : '';
-$desde       = isset($_REQUEST['desde']) ? trim($_REQUEST['desde']) : '';
-$hasta       = isset($_REQUEST['hasta']) ? trim($_REQUEST['hasta']) : '';
-$page        = isset($_REQUEST['page']) ? max(1, intval($_REQUEST['page'])) : 1;
-$limit       = isset($_REQUEST['limit']) ? max(1, intval($_REQUEST['limit'])) : 10;
-if ($limit > 200) $limit = 200;
-$offset      = ($page - 1) * $limit;
+<!-- Componentes requeridos -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/database/class.php"></script> <!-- BASE -->
+<script type="text/javascript" src="<?=$POSICION;?>js/util.js"></script> <!-- ClienteProveedor2 lo requiere -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/buscadores/clienteproveedor2/class.js?v=<?=rand();?>"></script>
 
-// Armar WHERE en SQL (escapando con pg para seguridad)
-$wheres = array();
-if ($rut !== '')         $wheres[] = "rut = '".pg_escape_string($rut)."'";
-if ($razonsocial !== '') $wheres[] = "razonsocial ILIKE '%".pg_escape_string($razonsocial)."%'";
-if ($giro !== '')        $wheres[] = "giro ILIKE '%".pg_escape_string($giro)."%'";
-if ($telefono !== '')    $wheres[] = "telefono ILIKE '%".pg_escape_string($telefono)."%'";
-if ($desde !== '' && $hasta !== '') {
-  $wheres[] = "fechahora BETWEEN to_timestamp('".pg_escape_string($desde)."','DD-MM-YYYY')
-                              AND to_timestamp('".pg_escape_string($hasta)."','DD-MM-YYYY') + interval '1 day' - interval '1 second'";
-} elseif ($desde !== '') {
-  $wheres[] = "fechahora >= to_timestamp('".pg_escape_string($desde)."','DD-MM-YYYY')";
-} elseif ($hasta !== '') {
-  $wheres[] = "fechahora < to_timestamp('".pg_escape_string($hasta)."','DD-MM-YYYY') + interval '1 day'";
-}
-$whereSql = count($wheres) ? ('WHERE '.implode(' AND ', $wheres)) : '';
+<!-- Exponer POSICION a JS estático -->
+<script>window.POSICION = '<?=$POSICION?>';</script>
 
-switch ($cmd) {
+<style>
+  .FILTRO { max-width:1100px; margin:1rem auto; }
+  .GRID { max-width:1100px; margin:0 auto 1.5rem auto; }
+  .GRID table { width:100%; border-collapse:collapse; }
+  .GRID th, .GRID td { border:1px solid #ccc; padding:6px; vertical-align:middle; }
+  .GRID thead th { background:#f0f0f0; }
+  .NAV { display:flex; gap:.5rem; align-items:center; justify-content:flex-end; margin:.5rem 0; }
+  .NAV button { height:28px; padding:0 10px; border-radius:5px; border:1px solid #999; background:#fff; cursor:pointer; }
+  .NAV button[disabled] { opacity:.5; cursor:not-allowed; }
+  .FOOT { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#333; margin-top:.25rem; }
+  .nowrap { white-space:nowrap; }
+  .busc-rut { display:flex; gap:.5rem; align-items:center; }
+</style>
 
-  /* =======================
-     TOTAL PARA PAGINACIÓN
-     ======================= */
-  case 'cp_count': {
-    $query = "
-      SELECT COUNT(*)::int AS total
-      FROM public.clienteproveedor
-      $whereSql
-    ";
-    echo CreateXML($query); // genera <total>...</total> dentro del XML
-    exit;
-  }
+<!-- Controlador -->
+<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
 
-  /* =======================
-     LISTAR FILAS PÁGINA
-     ======================= */
-  case 'cp_listar': {
-    $query = "
-      SELECT
-        rut,
-        razonsocial,
-        giro,
-        telefono,
-        to_char(fechahora, 'DD-MM-YYYY HH24:MI:SS') AS fechahora
-      FROM public.clienteproveedor
-      $whereSql
-      ORDER BY fechahora DESC
-      LIMIT $limit OFFSET $offset
-    ";
-    echo CreateXML($query);
-    exit;
-  }
+<div class="FORMULARIONECSS FILTRO" id="FILTRO">
+  <fieldset style="border:1px solid #999;border-radius:6px;padding:1rem;">
+    <legend>Filtro Avanzado</legend>
+    <table style="width:100%;">
+      <tbody>
+        <tr>
+          <td style="width:22%;">
+            <label>RUT</label><br>
+            <div class="busc-rut">
+              <input id="rut" type="text" disabled style="width:10.5em;height:21px;">
+              <input id="idclienteproveedor" type="hidden">
+              <div id="divBuscador" style="display:inline"></div>
+              <button type="button" class="textazul" onclick="uiRut.buscar()">Buscar</button>
+              <button type="button" class="textazul" onclick="uiRut.borrar()">Borrar</button>
+            </div>
+          </td>
+          <td style="width:26%;">
+            <label>Razón Social</label><br>
+            <input id="razonsocial" type="text" style="width:95%;height:21px;">
+          </td>
+          <td style="width:26%;">
+            <label>Giro</label><br>
+            <input id="giro" type="text" style="width:95%;height:21px;">
+          </td>
+          <td style="width:26%;">
+            <label>Teléfono</label><br>
+            <?php
+              // Componente Teléfono
+              $tel_id           = 'telefono';
+              $tel_style        = 'width:95%;height:21px;'; // si se solapa con el select, usa padding-left
+              $tel_class        = '';
+              $tel_tipo         = 'principal';
+              $tel_inicial      = 'cl';
+              $tel_principales  = '["mx","pe","ve","cl"]';
+              $tel_onkeypress   = 'return (event.charCode >= 48 && event.charCode <= 57)';
+              $tel_placeholder  = 'Ej: 56912345678';
+              $tel_inputType    = 'text';
+              include($POSICION."componente/telefono/inserta_input.php");
+            ?>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <label>Fecha Desde</label><br>
+            <?php
+              $label_input             = '';
+              $nom_fech                = 'fechadesde';
+              $nom_fech_disabled       = 'F';
+              $val_fech                = '';
+              $btn_clear_fech          = 'fecha_desde_btn';
+              $btn_clear_fech_disabled = 'F';
+              $classPrincipal          = '';
+              $classAdicional          = '';
+              $btn_borrar_in           = true;
+              $fech_style              = 'width:10.5em;height:21px;';
+              $cnf_to                  = '';
+              $cnf_hasta               = '';
+              include $POSICION."componente/calendario/componente_fechadd.php";
+            ?>
+          </td>
+          <td>
+            <label>Fecha Hasta</label><br>
+            <?php
+              $label_input             = '';
+              $nom_fech                = 'fechahasta';
+              $nom_fech_disabled       = 'F';
+              $val_fech                = '';
+              $btn_clear_fech          = 'fecha_hasta_btn';
+              $btn_clear_fech_disabled = 'F';
+              $classPrincipal          = '';
+              $classAdicional          = '';
+              $btn_borrar_in           = true;
+              $fech_style              = 'width:10.5em;height:21px;';
+              $cnf_to                  = '';
+              $cnf_hasta               = '';
+              include $POSICION."componente/calendario/componente_fechadd.php";
+            ?>
+          </td>
+          <td colspan="2" class="nowrap" style="text-align:right;">
+            <label>&nbsp;</label><br>
+            <!-- Buscar SIEMPRE con ClienteProveedor2 -->
+            <button type="button" class="textazul" onclick="uiRut.buscar()">Buscar (Cliente/Proveedor)</button>
+            <button type="button" class="textazul" onclick="grid.limpiar()">Limpiar</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </fieldset>
+</div>
 
-  default:
-    die("Comando no valido");
-}
+<div class="GRID">
+  <div class="NAV">
+    <button id="btnFirst" onclick="grid.irPrimera()" disabled>&laquo; Primero</button>
+    <button id="btnPrev" onclick="grid.irAnterior()" disabled>&lsaquo; Anterior</button>
+    <span id="lblPagina">Página 1 de 1</span>
+    <button id="btnNext" onclick="grid.irSiguiente()" disabled>Siguiente &rsaquo;</button>
+    <button id="btnLast" onclick="grid.irUltima()" disabled>Último &raquo;</button>
+    <select id="limit" onchange="grid.buscar(grid.pagina)" title="Registros por página" style="height:28px;">
+      <option value="10" selected>10</option>
+      <option value="20">20</option>
+      <option value="50">50</option>
+    </select>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:12%">RUT</th>
+        <th style="width:28%">Razón Social</th>
+        <th style="width:25%">Giro</th>
+        <th style="width:15%">Teléfono</th>
+        <th style="width:20%">FechaHora</th>
+      </tr>
+    </thead>
+    <tbody id="gridBody">
+      <tr><td colspan="5" style="text-align:center;color:#666;">Sin resultados</td></tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5">
+          <div class="FOOT">
+            <span id="lblRango">Mostrando 0–0 de 0</span>
+            <span id="lblLeyenda"></span>
+          </div>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<?php require_once($POSICION."formFoot.php"); ?>
