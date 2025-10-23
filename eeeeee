@@ -1,45 +1,53 @@
-// Crear estructura base de Lightbox al cargar la página
-addLightboxMarkup();
+<?php
+<p>Este contenido se abrió con <code>ShowInfoWidget</code>. Desde aquí podemos abrir otro lightbox dentro de este (anidado) usando <code>ShowInfoDentro</code>.</p>
 
 
-// Objeto para gestionar Lightbox principal + anidados
+<div style="display:flex;gap:0.75rem;">
+<button type="button" onclick="showIframeHijo()" style="height:32px;padding:0 14px;">Elegir Banco (Lightbox dentro)</button>
+<button type="button" onclick="showMsgLocal()" style="height:32px;padding:0 14px;">Probar MessageBox (Hijo)</button>
+<button type="button" onclick="showCalendarioLB()" style="height:32px;padding:0 14px;">Calendario (Lightbox)</button>
+</div>
+</div>
+
+
+<?php require_once($POSICION."formFoot.php"); ?>
+
+
+<!-- Importaciones requeridas del hijo -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
+
+
+<script>
+// Cada documento que usa Lightbox debe tener su propio IU
 var Ajuste = {
 ventana: typeof IU,
-initialize: function () {
-this.ventana = new IU();
-},
-abrirLightboxPrincipal: function () {
-// Abre contenido.php en un lightbox con callback al cerrar
-this.ventana.ShowInfoWidget("contenido.php", 700, 900, 'OcultarVentana');
+initialize: function(){ this.ventana = new IU(); },
+abrirHijo: function(){
+// Abre un lightbox dentro del actual
+this.ventana.ShowInfoDentro('bancos.php', '290px', '585px', 'Ajuste.ventana.HideInfo');
 }
 };
+Ajuste.initialize();
+
+
 $1
-
-
-// Abre lightbox "Termino Contrato" que contiene el componente Calendario con límites +/- 1 mes
-Ajuste.abrirTerminoContrato = function(){
-this.ventana.ShowInfoWidget('termino_contrato.php', 360, 620, 'OcultarVentana');
-};
-
-
-// Callback estándar para cerrar
-function OcultarVentana() {
-Ajuste.ventana.HideInfo();
+// Abre un lightbox con el componente Calendario adentro
+function showCalendarioLB(){
+addLightboxMarkup();
+Ajuste.ventana.ShowInfoDentro('calendario_lightbox.php', '340px', '620px', 'Ajuste.ventana.HideInfo');
 }
-
-
-// Implementación de MessageBox (patrón escalable)
+// MessageBox de ejemplo local (en hijo)
 var MSGBOX = {
 ventana: typeof IU_MSGBOX,
 initialize: function(){ this.ventana = new IU_MSGBOX(); },
 Abrir: function(conf){
 this.ventana.titulo = conf.titulo || 'Aviso';
 this.ventana.texto = '<center>' + (conf.texto || '') + '</center>';
-this.ventana.botonera = conf.botonera || 3; // por defecto Sí/No
-this.ventana.conCerrar = (conf.conCerrar !== undefined) ? conf.conCerrar : this.ventana.conCerrar;
+this.ventana.botonera = conf.botonera || 1; // Aceptar
 this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
-this.ventana.objeto = conf.objeto || {};
-this.ventana.url = window.POSICION;
+this.ventana.url = '<?=$POSICION?>';
 this.ventana.Messagebox();
 },
 fnretorno: function(resp){ /* opcional */ }
@@ -47,28 +55,18 @@ fnretorno: function(resp){ /* opcional */ }
 MSGBOX.initialize();
 
 
-// Acciones de la vista principal
-var acciones = {
-confirmarFiltros: function(){
-var desde = document.getElementById('fechadesde') ? document.getElementById('fechadesde').value : '';
-var hasta = document.getElementById('fechahasta') ? document.getElementById('fechahasta').value : '';
-
-
-// Mensaje de confirmación
+function showMsgLocal(){
 MSGBOX.Abrir({
-titulo: 'Confirmación',
-texto: '¿Aplicar el rango de fechas seleccionado?<br><small>Desde: ' + (desde||'-') + ' / Hasta: ' + (hasta||'-') + '</small>',
-botonera: 3, // Sí / No
-fnretorno: 'acciones._confirmarFiltrosRetorno',
-conCerrar: false,
-objeto: { desde: desde, hasta: hasta }
+titulo: 'Información',
+texto: 'Hola desde el lightbox hijo',
+botonera: 1,
+fnretorno: 'cerrarMsgLocal'
 });
-},
-_confirmarFiltrosRetorno: function(resp){
-if (resp === 'S') {
-// Aquí iría la lógica real (AJAX/DB). Para demo, solo cierre.
-// Ej.: ajax('aplicarFiltros', 'desde=...&hasta=...', onOk, onErr)
 }
+
+
+function cerrarMsgLocal(resp){
+// Cierra el MessageBox al presionar Aceptar (resp === 'A')
 MSGBOX.ventana.HideInfo();
 }
-};
+</script>
