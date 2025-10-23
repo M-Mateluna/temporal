@@ -1,4 +1,5 @@
 <?php
+<h3 style="margin-top:0;">Lightbox Principal</h3>
 <p>Este contenido se abrió con <code>ShowInfoWidget</code>. Desde aquí podemos abrir otro lightbox dentro de este (anidado) usando <code>ShowInfoDentro</code>.</p>
 
 
