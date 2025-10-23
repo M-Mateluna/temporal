@@ -1,8 +1,13 @@
-<div class="FORMULARIONECSS ej-tc">
-  <h3 style="margin-top:0;">Término de Contrato</h3>
-  <label for="fecha_tc" style="display:block;margin-bottom:6px;">Fecha</label>
-  <div class="campo">
-    <input id="fecha_tc" type="text" disabled style="width:17em;height:21px;" placeholder="Ej: 28-02-2024"/>
-    <button type="button" class="btn-negro" onclick="Ajuste.TerminoContrato.open()">Ingresa fecha</button>
-  </div>
+<link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+<style>
+  .tc-box { padding:1rem 1.25rem; }
+  .tc-box .acciones { text-align:center; margin-top:16px; }
+</style>
+
+
+<div class="FORMULARIONECSS tc-box">
+
+
+<div class="acciones">
+  <button type="button" class="btn-negro" onclick="guardarFechaTC()">Guardar</button>
 </div>
