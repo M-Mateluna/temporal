@@ -1,33 +1,22 @@
-<?php
-// Ubicar raíz del proyecto y cargar cabeceras estándar
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-require_once($POSICION."conexion.php");
-require_once($POSICION."formHeader.php");
-?>
+// Crear estructura base de Lightbox al cargar la página
+addLightboxMarkup();
 
-<!-- Importaciones requeridas en el padre -->
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+// Namespace principal (reutilizable)
+var Ajuste = {
+  ventana: typeof IU,
+  initialize: function () { this.ventana = new IU(); }
+};
+Ajuste.initialize();
 
-<!-- Exponer POSICION para scripts estáticos -->
-<script>window.POSICION = '<?=$POSICION?>';</script>
+// Submódulo específico del ejercicio
+Ajuste.TerminoContrato = {
+  open: function(){
+    // Abre Lightbox con callback para cierre
+    Ajuste.ventana.ShowInfoWidget('tc_ejercicio.php', 360, 620, 'OcultarVentana');
+  }
+};
 
-<!-- Controlador local del ejercicio -->
-<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
-
-<div style="max-width:900px;margin:2rem auto;padding:1.5rem;border:1px solid #ccc;border-radius:8px;">
-  <h3 style="margin-top:0;">Término de Contrato</h3>
-  <label for="fecha_tc" style="display:block;margin-bottom:6px;">Fecha</label>
-
-  <div style="display:flex;gap:0.5rem;align-items:center;">
-    <!-- Input deshabilitado donde se devolverá la fecha -->
-    <input id="fecha_tc" type="text" disabled style="width:17em;height:21px;" placeholder="Ej: 28-02-2024"/>
-
-    <!-- Botón que abre el Lightbox -->
-    <button type="button" onclick="Ajuste.TerminoContrato.open()" style="height:28px;padding:0 12px;">
-      Ingresa fecha
-    </button>
-  </div>
-</div>
-
-<?php require_once($POSICION."formFoot.php"); ?>
+// Callback estándar para cerrar el Lightbox
+function OcultarVentana(){
+  Ajuste.ventana.HideInfo();
+}
