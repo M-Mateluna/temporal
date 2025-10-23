@@ -1,51 +1,85 @@
-<button type="button" onclick="showCalendarioLB()" style="height:32px;padding:0 14px;">
-  Calendario (Lightbox)
-</button>
-
-
-function showCalendarioLB(){
-  addLightboxMarkup();
-  Ajuste.ventana.ShowInfoDentro('calendario_lightbox.php', '340px', '620px', 'Ajuste.ventana.HideInfo');
-}
-
-
-
-
-
 <?php
+// Ubicar raíz del proyecto y cargar cabeceras estándar
 while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$titulo_formulario = "Calendario en Lightbox";
 require_once($POSICION."conexion.php");
 require_once($POSICION."formHeader.php");
 ?>
 
 
-<div style="padding:1rem 1.25rem;">
-<h3 style="margin-top:0;">Demostración del Componente Calendario</h3>
-<p>Seleccione una fecha y cierre el lightbox con la X o desde el padre.</p>
+<!-- Importaciones requeridas -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
 
 
+<!-- Controlador local de la demo -->
+<script>window.POSICION = '<?=$POSICION?>';</script>
+<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
+
+
+<div style="max-width:900px;margin:2rem auto;padding:1.5rem;border:1px solid #ccc;border-radius:8px;">
+<h2 style="margin-top:0;">Demo: Calendario + Lightbox + MessageBox</h2>
+<p>Ejemplo mínimo con los tres componentes estándar de Desis.</p>
+
+
+<!-- FILTROS: Fecha Desde / Fecha Hasta -->
+<fieldset style="border:1px solid #999;border-radius:6px;padding:1rem;">
+<legend>Rango de Fechas</legend>
+
+
+<!-- Fecha Desde -->
+<div style="padding:0.8rem 0;">
 <?php
-// Configuración mínima del componente Calendario
-$label_input = 'Fecha';
-$nom_fech = 'fecha_demo';
+$label_input = 'Fecha Desde';
+$nom_fech = 'fechadesde';
 $nom_fech_disabled = 'F';
 $val_fech = '';
-$btn_clear_fech = 'fecha_demo_btn';
+$btn_clear_fech = 'fecha_desde_btn';
+$btn_clear_fech_disabled = 'F';
+$classPrincipal = 'FORMULARIONECSS';
+$classAdicional = '';
+$btn_borrar_in = true; // botón borrar dentro del input
+$fech_style = 'width:17em;height:21px;';
+// (Opcional) límites permitidos
+$cnf_to = '';
+$cnf_hasta = '';
+include $POSICION."componente/calendario/componente_fechadd.php";
+?>
+</div>
+
+
+<!-- Fecha Hasta -->
+<div style="padding:0.8rem 0;">
+<?php
+$label_input = 'Fecha Hasta';
+$nom_fech = 'fechahasta';
+$nom_fech_disabled = 'F';
+$val_fech = '';
+$btn_clear_fech = 'fecha_hasta_btn';
 $btn_clear_fech_disabled = 'F';
 $classPrincipal = 'FORMULARIONECSS';
 $classAdicional = '';
 $btn_borrar_in = true;
 $fech_style = 'width:17em;height:21px;';
-
-
-// (Opcional) límites de ejemplo
 $cnf_to = '';
 $cnf_hasta = '';
-
-
 include $POSICION."componente/calendario/componente_fechadd.php";
 ?>
+</div>
+</fieldset>
+
+
+$1
+
+
+<!-- Ejercicio Propuesto - Calendario -->
+<div style="max-width:900px;margin:2rem auto;padding:1.5rem;border:1px solid #ccc;border-radius:8px;">
+<h3 style="margin-top:0;">Ejercicio Propuesto - Calendario</h3>
+<label for="fecha_ejercicio" style="display:block;margin-bottom:6px;">Fecha</label>
+<div style="display:flex;gap:0.5rem;align-items:center;">
+<input id="fecha_ejercicio" type="text" disabled style="width:17em;height:21px;" placeholder="Ej: 28-02-2024"/>
+<button type="button" onclick="Ajuste.abrirTerminoContrato()" style="height:28px;padding:0 12px;">Ingresa fecha</button>
+</div>
 </div>
 
 
