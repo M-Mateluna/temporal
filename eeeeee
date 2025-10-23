@@ -1,19 +1,27 @@
 <?php
-while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
-$titulo_formulario = "Contenido en Lightbox";
-require_once($POSICION."formHeader.php");
-?>
-
-
 <div style="padding:1rem 1.25rem;">
-<h3 style="margin-top:0;">Lightbox Principal</h3>
-<p>Este contenido se abrió con <code>ShowInfoWidget</code>. Desde aquí podemos abrir otro lightbox dentro de este (anidado) usando <code>ShowInfoDentro</code>.</p>
+<h3 style="margin:0 0 12px 0;">Termino Contrato</h3>
+<div style="margin-bottom:12px;">
+<?php
+$label_input = 'Ingrese Fecha de Término:';
+$nom_fech = 'fecha_termino';
+$nom_fech_disabled = 'F'; // habilitado, pero el componente por defecto es readonly
+$val_fech = $hoy; // valor por defecto hoy
+$btn_clear_fech = 'fecha_termino_btn';
+$btn_clear_fech_disabled = 'F';
+$classPrincipal = 'FORMULARIONECSS';
+$classAdicional = '';
+$btn_borrar_in = true; // botón borrar visible dentro
+$fech_style = 'width:17em;height:21px;';
+$cnf_to = $minimo; // mínimo: -1 mes
+$cnf_hasta = $maximo; // máximo: +1 mes
+include $POSICION."componente/calendario/componente_fechadd.php";
+?>
+</div>
 
 
-<div style="display:flex;gap:0.75rem;">
-<button type="button" onclick="showIframeHijo()" style="height:32px;padding:0 14px;">Elegir Banco (Lightbox dentro)</button>
-<button type="button" onclick="showMsgLocal()" style="height:32px;padding:0 14px;">Probar MessageBox (Hijo)</button>
-<button type="button" onclick="showCalendarioLB()" style="height:32px;padding:0 14px;">Calendario (Lightbox)</button>
+<div style="text-align:center;margin-top:16px;">
+<button type="button" onclick="guardarFecha()" style="height:34px;padding:0 16px;">Guardar</button>
 </div>
 </div>
 
@@ -21,32 +29,16 @@ require_once($POSICION."formHeader.php");
 <?php require_once($POSICION."formFoot.php"); ?>
 
 
-<!-- Importaciones requeridas del hijo -->
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
-<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+<!-- Dependencias y MessageBox -->
 <script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
-
-
 <script>
-// Cada documento que usa Lightbox debe tener su propio IU
-var Ajuste = {
-ventana: typeof IU,
-initialize: function(){ this.ventana = new IU(); },
-abrirHijo: function(){
-// Abre un lightbox dentro del actual
-this.ventana.ShowInfoDentro('bancos.php', '290px', '585px', 'Ajuste.ventana.HideInfo');
-}
-};
-Ajuste.initialize();
+// Forzar no editable (por si el tema/estilos permiten escribir)
+(function(){
+var el = document.getElementById('fecha_termino');
+if (el) { el.setAttribute('readonly', 'readonly'); }
+})();
 
 
-$1
-// Abre un lightbox con el componente Calendario adentro
-function showCalendarioLB(){
-addLightboxMarkup();
-Ajuste.ventana.ShowInfoDentro('calendario_lightbox.php', '340px', '620px', 'Ajuste.ventana.HideInfo');
-}
-// MessageBox de ejemplo local (en hijo)
 var MSGBOX = {
 ventana: typeof IU_MSGBOX,
 initialize: function(){ this.ventana = new IU_MSGBOX(); },
@@ -58,17 +50,34 @@ this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
 this.ventana.url = '<?=$POSICION?>';
 this.ventana.Messagebox();
 },
-fnretorno: function(resp){ /* opcional */ }
+fnretorno: function(resp){}
 };
 MSGBOX.initialize();
 
 
-function showMsgLocal(){
+function guardarFecha(){
+var v = (document.getElementById('fecha_termino')||{}).value || '';
+if (!v.trim()){
 MSGBOX.Abrir({
-titulo: 'Información',
-texto: 'Hola desde el lightbox hijo',
+titulo: 'Obligatorio',
+texto: 'El campo fecha es obligatorio',
 botonera: 1,
-fnretorno: 'cerrarMsgLocal'
+fnretorno: 'cerrarObligatorio'
 });
+return;
+}
+// pasar valor al padre e inyectarlo en el input deshabilitado
+if (parent && parent.document){
+var tgt = parent.document.getElementById('fecha_ejercicio');
+if (tgt){ tgt.value = v; }
+}
+// cerrar lightbox
+if (parent && parent.Ajuste && parent.Ajuste.ventana){ parent.Ajuste.ventana.HideInfo(); }
+}
+
+
+function cerrarObligatorio(resp){
+// Solo cerrar el MessageBox, mantener el lightbox abierto
+MSGBOX.ventana.HideInfo();
 }
 </script>
