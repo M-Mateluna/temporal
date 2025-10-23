@@ -1,22 +1,99 @@
-// Crear estructura base de Lightbox al cargar la página
-addLightboxMarkup();
+<?php
+// Resolver raíz del proyecto
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "Termino Contrato";
+require_once($POSICION."conexion.php");
+require_once($POSICION."formHeader.php");
 
-// Namespace principal (reutilizable)
-var Ajuste = {
-  ventana: typeof IU,
-  initialize: function () { this.ventana = new IU(); }
-};
-Ajuste.initialize();
+// Fechas (formato dd-mm-YYYY)
+$hoy    = date('d-m-Y');
+$minimo = date('d-m-Y', strtotime('-1 month'));
+$maximo = date('d-m-Y', strtotime('+1 month'));
+?>
 
-// Submódulo específico del ejercicio
-Ajuste.TerminoContrato = {
-  open: function(){
-    // Abre Lightbox con callback para cierre
-    Ajuste.ventana.ShowInfoWidget('tc_ejercicio.php', 360, 620, 'OcultarVentana');
+<div style="padding:1rem 1.25rem;">
+  <h3 style="margin:0 0 12px 0;">Termino Contrato</h3>
+
+  <div style="margin-bottom:12px;">
+    <?php
+      // Componente Calendario con límites +/- 1 mes, valor por defecto hoy y botón borrar
+      $label_input             = 'Ingrese Fecha de Término:';
+      $nom_fech                = 'fecha_termino';
+      $nom_fech_disabled       = 'F'; // habilitado, pero lo forzaremos como readonly
+      $val_fech                = $hoy; // default hoy
+      $btn_clear_fech          = 'fecha_termino_btn';
+      $btn_clear_fech_disabled = 'F';
+      $classPrincipal          = 'FORMULARIONECSS';
+      $classAdicional          = '';
+      $btn_borrar_in           = true; // muestra botón borrar dentro
+      $fech_style              = 'width:17em;height:21px;';
+      $cnf_to                  = $minimo; // mínimo: hoy - 1 mes
+      $cnf_hasta               = $maximo; // máximo: hoy + 1 mes
+      include $POSICION."componente/calendario/componente_fechadd.php";
+    ?>
+  </div>
+
+  <div style="text-align:center;margin-top:16px;">
+    <button type="button" onclick="guardarFechaTC()" style="height:34px;padding:0 16px;">Guardar</button>
+  </div>
+</div>
+
+<?php require_once($POSICION."formFoot.php"); ?>
+
+<!-- Dependencias del hijo -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+
+<script>
+  // Forzar no editable (readonly) sin modificar el componente base
+  (function(){
+    var el = document.getElementById('fecha_termino');
+    if (el) { el.setAttribute('readonly', 'readonly'); }
+  })();
+
+  // MessageBox con base URL correcta (evita rutas relativas)
+  var MSGBOX = {
+    ventana: typeof IU_MSGBOX,
+    initialize: function(){ this.ventana = new IU_MSGBOX(); },
+    Abrir: function(conf){
+      this.ventana.titulo    = conf.titulo || 'Aviso';
+      this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
+      this.ventana.botonera  = conf.botonera || 1; // Aceptar
+      this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+      this.ventana.url       = '<?=$POSICION?>';   // <- clave para evitar 404
+      this.ventana.Messagebox();
+    }
+  };
+  MSGBOX.initialize();
+
+  // Guardar: valida, devuelve al padre y cierra el lightbox
+  function guardarFechaTC(){
+    var v = (document.getElementById('fecha_termino')||{}).value || '';
+    if (!v.trim()){
+      MSGBOX.Abrir({
+        titulo: 'Obligatorio',
+        texto: 'El campo fecha es obligatorio',
+        botonera: 1,
+        fnretorno: 'cerrarObligatorioTC'
+      });
+      return;
+    }
+
+    // Devolver valor al input deshabilitado del padre
+    if (parent && parent.document){
+      var tgt = parent.document.getElementById('fecha_tc');
+      if (tgt){ tgt.value = v; }
+    }
+
+    // Cerrar el lightbox
+    if (parent && parent.Ajuste && parent.Ajuste.ventana){
+      parent.Ajuste.ventana.HideInfo();
+    }
   }
-};
 
-// Callback estándar para cerrar el Lightbox
-function OcultarVentana(){
-  Ajuste.ventana.HideInfo();
-}
+  function cerrarObligatorioTC(resp){
+    // Solo cerrar el MessageBox (mantener el lightbox abierto)
+    MSGBOX.ventana.HideInfo();
+  }
+</script>
