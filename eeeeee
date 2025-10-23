@@ -1,4 +1,11 @@
 <?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "Contenido en Lightbox";
+require_once($POSICION."formHeader.php");
+?>
+
+
+<div style="padding:1rem 1.25rem;">
 <h3 style="margin-top:0;">Lightbox Principal</h3>
 <p>Este contenido se abrió con <code>ShowInfoWidget</code>. Desde aquí podemos abrir otro lightbox dentro de este (anidado) usando <code>ShowInfoDentro</code>.</p>
 
@@ -63,11 +70,5 @@ texto: 'Hola desde el lightbox hijo',
 botonera: 1,
 fnretorno: 'cerrarMsgLocal'
 });
-}
-
-
-function cerrarMsgLocal(resp){
-// Cierra el MessageBox al presionar Aceptar (resp === 'A')
-MSGBOX.ventana.HideInfo();
 }
 </script>
