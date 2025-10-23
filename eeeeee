@@ -1,13 +1,184 @@
+# Ejercicio Final — Término de Contrato (Versión centrada y estilizada)
+
+## `index.php`
+
+```php
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+require_once($POSICION."conexion.php");
+require_once($POSICION."formHeader.php");
+?>
+
+<!-- Estilo Desis + ajustes visuales -->
 <link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
 <style>
-  .tc-box { padding:1rem 1.25rem; }
-  .tc-box .acciones { text-align:center; margin-top:16px; }
+  .contenedor-fecha {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    gap:0.5rem;
+  }
+  .contenedor-fecha label {
+    font-weight:bold;
+    font-size:12px;
+  }
+  .contenedor-fecha .campo {
+    display:flex;
+    gap:0.5rem;
+    align-items:center;
+    justify-content:center;
+  }
+  .btn-negro {
+    background:#000;
+    color:#fff;
+    border:1px solid #000;
+    border-radius:5px;
+    height:28px;
+    padding:0 12px;
+    cursor:pointer;
+  }
+  .btn-negro:hover { filter:brightness(0.92); }
 </style>
 
+<!-- Lightbox -->
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+<script>window.POSICION = '<?=$POSICION?>';</script>
+<script type="text/javascript" src="controlador.js?v=<?=rand();?>"></script>
+
+<div class="FORMULARIONECSS contenedor-fecha">
+  <label for="fecha_tc">Fecha</label>
+  <div class="campo">
+    <input id="fecha_tc" type="text" disabled style="width:17em;height:21px;" placeholder="Ej: 28-02-2024"/>
+    <button type="button" class="btn-negro" onclick="Ajuste.TerminoContrato.open()">Ingresa fecha</button>
+  </div>
+</div>
+
+<?php require_once($POSICION."formFoot.php"); ?>
+```
+
+---
+
+## `controlador.js`
+
+```js
+addLightboxMarkup();
+
+var Ajuste = {
+  ventana: typeof IU,
+  initialize: function(){ this.ventana = new IU(); }
+};
+Ajuste.initialize();
+
+Ajuste.TerminoContrato = {
+  open: function(){
+    Ajuste.ventana.ShowInfoWidget('tc_ejercicio.php', 360, 620, 'OcultarVentana');
+  }
+};
+
+function OcultarVentana(){ Ajuste.ventana.HideInfo(); }
+```
+
+---
+
+## `tc_ejercicio.php`
+
+```php
+<?php
+while (!file_exists($POSICION."conexion.php")) { $POSICION .= "../"; }
+$titulo_formulario = "Termino Contrato";
+require_once($POSICION."conexion.php");
+require_once($POSICION."formHeader.php");
+
+$hoy    = date('d-m-Y');
+$minimo = date('d-m-Y', strtotime('-1 month'));
+$maximo = date('d-m-Y', strtotime('+1 month'));
+?>
+
+<link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
+<style>
+  .tc-box { display:flex; flex-direction:column; align-items:center; padding:1.5rem; }
+  .tc-box h3 { margin-bottom:12px; }
+  .tc-box .acciones { text-align:center; margin-top:16px; }
+  .btn-negro {
+    background:#000;
+    color:#fff;
+    border:1px solid #000;
+    border-radius:5px;
+    height:30px;
+    padding:0 14px;
+    cursor:pointer;
+  }
+  .btn-negro:hover { filter:brightness(0.9); }
+</style>
 
 <div class="FORMULARIONECSS tc-box">
+  <h3>Termino Contrato</h3>
 
+  <div style="margin-bottom:12px;">
+    <?php
+      $label_input             = 'Ingrese Fecha de Término:';
+      $nom_fech                = 'fecha_termino';
+      $nom_fech_disabled       = 'F';
+      $val_fech                = $hoy;
+      $btn_clear_fech          = 'fecha_termino_btn';
+      $btn_clear_fech_disabled = 'F';
+      $classPrincipal          = 'FORMULARIONECSS';
+      $classAdicional          = '';
+      $btn_borrar_in           = true;
+      $fech_style              = 'width:17em;height:21px;';
+      $cnf_to                  = $minimo;
+      $cnf_hasta               = $maximo;
+      include $POSICION."componente/calendario/componente_fechadd.php";
+    ?>
+  </div>
 
-<div class="acciones">
-  <button type="button" class="btn-negro" onclick="guardarFechaTC()">Guardar</button>
+  <div class="acciones">
+    <button type="button" class="btn-negro" onclick="guardarFechaTC()">Guardar</button>
+  </div>
 </div>
+
+<?php require_once($POSICION."formFoot.php"); ?>
+
+<script type="text/javascript" src="<?=$POSICION;?>componente/messagebox/class.php?v=1"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/lightbox-iframe.js?v=<?=rand();?>"></script>
+<script type="text/javascript" src="<?=$POSICION;?>componente/mascara/iu.js?v=<?=rand();?>"></script>
+
+<script>
+(function(){
+  var el = document.getElementById('fecha_termino');
+  if (el) el.setAttribute('readonly', 'readonly');
+})();
+
+var MSGBOX = {
+  ventana: typeof IU_MSGBOX,
+  initialize: function(){ this.ventana = new IU_MSGBOX(); },
+  Abrir: function(conf){
+    this.ventana.titulo    = conf.titulo || 'Aviso';
+    this.ventana.texto     = '<center>' + (conf.texto || '') + '</center>';
+    this.ventana.botonera  = conf.botonera || 1;
+    this.ventana.fnretorno = conf.fnretorno || 'MSGBOX.fnretorno';
+    this.ventana.url       = '<?=$POSICION?>';
+    this.ventana.Messagebox();
+  }
+};
+MSGBOX.initialize();
+
+function guardarFechaTC(){
+  var v = (document.getElementById('fecha_termino')||{}).value || '';
+  if (!v.trim()){
+    MSGBOX.Abrir({ titulo:'Obligatorio', texto:'El campo fecha es obligatorio', botonera:1, fnretorno:'cerrarObligatorioTC' });
+    return;
+  }
+  if (parent && parent.document){
+    var tgt = parent.document.getElementById('fecha_tc');
+    if (tgt) tgt.value = v;
+  }
+  if (parent && parent.Ajuste && parent.Ajuste.ventana) parent.Ajuste.ventana.HideInfo();
+}
+
+function cerrarObligatorioTC(resp){ MSGBOX.ventana.HideInfo(); }
+</script>
+```
