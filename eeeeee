@@ -1,11 +1,8 @@
-<!-- Nuevo estilo estándar Desis -->
-<link type="text/css" rel="stylesheet" href="<?=$POSICION?>css/nuevoestilo.css?v=1.8">
-
-<!-- Estilos propios mínimos para el ejercicio -->
-<style>
-  .ej-tc { max-width:900px; margin:2rem auto; padding:1.5rem; border:1px solid #ccc; border-radius:8px; }
-  .ej-tc .campo { display:flex; gap:0.5rem; align-items:center; }
-  .ej-tc input[disabled] { background:#f3f3f3; color:#333; opacity:1; }
-  .btn-negro { background:#000; color:#fff; border:1px solid #000; border-radius:5px; height:28px; padding:0 12px; cursor:pointer; }
-  .btn-negro:hover { filter:brightness(0.92); }
-</style>
+<div class="FORMULARIONECSS ej-tc">
+  <h3 style="margin-top:0;">Término de Contrato</h3>
+  <label for="fecha_tc" style="display:block;margin-bottom:6px;">Fecha</label>
+  <div class="campo">
+    <input id="fecha_tc" type="text" disabled style="width:17em;height:21px;" placeholder="Ej: 28-02-2024"/>
+    <button type="button" class="btn-negro" onclick="Ajuste.TerminoContrato.open()">Ingresa fecha</button>
+  </div>
+</div>
